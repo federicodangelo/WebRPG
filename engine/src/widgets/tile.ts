@@ -1,5 +1,5 @@
 import { BaseWidget } from "./widget.ts";
-import { DrawContext, Tile } from "../types.ts";
+import { DrawContext, Tile, FONT_SIZE } from "../types.ts";
 
 export class TileWidget extends BaseWidget {
   public tile: Tile;
@@ -7,7 +7,8 @@ export class TileWidget extends BaseWidget {
   constructor(tile: Tile) {
     super();
     this.tile = tile;
-    this.width = this.height = 1;
+    this.width = tile.width;
+    this.height = tile.height;
   }
 
   protected drawSelf(context: DrawContext) {

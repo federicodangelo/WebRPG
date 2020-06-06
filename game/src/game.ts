@@ -1,6 +1,13 @@
 import { CharacterWidget } from "engine/widgets/character.ts";
 import { LabelWidget } from "engine/widgets/label.ts";
-import { FixedColor, Engine, Color, rgb, Intensity } from "engine/types.ts";
+import {
+  FixedColor,
+  Engine,
+  Color,
+  rgb,
+  Intensity,
+  FONT_SIZE,
+} from "engine/types.ts";
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { ScrollableContainerWidget } from "engine/widgets/scrollable.ts";
 import { TileWidget } from "../../engine/src/widgets/tile.ts";
@@ -18,11 +25,11 @@ mainUI.splitLayout = {
   direction: "horizontal",
   fixed: {
     panel: "panel2",
-    amount: 30,
+    amount: 30 * FONT_SIZE,
   },
 };
 
-mainUI.panel2.border = 2;
+mainUI.panel2.border = 2 * FONT_SIZE;
 mainUI.panel2.backColor = FixedColor.BrightBlack;
 
 const playingBox = new ScrollableContainerWidget();
@@ -49,7 +56,7 @@ mainUI.panel2.titleBackColor = rgb(
 mainUI.panel2.borderForeColor = rgb(Intensity.I0, Intensity.I0, Intensity.I60);
 mainUI.panel2.borderBackColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
 mainUI.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
-mainUI.panel2.childrenLayout = { type: "vertical", spacing: 1 };
+mainUI.panel2.childrenLayout = { type: "vertical", spacing: 1 * FONT_SIZE };
 
 new LabelWidget(
   "Move P1: W/S/A/D\nMove P2: I/J/K/L\nQuit: Z",
@@ -86,16 +93,16 @@ const p1 = new CharacterWidget(
   FixedColor.BrightRed,
   FixedColor.Transparent,
 );
-p1.x = 3;
-p1.y = 3;
+p1.x = 3 * FONT_SIZE;
+p1.y = 3 * FONT_SIZE;
 
 const p2 = new CharacterWidget(
   "@",
   FixedColor.BrightBlue,
   FixedColor.Transparent,
 );
-p2.x = 13;
-p2.y = 3;
+p2.x = 13 * FONT_SIZE;
+p2.y = 3 * FONT_SIZE;
 
 const npcs: CharacterWidget[] = [];
 const npcsColors: Color[] = [
@@ -128,17 +135,6 @@ const obtacleColors: Color[] = [
   rgb(Intensity.I0, Intensity.I80, Intensity.I0),
 ];
 
-for (let i = 0; i < OBSTACLES_COUNT; i++) {
-  const obstacle = new CharacterWidget(
-    random(obtacleChars),
-    random(obtacleColors),
-    FixedColor.Black,
-  );
-  obstacle.x = Math.floor(Math.random() * MAP_SIZE);
-  obstacle.y = Math.floor(Math.random() * MAP_SIZE);
-  obstacle.parent = playingBox;
-}
-
 /*for (let i = 0; i < 255; i++) {
   const obstacle = new TileWidget(
     {
@@ -156,13 +152,26 @@ for (let x = 0; x < 128; x++) {
     const obstacle = new TileWidget(
       {
         tilemap: "floor",
-        index: 7 * 21 + 1,
+        index: (7 + 6) * 21 + 1,
+        width: FONT_SIZE,
+        height: FONT_SIZE,
       },
     );
-    obstacle.x = x;
-    obstacle.y = y;
+    obstacle.x = x * FONT_SIZE;
+    obstacle.y = y * FONT_SIZE;
     obstacle.parent = playingBox;
   }
+}
+
+for (let i = 0; i < OBSTACLES_COUNT; i++) {
+  const obstacle = new CharacterWidget(
+    random(obtacleChars),
+    random(obtacleColors),
+    FixedColor.Transparent,
+  );
+  obstacle.x = Math.floor(Math.random() * MAP_SIZE) * FONT_SIZE;
+  obstacle.y = Math.floor(Math.random() * MAP_SIZE) * FONT_SIZE;
+  obstacle.parent = playingBox;
 }
 
 characters.forEach((c) => c.parent = playingBox);
@@ -187,16 +196,16 @@ export function updateGame(engine: Engine): boolean {
     const npc = npcs[i];
     switch (Math.floor(Math.random() * 4)) {
       case 0:
-        npc.x--;
+        npc.x -= FONT_SIZE;
         break;
       case 1:
-        npc.x++;
+        npc.x += FONT_SIZE;
         break;
       case 2:
-        npc.y--;
+        npc.y -= FONT_SIZE;
         break;
       case 3:
-        npc.y++;
+        npc.y += FONT_SIZE;
         break;
     }
   }
@@ -206,29 +215,29 @@ export function updateGame(engine: Engine): boolean {
     uniqueChars.forEach((c) => {
       switch (c) {
         case "a":
-          p1.x--;
+          p1.x -= FONT_SIZE;
           break;
         case "d":
-          p1.x++;
+          p1.x += FONT_SIZE;
           break;
         case "w":
-          p1.y--;
+          p1.y -= FONT_SIZE;
           break;
         case "s":
-          p1.y++;
+          p1.y += FONT_SIZE;
           break;
 
         case "j":
-          p2.x--;
+          p2.x -= FONT_SIZE;
           break;
         case "l":
-          p2.x++;
+          p2.x += FONT_SIZE;
           break;
         case "i":
-          p2.y--;
+          p2.y -= FONT_SIZE;
           break;
         case "k":
-          p2.y++;
+          p2.y += FONT_SIZE;
           break;
 
         case String.fromCharCode(27): //Escape
@@ -255,8 +264,14 @@ export function updateGame(engine: Engine): boolean {
 
   for (let i = 0; i < characters.length; i++) {
     const char = characters[i];
-    char.x = Math.max(Math.min(char.x, MAP_SIZE - char.width), 0);
-    char.y = Math.max(Math.min(char.y, MAP_SIZE - char.height), 0);
+    char.x = Math.max(
+      Math.min(char.x, MAP_SIZE * FONT_SIZE - char.width * FONT_SIZE),
+      0,
+    );
+    char.y = Math.max(
+      Math.min(char.y, MAP_SIZE * FONT_SIZE - char.height * FONT_SIZE),
+      0,
+    );
   }
 
   let newOffsetX = playingBox.offsetX;
@@ -280,8 +295,14 @@ export function updateGame(engine: Engine): boolean {
   }
 
   playingBox.setOffset(
-    Math.max(Math.min(newOffsetX, 0), -(MAP_SIZE - playingBox.width)),
-    Math.max(Math.min(newOffsetY, 0), -(MAP_SIZE - playingBox.height)),
+    Math.trunc(Math.max(
+      Math.min(newOffsetX / FONT_SIZE, 0),
+      -(MAP_SIZE - playingBox.width / FONT_SIZE),
+    )) * FONT_SIZE,
+    Math.trunc(Math.max(
+      Math.min(newOffsetY / FONT_SIZE, 0),
+      -(MAP_SIZE - playingBox.height / FONT_SIZE),
+    )) * FONT_SIZE,
   );
 
   return running;

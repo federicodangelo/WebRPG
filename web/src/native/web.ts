@@ -1,76 +1,40 @@
 import { NativeContext } from "engine/native-types.ts";
-import { Size, SpecialChar, Color, Tile } from "engine/types.ts";
-import { initFonts, FontInfo, DEFAULT_FONT } from "./fonts.ts";
+import { Size, Color, Tile } from "engine/types.ts";
 import { initTilesets, TilesetInfo } from "./tileset.ts";
 
-const SCALE = 2;
+const SCALE = 1;
 
-export const createFullScreenCanvas = (): HTMLCanvasElement => {
+function updateCanvasSize(
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+) {
+  canvas.width = Math.floor(width / SCALE);
+  canvas.height = Math.floor(height / SCALE);
+  if (SCALE !== 1) {
+    canvas.setAttribute(
+      "style",
+      "width: " + canvas.width * SCALE + "px;" +
+        "height: " + canvas.height * SCALE + "px;" +
+        "image-rendering: pixelated;",
+    );
+  }
+}
+
+function createFullScreenCanvas(): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
-  canvas.width = Math.floor(window.innerWidth / SCALE);
-  canvas.height = Math.floor(window.innerHeight / SCALE);
-  canvas.setAttribute(
-    "style",
-    "width: " + canvas.width * SCALE + "px;" +
-      "height: " + canvas.height * SCALE + "px;" +
-      "image-rendering: pixelated;",
-  );
+  updateCanvasSize(canvas, window.innerWidth, window.innerHeight);
   document.body.appendChild(canvas);
   return canvas;
-};
-
-const useCp437 = true;
-
-const AnsiSpecialChar: number[] = [
-  //Block
-  useCp437 ? 219 : "█".charCodeAt(0),
-  useCp437 ? 220 : "▄".charCodeAt(0),
-  useCp437 ? 224 : "▀".charCodeAt(0),
-  useCp437 ? 221 : "▌".charCodeAt(0),
-  useCp437 ? 222 : "▌".charCodeAt(0),
-
-  //Shade
-  useCp437 ? 176 : "░".charCodeAt(0),
-  useCp437 ? 177 : "▒".charCodeAt(0),
-  useCp437 ? 178 : "▓".charCodeAt(0),
-
-  ////Single Line
-  useCp437 ? 179 : "│".charCodeAt(0),
-  useCp437 ? 196 : "─".charCodeAt(0),
-  useCp437 ? 218 : "┌".charCodeAt(0),
-  useCp437 ? 191 : "┐".charCodeAt(0),
-  useCp437 ? 192 : "└".charCodeAt(0),
-  useCp437 ? 217 : "┘".charCodeAt(0),
-  useCp437 ? 180 : "┤".charCodeAt(0),
-  useCp437 ? 195 : "├".charCodeAt(0),
-  useCp437 ? 193 : "┴".charCodeAt(0),
-  useCp437 ? 194 : "┬".charCodeAt(0),
-  useCp437 ? 197 : "┼".charCodeAt(0),
-
-  //Double Line
-  useCp437 ? 186 : "║".charCodeAt(0),
-  useCp437 ? 205 : "═".charCodeAt(0),
-  useCp437 ? 201 : "╔".charCodeAt(0),
-  useCp437 ? 187 : "╗".charCodeAt(0),
-  useCp437 ? 200 : "╚".charCodeAt(0),
-  useCp437 ? 188 : "╝".charCodeAt(0),
-  useCp437 ? 185 : "╣".charCodeAt(0),
-  useCp437 ? 204 : "╠".charCodeAt(0),
-  useCp437 ? 202 : "╩".charCodeAt(0),
-  useCp437 ? 203 : "╦".charCodeAt(0),
-  useCp437 ? 206 : "╬".charCodeAt(0),
-];
+}
 
 export function getWebNativeContext(): NativeContext {
   const canvas = createFullScreenCanvas();
   const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-  const consoleSize = new Size(8, 8);
+  const screenSize = new Size(256, 256);
 
-  let charWidth: number = 8;
-  let charHeight: number = 8;
-  let fonts: Map<string, FontInfo>;
   let tilesets: Map<string, TilesetInfo>;
-  let activeFont: FontInfo;
+
   let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   let imageDataPixels = imageData.data;
   let imageDataPixels32: Uint32Array = new Uint32Array(imageDataPixels.buffer);
@@ -83,15 +47,56 @@ export function getWebNativeContext(): NativeContext {
   let screenSizeChangedListeners: ((size: Size) => void)[] = [];
   let inputListeners: ((intut: string) => void)[] = [];
 
-  const updateConsoleSize = () => {
-    consoleSize.set(
-      Math.trunc(canvas.width / charWidth),
-      Math.trunc(canvas.height / charHeight),
-    );
+  const updateScreenSize = () => {
+    screenSize.set(canvas.width, canvas.height);
   };
 
-  const setChar = (
-    char: number,
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const key = e.key;
+
+    if (key.length === 1) {
+      inputListeners.forEach((l) => l(key));
+    }
+  };
+
+  const handleMouseDown = (e: MouseEvent) => {
+    const dx = (e.clientX < window.innerWidth / 3)
+      ? -1
+      : (e.clientX > window.innerWidth * 2 / 3)
+      ? 1
+      : 0;
+    const dy = (e.clientY < window.innerHeight / 3)
+      ? -1
+      : (e.clientY > window.innerHeight * 2 / 3)
+      ? 1
+      : 0;
+
+    const key = dx === -1
+      ? "a"
+      : dx === 1
+      ? "d"
+      : dy === -1
+      ? "w"
+      : dy === 1
+      ? "s"
+      : "";
+
+    if (key.length === 1) {
+      inputListeners.forEach((l) => l(key));
+    }
+  };
+
+  const handleResize = () => {
+    updateCanvasSize(canvas, window.innerWidth, window.innerHeight);
+    imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    imageDataPixels = imageData.data;
+    imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
+    updateScreenSize();
+    screenSizeChangedListeners.forEach((l) => l(screenSize));
+  };
+
+  const tintTile = (
+    t: Tile,
     foreColor: Color,
     backColor: Color,
     x: number,
@@ -99,26 +104,32 @@ export function getWebNativeContext(): NativeContext {
   ) => {
     dirty = true;
 
+    if (t.index < 0 || t.index > 255) return;
+
     colorsRGB[1] = foreColor;
     colorsRGB[0] = backColor;
 
-    if (char < 0 || char > 255) return;
+    const tileset = tilesets.get(t.tilemap);
 
-    const charPixels = activeFont.pixels[char];
+    if (tileset === undefined) return;
 
-    const fx = x * charWidth;
-    const fy = y * charHeight;
+    const tilePixels = tileset.pixels[t.index];
+    const tileWidth = tileset.dimensions.width;
+    const tileHeight = tileset.dimensions.height;
+
+    const fx = x;
+    const fy = y;
     const backTransparent = (backColor >> 24) == 0;
 
     let p = 0;
     let f = 0;
 
     if (backTransparent) {
-      for (let py = 0; py < charHeight; py++) {
+      for (let py = 0; py < tileHeight; py++) {
         p = (fy + py) * imageData.width + fx;
-        f = py * charWidth;
-        for (let px = 0; px < charWidth; px++) {
-          const cp = charPixels[f++];
+        f = py * tileWidth;
+        for (let px = 0; px < tileWidth; px++) {
+          const cp = tilePixels[f++];
           if (cp == 1) {
             imageDataPixels32[p++] = colorsRGB[cp];
           } else {
@@ -127,38 +138,82 @@ export function getWebNativeContext(): NativeContext {
         }
       }
     } else {
-      for (let py = 0; py < charHeight; py++) {
+      for (let py = 0; py < tileHeight; py++) {
         p = (fy + py) * imageData.width + fx;
-        f = py * charWidth;
-        for (let px = 0; px < charWidth; px++) {
-          imageDataPixels32[p++] = colorsRGB[charPixels[f++]];
+        f = py * tileWidth;
+        for (let px = 0; px < tileWidth; px++) {
+          imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
         }
       }
     }
   };
 
-  const handleKeyboard = (e: KeyboardEvent) => {
-    const key = e.key;
+  const tintTileClip = (
+    t: Tile,
+    foreColor: Color,
+    backColor: Color,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ) => {
+    dirty = true;
 
-    if (key.length === 1) {
-      inputListeners.forEach((l) => l(key));
+    if (t.index < 0 || t.index > 255) return;
+
+    colorsRGB[1] = foreColor;
+    colorsRGB[0] = backColor;
+
+    const tileset = tilesets.get(t.tilemap);
+
+    if (tileset === undefined) return;
+
+    const tilePixels = tileset.pixels[t.index];
+    const tileWidth = tileset.dimensions.width;
+    const tileHeight = tileset.dimensions.height;
+
+    if (w <= 0) w += tileWidth;
+    if (h <= 0) h += tileHeight;
+
+    const fx = x;
+    const fy = y;
+    const backTransparent = (backColor >> 24) == 0;
+
+    let p = 0;
+    let f = 0;
+
+    if (backTransparent) {
+      for (let py = 0; py < tileHeight; py++) {
+        p = (fy + py) * imageData.width + fx;
+        f = py * tileWidth;
+        for (let px = 0; px < tileWidth; px++) {
+          if (px < w && py < h) {
+            const cp = tilePixels[f++];
+            if (cp == 1) {
+              imageDataPixels32[p++] = colorsRGB[cp];
+            } else {
+              p++;
+            }
+          } else {
+            p++;
+            f++;
+          }
+        }
+      }
+    } else {
+      for (let py = 0; py < tileHeight; py++) {
+        p = (fy + py) * imageData.width + fx;
+        f = py * tileWidth;
+        for (let px = 0; px < tileWidth; px++) {
+          if (px < w && py < h) {
+            imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
+          } else {
+            p++;
+            f++;
+          }
+        }
+      }
     }
-  };
-
-  const handleResize = () => {
-    canvas.width = Math.floor(window.innerWidth / SCALE);
-    canvas.height = Math.floor(window.innerHeight / SCALE);
-    canvas.setAttribute(
-      "style",
-      "width: " + canvas.width * SCALE + "px;" +
-        "height: " + canvas.height * SCALE + "px;" +
-        "image-rendering: pixelated;",
-    );
-    imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    imageDataPixels = imageData.data;
-    imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
-    updateConsoleSize();
-    screenSizeChangedListeners.forEach((l) => l(consoleSize));
   };
 
   const setTile = (
@@ -173,57 +228,79 @@ export function getWebNativeContext(): NativeContext {
     if (tileset === undefined) return;
 
     const tilePixels = tileset.pixels[t.index];
+    const tileWidth = tileset.dimensions.width;
+    const tileHeight = tileset.dimensions.height;
 
-    const fx = x * charWidth;
-    const fy = y * charHeight;
+    const fx = x;
+    const fy = y;
 
     let p = 0;
     let f = 0;
 
-    for (let py = 0; py < charHeight; py++) {
+    for (let py = 0; py < tileHeight; py++) {
       p = (fy + py) * imageData.width + fx;
-      f = py * charWidth;
-      for (let px = 0; px < charWidth; px++) {
+      f = py * tileWidth;
+      for (let px = 0; px < tileWidth; px++) {
         imageDataPixels32[p++] = tilePixels[f++];
       }
     }
   };
 
-  window.addEventListener("keydown", handleKeyboard);
+  const setTileClip = (
+    t: Tile,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ) => {
+    dirty = true;
+
+    const tileset = tilesets.get(t.tilemap);
+
+    if (tileset === undefined) return;
+
+    const tilePixels = tileset.pixels[t.index];
+    const tileWidth = tileset.dimensions.width;
+    const tileHeight = tileset.dimensions.height;
+
+    if (w <= 0) w += tileWidth;
+    if (h <= 0) h += tileHeight;
+
+    const fx = x;
+    const fy = y;
+
+    let p = 0;
+    let f = 0;
+
+    for (let py = 0; py < tileHeight; py++) {
+      p = (fy + py) * imageData.width + fx;
+      f = py * tileWidth;
+      for (let px = 0; px < tileWidth; px++) {
+        if (px < w && py < h) {
+          imageDataPixels32[p++] = tilePixels[f++];
+        } else {
+          p++;
+          f++;
+        }
+      }
+    }
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener("mousedown", handleMouseDown);
   window.addEventListener("resize", handleResize);
-  updateConsoleSize();
+  updateScreenSize();
 
   return {
     screen: {
-      getScreenSize: () => consoleSize,
+      getScreenSize: () => screenSize,
       onScreenSizeChanged: (listener) => {
         screenSizeChangedListeners.push(listener);
       },
-      setChar: (
-        char: number,
-        foreColor: Color,
-        backColor: Color,
-        x: number,
-        y: number,
-      ) => {
-        setChar(char, foreColor, backColor, x, y);
-      },
-      setSpecialChar: (
-        char: SpecialChar,
-        foreColor: Color,
-        backColor: Color,
-        x: number,
-        y: number,
-      ) => {
-        setChar(AnsiSpecialChar[char], foreColor, backColor, x, y);
-      },
-      setTile: (
-        t: Tile,
-        x: number,
-        y: number,
-      ) => {
-        setTile(t, x, y);
-      },
+      tintTile,
+      tintTileClip,
+      setTile,
+      setTileClip,
       beginDraw: () => {},
       endDraw: () => {
         if (dirty) {
@@ -238,12 +315,8 @@ export function getWebNativeContext(): NativeContext {
       },
     },
     init: async () => {
-      fonts = await initFonts();
       tilesets = await initTilesets();
-      activeFont = fonts.get(DEFAULT_FONT) as FontInfo;
-      charWidth = activeFont.dimensions.width;
-      charHeight = activeFont.dimensions.height;
-      updateConsoleSize();
+      updateScreenSize();
     },
     destroy: () => {},
   };

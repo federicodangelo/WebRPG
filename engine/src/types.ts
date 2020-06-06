@@ -68,6 +68,9 @@ export const enum Intensity {
   I100 = 255,
 }
 
+export const FONT_SIZE = 16;
+export const FONT_NAME = "font16x16";
+
 export type RGB = number;
 
 export type Color = RGB;
@@ -274,10 +277,13 @@ export class Rect {
 export type Tile = {
   tilemap: string;
   index: number;
+  width: number;
+  height: number;
 };
 
 export interface DrawContext {
   //Text API
+  font(name: string): EngineContext;
   moveCursorTo(x: number, y: number): EngineContext;
 
   textColor(foreColor: Color, backColor: Color): EngineContext;

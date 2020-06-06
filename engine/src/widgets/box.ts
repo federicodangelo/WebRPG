@@ -1,4 +1,10 @@
-import { FixedColor, Color, DrawContext, EngineContext } from "../types.ts";
+import {
+  FixedColor,
+  Color,
+  DrawContext,
+  EngineContext,
+  FONT_SIZE,
+} from "../types.ts";
 import { BaseWidgetContainer } from "./widget-container.ts";
 
 export class BoxContainerWidget extends BaseWidgetContainer {
@@ -13,7 +19,7 @@ export class BoxContainerWidget extends BaseWidgetContainer {
   public border: number = 0;
 
   constructor(
-    border = 1,
+    border = FONT_SIZE,
     borderForeColor = FixedColor.White,
     borderBackColor = FixedColor.Black,
     foreColor = FixedColor.White,
@@ -62,10 +68,10 @@ export class BoxContainerWidget extends BaseWidgetContainer {
   drawSelf(context: DrawContext) {
     if (this.border > 0) {
       context.textColor(this.foreColor, this.backColor).fillChar(
-        1,
-        1,
-        this.width - 2,
-        this.height - 2,
+        FONT_SIZE,
+        FONT_SIZE,
+        this.width - 2 * FONT_SIZE,
+        this.height - 2 * FONT_SIZE,
         this.fillChar,
       );
 
@@ -86,7 +92,10 @@ export class BoxContainerWidget extends BaseWidgetContainer {
     }
 
     if (this.title.length > 0) {
-      context.moveCursorTo(Math.floor((this.width - this.title.length) / 2), 0)
+      context.moveCursorTo(
+        Math.floor((this.width - this.title.length * FONT_SIZE) / 2),
+        0,
+      )
         .textColor(this.titleForeColor, this.titleBackColor)
         .text(this.title);
     }

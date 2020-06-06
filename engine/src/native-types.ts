@@ -6,27 +6,36 @@ export interface NativeContextScreen {
 
   beginDraw(): void;
 
-  //Text API
-  setChar(
-    char: number,
-    foreColor: Color,
-    backColor: Color,
-    x: number,
-    y: number,
-  ): void;
-  setSpecialChar(
-    char: SpecialChar,
+  tintTile(
+    t: Tile,
     foreColor: Color,
     backColor: Color,
     x: number,
     y: number,
   ): void;
 
-  //Tile API
+  tintTileClip(
+    t: Tile,
+    foreColor: Color,
+    backColor: Color,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): void;
+
   setTile(
     t: Tile,
     x: number,
     y: number,
+  ): void;
+
+  setTileClip(
+    t: Tile,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
   ): void;
 
   endDraw(): void;

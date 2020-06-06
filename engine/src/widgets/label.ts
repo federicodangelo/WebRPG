@@ -1,5 +1,5 @@
 import { BaseWidget } from "./widget.ts";
-import { Color, DrawContext } from "../types.ts";
+import { Color, DrawContext, FONT_SIZE } from "../types.ts";
 
 export class LabelWidget extends BaseWidget {
   public foreColor: Color;
@@ -15,8 +15,8 @@ export class LabelWidget extends BaseWidget {
       this.width = this._lines.map((s) => s.length).reduce(
         (max, c) => Math.max(max, c),
         0,
-      );
-      this.height = this._lines.length;
+      ) * FONT_SIZE;
+      this.height = this._lines.length * FONT_SIZE;
       this.invalidate();
     }
   }
@@ -27,7 +27,7 @@ export class LabelWidget extends BaseWidget {
 
   constructor(text: string, foreColor: Color, backColor: Color) {
     super();
-    this.height = 1;
+    this.height = FONT_SIZE;
     this.text = text;
     this.foreColor = foreColor;
     this.backColor = backColor;
@@ -37,7 +37,7 @@ export class LabelWidget extends BaseWidget {
     context.textColor(this.foreColor, this.backColor);
 
     for (let i = 0; i < this._lines.length; i++) {
-      context.moveCursorTo(0, i).text(this._lines[i]);
+      context.moveCursorTo(0, i * FONT_SIZE).text(this._lines[i]);
     }
   }
 }

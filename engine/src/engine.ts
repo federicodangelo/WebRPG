@@ -6,7 +6,7 @@ class EngineImpl implements Engine {
   private children: Widget[] = [];
   private nativeContext: NativeContext;
   private context: EngineContextImpl;
-  private consoleSize = new Size();
+  private screenSize = new Size();
   private invalidRects: Rect[] = [];
 
   constructor(nativeContext: NativeContext) {
@@ -23,17 +23,17 @@ class EngineImpl implements Engine {
       });
       consoleSize = this.nativeContext.screen.getScreenSize();
     }
-    this.consoleSize.set(consoleSize.width, consoleSize.height);
+    this.screenSize.set(consoleSize.width, consoleSize.height);
     this.nativeContext.screen.onScreenSizeChanged(
-      this.onScreenSizeChanged.bind(this)
+      this.onScreenSizeChanged.bind(this),
     );
   }
 
   private onScreenSizeChanged(size: Size): void {
-    if (!size.equals(this.consoleSize)) {
-      this.consoleSize.set(size.width, size.height);
+    if (!size.equals(this.screenSize)) {
+      this.screenSize.set(size.width, size.height);
       this.invalidateRect(
-        new Rect(0, 0, this.consoleSize.width, this.consoleSize.height)
+        new Rect(0, 0, this.screenSize.width, this.screenSize.height),
       );
     }
   }
@@ -44,7 +44,7 @@ class EngineImpl implements Engine {
     var pendingLayout = true;
 
     const clip = new Rect();
-    const consoleSize = this.consoleSize;
+    const consoleSize = this.screenSize;
 
     this.context.beginDraw();
 
@@ -94,8 +94,8 @@ class EngineImpl implements Engine {
   private updateLayout() {
     for (let i = 0; i < this.children.length; i++) {
       this.children[i].updateLayout(
-        this.consoleSize.width,
-        this.consoleSize.height
+        this.screenSize.width,
+        this.screenSize.height,
       );
     }
   }
@@ -105,7 +105,7 @@ class EngineImpl implements Engine {
   public addWidget(widget: Widget): void {
     this.children.push(widget);
     widget.engine = this;
-    widget.updateLayout(this.consoleSize.width, this.consoleSize.height);
+    widget.updateLayout(this.screenSize.width, this.screenSize.height);
     this.invalidateRect(widget.getBoundingBox());
   }
 
@@ -120,10 +120,9 @@ class EngineImpl implements Engine {
   }
 
   public invalidateRect(rect: Rect) {
-    let lastRect =
-      this.invalidRects.length > 0
-        ? this.invalidRects[this.invalidRects.length - 1]
-        : null;
+    let lastRect = this.invalidRects.length > 0
+      ? this.invalidRects[this.invalidRects.length - 1]
+      : null;
 
     if (lastRect !== null && lastRect.intersects(rect)) {
       lastRect.union(rect);
