@@ -11,8 +11,8 @@ export const createFullScreenCanvas = (): HTMLCanvasElement => {
   canvas.height = Math.floor(window.innerHeight / SCALE);
   canvas.setAttribute(
     "style",
-    "width: " + window.innerWidth + "px;" +
-      "height: " + window.innerHeight + "px;" +
+    "width: " + canvas.width * SCALE + "px;" +
+      "height: " + canvas.height * SCALE + "px;" +
       "image-rendering: pixelated;",
   );
   document.body.appendChild(canvas);
@@ -134,8 +134,8 @@ export function getWebNativeContext(): NativeContext {
     canvas.height = Math.floor(window.innerHeight / SCALE);
     canvas.setAttribute(
       "style",
-      "width: " + window.innerWidth + "px;" +
-        "height: " + window.innerHeight + "px;" +
+      "width: " + canvas.width * SCALE + "px;" +
+        "height: " + canvas.height * SCALE + "px;" +
         "image-rendering: pixelated;",
     );
     imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
