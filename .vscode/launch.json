@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug in Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:8080/index.html",
+      "webRoot": "${workspaceFolder}/web/",
+      "sourceMaps": false,
+      "runtimeArgs": ["--disable-web-security"],
+      "preLaunchTask": "${defaultBuildTask}"
+    },
+  ],
+}

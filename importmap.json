@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "engine/": "./engine/src/",
+    "game/": "./game/src/"
+  }
+}
