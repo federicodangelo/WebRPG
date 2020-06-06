@@ -1,11 +1,20 @@
 import { NativeContext } from "engine/native-types.ts";
-import { Size, SpecialChar, Color, FixedColor } from "engine/types.ts";
+import { Size, SpecialChar, Color, Tile } from "engine/types.ts";
 import { initFonts, FontInfo, DEFAULT_FONT } from "./fonts.ts";
+import { initTilesets, TilesetInfo } from "./tileset.ts";
+
+const SCALE = 2;
 
 export const createFullScreenCanvas = (): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.width = Math.floor(window.innerWidth / SCALE);
+  canvas.height = Math.floor(window.innerHeight / SCALE);
+  canvas.setAttribute(
+    "style",
+    "width: " + window.innerWidth + "px;" +
+      "height: " + window.innerHeight + "px;" +
+      "image-rendering: pixelated;",
+  );
   document.body.appendChild(canvas);
   return canvas;
 };
@@ -60,6 +69,7 @@ export function getWebNativeContext(): NativeContext {
   let charWidth: number = 8;
   let charHeight: number = 8;
   let fonts: Map<string, FontInfo>;
+  let tilesets: Map<string, TilesetInfo>;
   let activeFont: FontInfo;
   let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   let imageDataPixels = imageData.data;
@@ -120,13 +130,47 @@ export function getWebNativeContext(): NativeContext {
   };
 
   const handleResize = () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = Math.floor(window.innerWidth / SCALE);
+    canvas.height = Math.floor(window.innerHeight / SCALE);
+    canvas.setAttribute(
+      "style",
+      "width: " + window.innerWidth + "px;" +
+        "height: " + window.innerHeight + "px;" +
+        "image-rendering: pixelated;",
+    );
     imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     imageDataPixels = imageData.data;
     imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
     updateConsoleSize();
     screenSizeChangedListeners.forEach((l) => l(consoleSize));
+  };
+
+  const setTile = (
+    t: Tile,
+    x: number,
+    y: number,
+  ) => {
+    dirty = true;
+
+    const tileset = tilesets.get(t.tilemap);
+
+    if (tileset === undefined) return;
+
+    const tilePixels = tileset.pixels[t.index];
+
+    const fx = x * charWidth;
+    const fy = y * charHeight;
+
+    let p = 0;
+    let f = 0;
+
+    for (let py = 0; py < charHeight; py++) {
+      p = (fy + py) * imageData.width + fx;
+      f = py * charWidth;
+      for (let px = 0; px < charWidth; px++) {
+        imageDataPixels32[p++] = tilePixels[f++];
+      }
+    }
   };
 
   window.addEventListener("keydown", handleKeyboard);
@@ -157,6 +201,13 @@ export function getWebNativeContext(): NativeContext {
       ) => {
         setChar(AnsiSpecialChar[char], foreColor, backColor, x, y);
       },
+      setTile: (
+        t: Tile,
+        x: number,
+        y: number,
+      ) => {
+        setTile(t, x, y);
+      },
       beginDraw: () => {},
       endDraw: () => {
         if (dirty) {
@@ -172,6 +223,7 @@ export function getWebNativeContext(): NativeContext {
     },
     init: async () => {
       fonts = await initFonts();
+      tilesets = await initTilesets();
       activeFont = fonts.get(DEFAULT_FONT) as FontInfo;
       charWidth = activeFont.dimensions.width;
       charHeight = activeFont.dimensions.height;

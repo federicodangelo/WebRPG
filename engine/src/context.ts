@@ -5,6 +5,7 @@ import {
   Point,
   EngineContext,
   FixedColor,
+  Tile,
 } from "./types.ts";
 import { NativeContextScreen } from "./native-types.ts";
 
@@ -240,6 +241,57 @@ export class EngineContextImpl implements EngineContext {
           code,
           this.foreColor,
           this.backColor,
+          screenX,
+          screenY,
+        );
+      }
+    }
+    return this;
+  }
+
+  public tile(x: number, y: number, t: Tile): EngineContext {
+    const screenX = this.x + this.tx;
+    const screenY = this.y + this.ty;
+    if (
+      screenX >= this.clip.x &&
+      screenX < this.clip.x1 &&
+      screenY >= this.clip.y &&
+      screenY < this.clip.y1
+    ) {
+      this.nativeContext.setTile(
+        t,
+        screenX,
+        screenY,
+      );
+    }
+    this.x++;
+    return this;
+  }
+
+  fillTile(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    t: Tile,
+  ): EngineContext {
+    const clip = this.clip;
+    const tx = this.tx;
+    const ty = this.ty;
+
+    const x0 = Math.max(tx + x, clip.x);
+    const y0 = Math.max(ty + y, clip.y);
+    const x1 = Math.min(tx + x + width, clip.x1);
+    const y1 = Math.min(ty + y + height, clip.y1);
+
+    if (x1 <= x0 || y1 <= y0) {
+      return this;
+    }
+
+    for (let screenY = y0; screenY < y1; screenY++) {
+      for (let screenX = x0; screenX < x1; screenX++) {
+        this.nativeContext.setTile(
+          t,
           screenX,
           screenY,
         );

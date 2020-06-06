@@ -266,6 +266,11 @@ export class Rect {
   }
 }
 
+export type Tile = {
+  tilemap: string;
+  index: number;
+};
+
 export interface DrawContext {
   //Text API
   moveCursorTo(x: number, y: number): EngineContext;
@@ -294,6 +299,17 @@ export interface DrawContext {
     width: number,
     height: number,
     char: string,
+  ): EngineContext;
+
+  //Tile API
+  tile(x: number, y: number, t: Tile): EngineContext;
+
+  fillTile(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    t: Tile,
   ): EngineContext;
 }
 

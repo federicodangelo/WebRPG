@@ -1,10 +1,12 @@
-import { Color, SpecialChar, Size } from "./types.ts";
+import { Color, SpecialChar, Size, Tile } from "./types.ts";
 
 export interface NativeContextScreen {
   getScreenSize(): Size | null;
   onScreenSizeChanged(listener: (size: Size) => void): void;
 
   beginDraw(): void;
+
+  //Text API
   setChar(
     char: number,
     foreColor: Color,
@@ -19,6 +21,14 @@ export interface NativeContextScreen {
     x: number,
     y: number,
   ): void;
+
+  //Tile API
+  setTile(
+    t: Tile,
+    x: number,
+    y: number,
+  ): void;
+
   endDraw(): void;
 }
 

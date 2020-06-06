@@ -3,6 +3,7 @@ import { LabelWidget } from "engine/widgets/label.ts";
 import { FixedColor, Engine, Color, rgb, Intensity } from "engine/types.ts";
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { ScrollableContainerWidget } from "engine/widgets/scrollable.ts";
+import { TileWidget } from "../../engine/src/widgets/tile.ts";
 
 const NPCS_COUNT = 2;
 const MAP_SIZE = 512;
@@ -136,6 +137,32 @@ for (let i = 0; i < OBSTACLES_COUNT; i++) {
   obstacle.x = Math.floor(Math.random() * MAP_SIZE);
   obstacle.y = Math.floor(Math.random() * MAP_SIZE);
   obstacle.parent = playingBox;
+}
+
+/*for (let i = 0; i < 255; i++) {
+  const obstacle = new TileWidget(
+    {
+      tilemap: "floor",
+      index: i,
+    },
+  );
+  obstacle.x = i % 21;
+  obstacle.y = Math.floor(i / 21);
+  obstacle.parent = playingBox;
+}*/
+
+for (let x = 0; x < 128; x++) {
+  for (let y = 0; y < 128; y++) {
+    const obstacle = new TileWidget(
+      {
+        tilemap: "floor",
+        index: 7 * 21 + 1,
+      },
+    );
+    obstacle.x = x;
+    obstacle.y = y;
+    obstacle.parent = playingBox;
+  }
 }
 
 characters.forEach((c) => c.parent = playingBox);
