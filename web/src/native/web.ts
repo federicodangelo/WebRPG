@@ -99,8 +99,8 @@ export function getWebNativeContext(): NativeContext {
   ) => {
     dirty = true;
 
-    colorsRGB[0] = backColor;
     colorsRGB[1] = foreColor;
+    colorsRGB[0] = backColor;
 
     if (char < 0 || char > 255) return;
 
@@ -108,15 +108,31 @@ export function getWebNativeContext(): NativeContext {
 
     const fx = x * charWidth;
     const fy = y * charHeight;
+    const backTransparent = (backColor >> 24) == 0;
 
     let p = 0;
     let f = 0;
 
-    for (let py = 0; py < charHeight; py++) {
-      p = (fy + py) * imageData.width + fx;
-      f = py * charWidth;
-      for (let px = 0; px < charWidth; px++) {
-        imageDataPixels32[p++] = colorsRGB[charPixels[f++]];
+    if (backTransparent) {
+      for (let py = 0; py < charHeight; py++) {
+        p = (fy + py) * imageData.width + fx;
+        f = py * charWidth;
+        for (let px = 0; px < charWidth; px++) {
+          const cp = charPixels[f++];
+          if (cp == 1) {
+            imageDataPixels32[p++] = colorsRGB[cp];
+          } else {
+            p++;
+          }
+        }
+      }
+    } else {
+      for (let py = 0; py < charHeight; py++) {
+        p = (fy + py) * imageData.width + fx;
+        f = py * charWidth;
+        for (let px = 0; px < charWidth; px++) {
+          imageDataPixels32[p++] = colorsRGB[charPixels[f++]];
+        }
       }
     }
   };

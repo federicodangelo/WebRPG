@@ -112,18 +112,23 @@ System.register("engine/src/types", [], function (exports_1, context_1) {
   var FixedColor, Point, Size, Rect;
   var __moduleName = context_1 && context_1.id;
   function rgb(r, g, b) {
-    return ((255 << 24) | // alpha
+    return rgba(r, g, b, 255);
+  }
+  exports_1("rgb", rgb);
+  function rgba(r, g, b, a) {
+    return ((a << 24) | // alpha
       (b << 16) | // blue
       (g << 8) | // green
       r);
   }
-  exports_1("rgb", rgb);
+  exports_1("rgba", rgba);
   return {
     setters: [],
     execute: function () {
       FixedColor = /** @class */ (() => {
         class FixedColor {
         }
+        FixedColor.Transparent = rgba(0, 0, 0, 0);
         FixedColor.Black = rgb(12, 12, 12);
         FixedColor.Red = rgb(197, 15, 31);
         FixedColor.Green = rgb(19, 161, 14);
@@ -1560,14 +1565,14 @@ System.register(
         p1 = new character_ts_1.CharacterWidget(
           "@",
           types_ts_6.FixedColor.BrightRed,
-          types_ts_6.FixedColor.Black,
+          types_ts_6.FixedColor.Transparent,
         );
         p1.x = 3;
         p1.y = 3;
         p2 = new character_ts_1.CharacterWidget(
           "@",
           types_ts_6.FixedColor.BrightBlue,
-          types_ts_6.FixedColor.Black,
+          types_ts_6.FixedColor.Transparent,
         );
         p2.x = 13;
         p2.y = 3;
@@ -1582,7 +1587,7 @@ System.register(
             new character_ts_1.CharacterWidget(
               "@",
               npcsColors[i % npcsColors.length],
-              types_ts_6.FixedColor.Black,
+              types_ts_6.FixedColor.Transparent,
             ),
           );
         }
@@ -1809,21 +1814,37 @@ System.register(
       };
       const setChar = (char, foreColor, backColor, x, y) => {
         dirty = true;
-        colorsRGB[0] = backColor;
         colorsRGB[1] = foreColor;
+        colorsRGB[0] = backColor;
         if (char < 0 || char > 255) {
           return;
         }
         const charPixels = activeFont.pixels[char];
         const fx = x * charWidth;
         const fy = y * charHeight;
+        const backTransparent = (backColor >> 24) == 0;
         let p = 0;
         let f = 0;
-        for (let py = 0; py < charHeight; py++) {
-          p = (fy + py) * imageData.width + fx;
-          f = py * charWidth;
-          for (let px = 0; px < charWidth; px++) {
-            imageDataPixels32[p++] = colorsRGB[charPixels[f++]];
+        if (backTransparent) {
+          for (let py = 0; py < charHeight; py++) {
+            p = (fy + py) * imageData.width + fx;
+            f = py * charWidth;
+            for (let px = 0; px < charWidth; px++) {
+              const cp = charPixels[f++];
+              if (cp == 1) {
+                imageDataPixels32[p++] = colorsRGB[cp];
+              } else {
+                p++;
+              }
+            }
+          }
+        } else {
+          for (let py = 0; py < charHeight; py++) {
+            p = (fy + py) * imageData.width + fx;
+            f = py * charWidth;
+            for (let px = 0; px < charWidth; px++) {
+              imageDataPixels32[p++] = colorsRGB[charPixels[f++]];
+            }
           }
         }
       };

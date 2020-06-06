@@ -39,6 +39,7 @@ export const enum SpecialChar {
 }
 
 export class FixedColor {
+  static Transparent = rgba(0, 0, 0, 0);
   static Black = rgb(12, 12, 12);
   static Red = rgb(197, 15, 31);
   static Green = rgb(19, 161, 14);
@@ -72,8 +73,12 @@ export type RGB = number;
 export type Color = RGB;
 
 export function rgb(r: number, g: number, b: number): RGB {
+  return rgba(r, g, b, 255);
+}
+
+export function rgba(r: number, g: number, b: number, a: number): RGB {
   return (
-    (255 << 24) | // alpha
+    (a << 24) | // alpha
     (b << 16) | // blue
     (g << 8) | // green
     r

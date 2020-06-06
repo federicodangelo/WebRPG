@@ -84,7 +84,7 @@ function random<T>(arr: T[]): T {
 const p1 = new CharacterWidget(
   "@",
   FixedColor.BrightRed,
-  FixedColor.Black,
+  FixedColor.Transparent,
 );
 p1.x = 3;
 p1.y = 3;
@@ -92,7 +92,7 @@ p1.y = 3;
 const p2 = new CharacterWidget(
   "@",
   FixedColor.BrightBlue,
-  FixedColor.Black,
+  FixedColor.Transparent,
 );
 p2.x = 13;
 p2.y = 3;
@@ -109,7 +109,7 @@ for (let i = 0; i < NPCS_COUNT; i++) {
     new CharacterWidget(
       "@",
       npcsColors[i % npcsColors.length],
-      FixedColor.Black,
+      FixedColor.Transparent,
     ),
   );
 }
