@@ -109,15 +109,40 @@ let System, __instantiateAsync, __instantiate;
 
 System.register("engine/src/types", [], function (exports_1, context_1) {
   "use strict";
-  var Point, Size, Rect;
+  var FixedColor, Point, Size, Rect;
   var __moduleName = context_1 && context_1.id;
   function rgb(r, g, b) {
-    return 16 + 36 * r + 6 * g + b;
+    return ((255 << 24) | // alpha
+      (b << 16) | // blue
+      (g << 8) | // green
+      r);
   }
   exports_1("rgb", rgb);
   return {
     setters: [],
     execute: function () {
+      FixedColor = /** @class */ (() => {
+        class FixedColor {
+        }
+        FixedColor.Black = rgb(12, 12, 12);
+        FixedColor.Red = rgb(197, 15, 31);
+        FixedColor.Green = rgb(19, 161, 14);
+        FixedColor.Yellow = rgb(193, 156, 0);
+        FixedColor.Blue = rgb(0, 55, 218);
+        FixedColor.Magenta = rgb(136, 23, 152);
+        FixedColor.Cyan = rgb(58, 150, 221);
+        FixedColor.White = rgb(204, 204, 204);
+        FixedColor.BrightBlack = rgb(118, 118, 118);
+        FixedColor.BrightRed = rgb(231, 72, 86);
+        FixedColor.BrightGreen = rgb(22, 198, 12);
+        FixedColor.BrightYellow = rgb(249, 241, 165);
+        FixedColor.BrightBlue = rgb(59, 120, 255);
+        FixedColor.BrightMagenta = rgb(180, 0, 158);
+        FixedColor.BrightCyan = rgb(97, 214, 214);
+        FixedColor.BrightWhite = rgb(242, 242, 242);
+        return FixedColor;
+      })();
+      exports_1("FixedColor", FixedColor);
       Point = class Point {
         constructor(x = 0, y = 0) {
           this.x = x;
@@ -257,8 +282,8 @@ System.register(
             this.ty = 0;
             this.x = 0;
             this.y = 0;
-            this.foreColor = 7 /* White */;
-            this.backColor = 0 /* Black */;
+            this.foreColor = types_ts_1.FixedColor.White;
+            this.backColor = types_ts_1.FixedColor.Black;
             this.transformsStack = [];
             this.clipStack = [];
             this.nativeContext = nativeContext;
@@ -323,14 +348,14 @@ System.register(
             this.y = y;
             return this;
           }
-          color(foreColor, backColor) {
+          textColor(foreColor, backColor) {
             this.foreColor = foreColor;
             this.backColor = backColor;
             return this;
           }
-          resetColor() {
-            this.foreColor = 7 /* White */;
-            this.backColor = 0 /* Black */;
+          resetTextColor() {
+            this.foreColor = types_ts_1.FixedColor.White;
+            this.backColor = types_ts_1.FixedColor.Black;
             return this;
           }
           text(str) {
@@ -391,7 +416,7 @@ System.register(
             }
             return this;
           }
-          border(x, y, width, height) {
+          textBorder(x, y, width, height) {
             const clip = this.clip;
             const tx = this.tx;
             const ty = this.ty;
@@ -421,7 +446,7 @@ System.register(
             this.specialChar(13 /* CornerBottomRight */);
             return this;
           }
-          fill(x, y, width, height, char) {
+          fillChar(x, y, width, height, char) {
             if (char.length === 0) {
               return this;
             }
@@ -811,7 +836,7 @@ System.register(
             return this._text;
           }
           drawSelf(context) {
-            context.color(this.foreColor, this.backColor);
+            context.textColor(this.foreColor, this.backColor);
             for (let i = 0; i < this._lines.length; i++) {
               context.moveCursorTo(0, i).text(this._lines[i]);
             }
@@ -845,7 +870,7 @@ System.register(
             this.backColor = backColor;
           }
           drawSelf(context) {
-            context.color(this.foreColor, this.backColor).text(this.char);
+            context.textColor(this.foreColor, this.backColor).text(this.char);
           }
         };
         exports_7("CharacterWidget", CharacterWidget);
@@ -969,13 +994,16 @@ System.register(
 );
 System.register(
   "engine/src/widgets/box",
-  ["engine/src/widgets/widget-container"],
+  ["engine/src/types", "engine/src/widgets/widget-container"],
   function (exports_9, context_9) {
     "use strict";
-    var widget_container_ts_1, BoxContainerWidget;
+    var types_ts_4, widget_container_ts_1, BoxContainerWidget;
     var __moduleName = context_9 && context_9.id;
     return {
       setters: [
+        function (types_ts_4_1) {
+          types_ts_4 = types_ts_4_1;
+        },
         function (widget_container_ts_1_1) {
           widget_container_ts_1 = widget_container_ts_1_1;
         },
@@ -985,16 +1013,16 @@ System.register(
           extends widget_container_ts_1.BaseWidgetContainer {
           constructor(
             border = 1,
-            borderForeColor = 7, /* White */
-            borderBackColor = 0, /* Black */
-            foreColor = 7, /* White */
-            backColor = 0, /* Black */
+            borderForeColor = types_ts_4.FixedColor.White,
+            borderBackColor = types_ts_4.FixedColor.Black,
+            foreColor = types_ts_4.FixedColor.White,
+            backColor = types_ts_4.FixedColor.Black,
             fillChar = " ",
           ) {
             super();
             this.title = "";
-            this.titleForeColor = 7 /* White */;
-            this.titleBackColor = 0 /* Black */;
+            this.titleForeColor = types_ts_4.FixedColor.White;
+            this.titleBackColor = types_ts_4.FixedColor.Black;
             this.border = 0;
             this.border = border;
             this.borderForeColor = borderForeColor;
@@ -1029,21 +1057,17 @@ System.register(
           }
           drawSelf(context) {
             if (this.border > 0) {
-              context.color(this.foreColor, this.backColor).fill(
+              context.textColor(this.foreColor, this.backColor).fillChar(
                 1,
                 1,
                 this.width - 2,
                 this.height - 2,
                 this.fillChar,
               );
-              context.color(this.borderForeColor, this.borderBackColor).border(
-                0,
-                0,
-                this.width,
-                this.height,
-              );
+              context.textColor(this.borderForeColor, this.borderBackColor)
+                .textBorder(0, 0, this.width, this.height);
             } else {
-              context.color(this.foreColor, this.backColor).fill(
+              context.textColor(this.foreColor, this.backColor).fillChar(
                 0,
                 0,
                 this.width,
@@ -1056,7 +1080,7 @@ System.register(
                 Math.floor((this.width - this.title.length) / 2),
                 0,
               )
-                .color(this.titleForeColor, this.titleBackColor)
+                .textColor(this.titleForeColor, this.titleBackColor)
                 .text(this.title);
             }
           }
@@ -1159,13 +1183,16 @@ System.register(
 );
 System.register(
   "engine/src/widgets/scrollable",
-  ["engine/src/widgets/widget-container"],
+  ["engine/src/types", "engine/src/widgets/widget-container"],
   function (exports_11, context_11) {
     "use strict";
-    var widget_container_ts_3, ScrollableContainerWidget;
+    var types_ts_5, widget_container_ts_3, ScrollableContainerWidget;
     var __moduleName = context_11 && context_11.id;
     return {
       setters: [
+        function (types_ts_5_1) {
+          types_ts_5 = types_ts_5_1;
+        },
         function (widget_container_ts_3_1) {
           widget_container_ts_3 = widget_container_ts_3_1;
         },
@@ -1174,8 +1201,8 @@ System.register(
         ScrollableContainerWidget = class ScrollableContainerWidget
           extends widget_container_ts_3.BaseWidgetContainer {
           constructor(
-            foreColor = 7, /* White */
-            backColor = 0, /* Black */
+            foreColor = types_ts_5.FixedColor.White,
+            backColor = types_ts_5.FixedColor.Black,
             fillChar = " ",
           ) {
             super();
@@ -1211,7 +1238,7 @@ System.register(
             context.popTransform();
           }
           drawSelf(context) {
-            context.color(this.foreColor, this.backColor).fill(
+            context.textColor(this.foreColor, this.backColor).fillChar(
               0,
               0,
               this.width,
@@ -1238,7 +1265,7 @@ System.register(
     "use strict";
     var character_ts_1,
       label_ts_1,
-      types_ts_4,
+      types_ts_6,
       split_panel_ts_1,
       scrollable_ts_1,
       NPCS_COUNT,
@@ -1375,8 +1402,8 @@ System.register(
         function (label_ts_1_1) {
           label_ts_1 = label_ts_1_1;
         },
-        function (types_ts_4_1) {
-          types_ts_4 = types_ts_4_1;
+        function (types_ts_6_1) {
+          types_ts_6 = types_ts_6_1;
         },
         function (split_panel_ts_1_1) {
           split_panel_ts_1 = split_panel_ts_1_1;
@@ -1405,91 +1432,91 @@ System.register(
           },
         };
         mainUI.panel2.border = 2;
-        mainUI.panel2.backColor = 8 /* BrightBlack */;
+        mainUI.panel2.backColor = types_ts_6.FixedColor.BrightBlack;
         playingBox = new scrollable_ts_1.ScrollableContainerWidget();
         playingBox.setLayout({ heightPercent: 100, widthPercent: 100 });
         playingBox.setChildrenLayout({ type: "none" });
         playingBox.parent = mainUI.panel1;
         mainUI.panel1.title = " Map ";
-        mainUI.panel1.titleForeColor = 15 /* BrightWhite */;
-        mainUI.panel1.titleBackColor = types_ts_4.rgb(
-          1, /* I20 */
+        mainUI.panel1.titleForeColor = types_ts_6.FixedColor.BrightWhite;
+        mainUI.panel1.titleBackColor = types_ts_6.rgb(
+          51, /* I20 */
           0, /* I0 */
-          1, /* I20 */
+          51, /* I20 */
         );
-        mainUI.panel1.borderForeColor = types_ts_4.rgb(
-          3, /* I60 */
+        mainUI.panel1.borderForeColor = types_ts_6.rgb(
+          153, /* I60 */
           0, /* I0 */
-          3, /* I60 */
+          153, /* I60 */
         );
-        mainUI.panel1.borderBackColor = types_ts_4.rgb(
-          1, /* I20 */
+        mainUI.panel1.borderBackColor = types_ts_6.rgb(
+          51, /* I20 */
           0, /* I0 */
-          1, /* I20 */
+          51, /* I20 */
         );
-        mainUI.panel1.backColor = 0 /* Black */;
+        mainUI.panel1.backColor = types_ts_6.FixedColor.Black;
         mainUI.panel1.fillChar = "";
         mainUI.panel2.title = " Stats ";
-        mainUI.panel2.titleForeColor = 15 /* BrightWhite */;
-        mainUI.panel2.titleBackColor = types_ts_4.rgb(
+        mainUI.panel2.titleForeColor = types_ts_6.FixedColor.BrightWhite;
+        mainUI.panel2.titleBackColor = types_ts_6.rgb(
           0, /* I0 */
-          1, /* I20 */
-          2, /* I40 */
+          51, /* I20 */
+          102, /* I40 */
         );
-        mainUI.panel2.borderForeColor = types_ts_4.rgb(
+        mainUI.panel2.borderForeColor = types_ts_6.rgb(
           0, /* I0 */
           0, /* I0 */
-          3, /* I60 */
+          153, /* I60 */
         );
-        mainUI.panel2.borderBackColor = types_ts_4.rgb(
+        mainUI.panel2.borderBackColor = types_ts_6.rgb(
           0, /* I0 */
-          1, /* I20 */
-          2, /* I40 */
+          51, /* I20 */
+          102, /* I40 */
         );
-        mainUI.panel2.backColor = types_ts_4.rgb(
+        mainUI.panel2.backColor = types_ts_6.rgb(
           0, /* I0 */
-          1, /* I20 */
-          2, /* I40 */
+          51, /* I20 */
+          102, /* I40 */
         );
         mainUI.panel2.childrenLayout = { type: "vertical", spacing: 1 };
         new label_ts_1.LabelWidget(
           "Move P1: W/S/A/D\nMove P2: I/J/K/L\nQuit: Z",
-          7, /* White */
+          types_ts_6.FixedColor.White,
           mainUI.panel2.backColor,
         ).parent = mainUI.panel2;
         cameraModeLabel = new label_ts_1.LabelWidget(
           "",
-          7, /* White */
+          types_ts_6.FixedColor.White,
           mainUI.panel2.backColor,
         );
         cameraModeLabel.parent = mainUI.panel2;
         cameraMode = 0 /* FollowContinuous */;
         p1 = new character_ts_1.CharacterWidget(
           "@",
-          9, /* BrightRed */
-          0, /* Black */
+          types_ts_6.FixedColor.BrightRed,
+          types_ts_6.FixedColor.Black,
         );
         p1.x = 3;
         p1.y = 3;
         p2 = new character_ts_1.CharacterWidget(
           "@",
-          12, /* BrightBlue */
-          0, /* Black */
+          types_ts_6.FixedColor.BrightBlue,
+          types_ts_6.FixedColor.Black,
         );
         p2.x = 13;
         p2.y = 3;
         npcs = [];
         npcsColors = [
-          2, /* Green */
-          3, /* Yellow */
-          6, /* Cyan */
+          types_ts_6.FixedColor.Green,
+          types_ts_6.FixedColor.Yellow,
+          types_ts_6.FixedColor.Cyan,
         ];
         for (let i = 0; i < NPCS_COUNT; i++) {
           npcs.push(
             new character_ts_1.CharacterWidget(
               "@",
               npcsColors[i % npcsColors.length],
-              0, /* Black */
+              types_ts_6.FixedColor.Black,
             ),
           );
         }
@@ -1500,16 +1527,16 @@ System.register(
         ];
         obtacleChars = ["."];
         obtacleColors = [
-          types_ts_4.rgb(0, /* I0 */ 1, /* I20 */ 0 /* I0 */),
-          types_ts_4.rgb(0, /* I0 */ 2, /* I40 */ 0 /* I0 */),
-          types_ts_4.rgb(0, /* I0 */ 3, /* I60 */ 0 /* I0 */),
-          types_ts_4.rgb(0, /* I0 */ 4, /* I80 */ 0 /* I0 */),
+          types_ts_6.rgb(0, /* I0 */ 51, /* I20 */ 0 /* I0 */),
+          types_ts_6.rgb(0, /* I0 */ 102, /* I40 */ 0 /* I0 */),
+          types_ts_6.rgb(0, /* I0 */ 153, /* I60 */ 0 /* I0 */),
+          types_ts_6.rgb(0, /* I0 */ 204, /* I80 */ 0 /* I0 */),
         ];
         for (let i = 0; i < OBSTACLES_COUNT; i++) {
           const obstacle = new character_ts_1.CharacterWidget(
             random(obtacleChars),
             random(obtacleColors),
-            0, /* Black */
+            types_ts_6.FixedColor.Black,
           );
           obstacle.x = Math.floor(Math.random() * MAP_SIZE);
           obstacle.y = Math.floor(Math.random() * MAP_SIZE);
@@ -1576,7 +1603,7 @@ System.register("web/src/native/fonts", [], function (exports_13, context_13) {
   return {
     setters: [],
     execute: function () {
-      exports_13("DEFAULT_FONT", DEFAULT_FONT = "font9x14");
+      exports_13("DEFAULT_FONT", DEFAULT_FONT = "font16x16");
       fonts = new Map([
         [
           "font16x16",
@@ -1584,22 +1611,6 @@ System.register("web/src/native/fonts", [], function (exports_13, context_13) {
             data:
               "data:image/png;base64,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",
             dimensions: { width: 16, height: 16 },
-          },
-        ],
-        [
-          "font8x8",
-          {
-            data:
-              "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACAAQAAAADrRVxmAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAAmJLR0QAAd2KE6QAAAT4SURBVEjHjVVBixRHFH60HanD4D6GBuswZGo7jUyCSLuKFFrprXmpbGaWIQmL5hTMMhvMxcPiwQyhUrsRDwZyEMGDPyCX/AdB0EMOOefixZPewhwW9bD05FXP7K5iAr6p7h6++uq9V6/eewUQwnXUCDOYLZnVVQnwy6zWngHz+BgtLz8F+P1p7bWWL649+IBWV03DqGtvHtPDn0ktvwB4+Nj7uo7AbaM+YuDBC63/9nHJbbn5Q7MEWaLS2+HZc1YaAoDW0exEPnokYTeRxU4FkklzeXbCFPe2wGiUJRRYw+sqFPc0BI+tTXtN11DXsrjhQF6+XNd25j0zZNF2IaCPjFqzjgBtHQxqWYaiRrZiivZf4cgKAO94wm4cChaFhBJRHQC6KKrxABW6uCiJQLDfl8oKHYGUl0BhxDdgRe0hgIhASPAOLBiNrcKfugNRB0JUzUvk2s3FX7TwpjSWDRojQicYDp4ANEAlkbSKiGIgBcHa10nS8zaNgAppAuvY6gwSL0wFYCFJYQPLpE4IKYlKUwFjJBLMp5R1BHbU+GA6hm1pRLYi3nEDjPSdSQgd0ifG21tjCVTkOY+cMC3UlY0CrlJu817PMtBTw3WCDTI219oGTEvVXyO4GhrGl4Sup/pEYCnqUKzDFXmfCjAUrWx/SFpvhT5JeEe88WaH+iw7k90JhzSnnIYMsCfWil4DWMFAlqVWCceuE4eQ+kMhhEVxi3e03ksE5cNMoBVxr8oUHI9smItlm0Zg+9gNjoe40O/sTJLJu17M+LQ24Ti0YBOTzbLJFw5UAu0YLtWctDDKJAY/PV0eL/Dmt3x+yRm6SJpWMOnhcEwA1Vm7FpByTEoccjyAztKaxSpH6s2B1TPmktHJWNMpPSRzGAXe1RupOv+0sFx5C+CzHAm4fuF65Tkejnw83AxWRisWOR49EnEPOQO5YS+GGFNKQB9On1dJey0b9io1B1S67VsXxQWXeLYCO7B94siTeX5Ay1CJHOyy8CWfHDmgOBFft0BKTkWjWQyLLGXBM45SFsupLFDw5owLcdaGEBgIBC1nHYuxfLLMCJBUpmI5zqyO7nCAFlHoHMaiBV0JSipgpdK9jhNFQVgguySK3qgN/pybUwuqlOcUUq0d1kdR7DY6D3rV0UKs8l8xw82BipdQrH9/6YvoqUmkER4/v3tovqlSeL4JrVYKK+dNLHyi+ZxIRyMXbT95gu0BaBmpLnaTwTo7yYXJ6T+utArh5UsctIGzlmiDi9gmH3/C/QhcBNaDJ5t89l3UUXHR0lpj9rdbR72skW4S3/mVp3yoGUCW8WDKnT9+fBtoGNMMpnvZ/l42jYx/GgamWZoeMKbTvX1m7O3vT6cHOjIeWZNuCytHwELHERD7HUQEmt//At3sZPfV7OTs1eyQEZt0s7fubBbHyS5PNwxoONgoiK/3AOLA+MSrbro0+w+AR7fLn7cY+AZjxk6wzGbT+CxFI1l84ibeG2AJsX6k7EDS4gM0YZXAneNzVuMUCc4SXVaVG2nu9/eNIlj3NpMDJ1wg8+u6YTLZTA1+Eo4Kur+xYNCArxtO+bGJOqzNQsnFI68ZsC2KFwLL7rxsdxdNooV80wEsTWIjCyiwjXJlwAnrBk2Jp6qNMGoAvoAaBl8bUHICO2XmOjg4K1zlwk3MfGN4V4748+e8U3m+je827bx31LY2Dy5egH8BP/2Mtt7WOCkAAAAASUVORK5CYII=",
-            dimensions: { width: 8, height: 8 },
-          },
-        ],
-        [
-          "font9x14",
-          {
-            data:
-              "data:image/png;base64,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",
-            dimensions: { width: 9, height: 14 },
           },
         ],
       ]);
@@ -1611,69 +1622,16 @@ System.register(
   ["engine/src/types", "web/src/native/fonts"],
   function (exports_14, context_14) {
     "use strict";
-    var types_ts_5,
+    var types_ts_7,
       fonts_ts_1,
       createFullScreenCanvas,
       useCp437,
       AnsiSpecialChar;
     var __moduleName = context_14 && context_14.id;
-    function rgb(r, g, b) {
-      return ((255 << 24) | // alpha
-        (b << 16) | // blue
-        (g << 8) | // green
-        r);
-    }
-    function colorToRGB(color) {
-      if (color <= 16) {
-        switch (color) {
-          case 0 /* Black */:
-            return rgb(12, 12, 12);
-          case 1 /* Red */:
-            return rgb(197, 15, 31);
-          case 2 /* Green */:
-            return rgb(19, 161, 14);
-          case 3 /* Yellow */:
-            return rgb(193, 156, 0);
-          case 4 /* Blue */:
-            return rgb(0, 55, 218);
-          case 5 /* Magenta */:
-            return rgb(136, 23, 152);
-          case 6 /* Cyan */:
-            return rgb(58, 150, 221);
-          case 7 /* White */:
-            return rgb(204, 204, 204);
-          case 8 /* BrightBlack */:
-            return rgb(118, 118, 118);
-          case 9 /* BrightRed */:
-            return rgb(231, 72, 86);
-          case 10 /* BrightGreen */:
-            return rgb(22, 198, 12);
-          case 11 /* BrightYellow */:
-            return rgb(249, 241, 165);
-          case 12 /* BrightBlue */:
-            return rgb(59, 120, 255);
-          case 13 /* BrightMagenta */:
-            return rgb(180, 0, 158);
-          case 14 /* BrightCyan */:
-            return rgb(97, 214, 214);
-          case 15 /* BrightWhite */:
-            return rgb(242, 242, 242);
-        }
-        return rgb(204, 204, 204);
-      }
-      if (color < 232) {
-        color -= 16;
-        const r = Math.trunc((Math.trunc(color / 36) * 255) / 6);
-        const g = Math.trunc(((Math.trunc(color / 6) % 6) * 255) / 6);
-        const b = Math.trunc((Math.trunc(color % 6) * 255) / 6);
-        return rgb(r, g, b);
-      }
-      return rgb(0, 0, 0);
-    }
     function getWebNativeContext() {
       const canvas = createFullScreenCanvas();
       const ctx = canvas.getContext("2d");
-      const consoleSize = new types_ts_5.Size(8, 8);
+      const consoleSize = new types_ts_7.Size(8, 8);
       let charWidth = 8;
       let charHeight = 8;
       let fonts;
@@ -1681,8 +1639,6 @@ System.register(
       let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       let imageDataPixels = imageData.data;
       let imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
-      let lastForeColor = -1;
-      let lastBackColor = -1;
       const colorsRGB = new Uint32Array(2);
       let dirty = true;
       ctx.imageSmoothingEnabled = false;
@@ -1696,14 +1652,8 @@ System.register(
       };
       const setChar = (char, foreColor, backColor, x, y) => {
         dirty = true;
-        if (lastForeColor !== foreColor) {
-          lastForeColor = foreColor;
-          colorsRGB[1] = colorToRGB(foreColor);
-        }
-        if (lastBackColor !== backColor) {
-          lastBackColor = backColor;
-          colorsRGB[0] = colorToRGB(backColor);
-        }
+        colorsRGB[0] = backColor;
+        colorsRGB[1] = foreColor;
         if (char < 0 || char > 255) {
           return;
         }
@@ -1715,20 +1665,9 @@ System.register(
         for (let py = 0; py < charHeight; py++) {
           p = (fy + py) * imageData.width + fx;
           f = py * charWidth;
-          //for (let px = 0; px < charWidth; px++) {
-          //      imageDataPixels32[p++] = colorsRGB[charPixels[f++]];
-          //}
-          imageDataPixels32[p + 0] = colorsRGB[charPixels[f + 0]];
-          imageDataPixels32[p + 1] = colorsRGB[charPixels[f + 1]];
-          imageDataPixels32[p + 2] = colorsRGB[charPixels[f + 2]];
-          imageDataPixels32[p + 3] = colorsRGB[charPixels[f + 3]];
-          imageDataPixels32[p + 4] = colorsRGB[charPixels[f + 4]];
-          imageDataPixels32[p + 5] = colorsRGB[charPixels[f + 5]];
-          imageDataPixels32[p + 6] = colorsRGB[charPixels[f + 6]];
-          imageDataPixels32[p + 7] = colorsRGB[charPixels[f + 7]];
-          imageDataPixels32[p + 8] = colorsRGB[charPixels[f + 8]];
-          p += 9;
-          f += 9;
+          for (let px = 0; px < charWidth; px++) {
+            imageDataPixels32[p++] = colorsRGB[charPixels[f++]];
+          }
         }
       };
       const handleKeyboard = (e) => {
@@ -1787,8 +1726,8 @@ System.register(
     exports_14("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
-        function (types_ts_5_1) {
-          types_ts_5 = types_ts_5_1;
+        function (types_ts_7_1) {
+          types_ts_7 = types_ts_7_1;
         },
         function (fonts_ts_1_1) {
           fonts_ts_1 = fonts_ts_1_1;
@@ -1849,6 +1788,7 @@ System.register(
 System.register(
   "web/src/main",
   [
+    "engine/src/types",
     "engine/src/engine",
     "engine/src/widgets/label",
     "game/src/game",
@@ -1856,7 +1796,8 @@ System.register(
   ],
   function (exports_15, context_15) {
     "use strict";
-    var engine_ts_1,
+    var types_ts_8,
+      engine_ts_1,
       label_ts_2,
       game_ts_1,
       web_ts_1,
@@ -1889,7 +1830,7 @@ System.register(
       console.log("Game Initialized");
       fpsLabel = new label_ts_2.LabelWidget(
         "FPS: 0.00\nRender Time: 0.00ms",
-        7, /* White */
+        types_ts_8.FixedColor.White,
         game_ts_1.mainUI.panel2.backColor,
       );
       fpsLabel.parent = game_ts_1.mainUI.panel2;
@@ -1920,6 +1861,9 @@ System.register(
     }
     return {
       setters: [
+        function (types_ts_8_1) {
+          types_ts_8 = types_ts_8_1;
+        },
         function (engine_ts_1_1) {
           engine_ts_1 = engine_ts_1_1;
         },

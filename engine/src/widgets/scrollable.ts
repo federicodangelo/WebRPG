@@ -53,7 +53,7 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
   }
 
   drawSelf(context: DrawContext) {
-    context.color(this.foreColor, this.backColor).fill(
+    context.textColor(this.foreColor, this.backColor).fillChar(
       0,
       0,
       this.width,

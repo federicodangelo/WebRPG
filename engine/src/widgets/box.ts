@@ -61,7 +61,7 @@ export class BoxContainerWidget extends BaseWidgetContainer {
 
   drawSelf(context: DrawContext) {
     if (this.border > 0) {
-      context.color(this.foreColor, this.backColor).fill(
+      context.textColor(this.foreColor, this.backColor).fillChar(
         1,
         1,
         this.width - 2,
@@ -69,14 +69,14 @@ export class BoxContainerWidget extends BaseWidgetContainer {
         this.fillChar,
       );
 
-      context.color(this.borderForeColor, this.borderBackColor).border(
+      context.textColor(this.borderForeColor, this.borderBackColor).textBorder(
         0,
         0,
         this.width,
         this.height,
       );
     } else {
-      context.color(this.foreColor, this.backColor).fill(
+      context.textColor(this.foreColor, this.backColor).fillChar(
         0,
         0,
         this.width,
@@ -87,7 +87,7 @@ export class BoxContainerWidget extends BaseWidgetContainer {
 
     if (this.title.length > 0) {
       context.moveCursorTo(Math.floor((this.width - this.title.length) / 2), 0)
-        .color(this.titleForeColor, this.titleBackColor)
+        .textColor(this.titleForeColor, this.titleBackColor)
         .text(this.title);
     }
   }

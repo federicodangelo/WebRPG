@@ -15,6 +15,6 @@ export class CharacterWidget extends BaseWidget {
   }
 
   protected drawSelf(context: DrawContext) {
-    context.color(this.foreColor, this.backColor).text(this.char);
+    context.textColor(this.foreColor, this.backColor).text(this.char);
   }
 }

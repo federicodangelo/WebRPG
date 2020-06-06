@@ -83,7 +83,7 @@ export class EngineContextImpl implements EngineContext {
     x: number,
     y: number,
     width: number,
-    height: number
+    height: number,
   ): boolean {
     return !(
       this.tx + x + width < this.clip.x ||
@@ -99,13 +99,13 @@ export class EngineContextImpl implements EngineContext {
     return this;
   }
 
-  public color(foreColor: Color, backColor: Color) {
+  public textColor(foreColor: Color, backColor: Color) {
     this.foreColor = foreColor;
     this.backColor = backColor;
     return this;
   }
 
-  public resetColor() {
+  public resetTextColor() {
     this.foreColor = FixedColor.White;
     this.backColor = FixedColor.Black;
     return this;
@@ -132,7 +132,7 @@ export class EngineContextImpl implements EngineContext {
         this.foreColor,
         this.backColor,
         screenX,
-        screenY
+        screenY,
       );
     }
     this.x++;
@@ -160,7 +160,7 @@ export class EngineContextImpl implements EngineContext {
         this.foreColor,
         this.backColor,
         screenX,
-        screenY
+        screenY,
       );
     }
     this.x++;
@@ -174,7 +174,7 @@ export class EngineContextImpl implements EngineContext {
     return this;
   }
 
-  public border(x: number, y: number, width: number, height: number) {
+  public textBorder(x: number, y: number, width: number, height: number) {
     const clip = this.clip;
     const tx = this.tx;
     const ty = this.ty;
@@ -210,12 +210,12 @@ export class EngineContextImpl implements EngineContext {
     return this;
   }
 
-  public fill(
+  public fillChar(
     x: number,
     y: number,
     width: number,
     height: number,
-    char: string
+    char: string,
   ) {
     if (char.length === 0) return this;
 
@@ -241,7 +241,7 @@ export class EngineContextImpl implements EngineContext {
           this.foreColor,
           this.backColor,
           screenX,
-          screenY
+          screenY,
         );
       }
     }

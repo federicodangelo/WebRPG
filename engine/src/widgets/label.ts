@@ -34,7 +34,7 @@ export class LabelWidget extends BaseWidget {
   }
 
   protected drawSelf(context: DrawContext) {
-    context.color(this.foreColor, this.backColor);
+    context.textColor(this.foreColor, this.backColor);
 
     for (let i = 0; i < this._lines.length; i++) {
       context.moveCursorTo(0, i).text(this._lines[i]);

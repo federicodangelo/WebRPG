@@ -38,45 +38,46 @@ export const enum SpecialChar {
   DoubleConnectorCross,
 }
 
-export const enum FixedColor {
-  Black = 0,
-  Red = 1,
-  Green = 2,
-  Yellow = 3,
-  Blue = 4,
-  Magenta = 5,
-  Cyan = 6,
-  White = 7,
-  BrightBlack = 8,
-  BrightRed = 9,
-  BrightGreen = 10,
-  BrightYellow = 11,
-  BrightBlue = 12,
-  BrightMagenta = 13,
-  BrightCyan = 14,
-  BrightWhite = 15,
-}
+export class FixedColor {
+  static Black = rgb(12, 12, 12);
+  static Red = rgb(197, 15, 31);
+  static Green = rgb(19, 161, 14);
+  static Yellow = rgb(193, 156, 0);
+  static Blue = rgb(0, 55, 218);
+  static Magenta = rgb(136, 23, 152);
+  static Cyan = rgb(58, 150, 221);
+  static White = rgb(204, 204, 204);
 
-export const enum Grayscale {
-  Black = 232,
-  White = 255,
+  static BrightBlack = rgb(118, 118, 118);
+  static BrightRed = rgb(231, 72, 86);
+  static BrightGreen = rgb(22, 198, 12);
+  static BrightYellow = rgb(249, 241, 165);
+  static BrightBlue = rgb(59, 120, 255);
+  static BrightMagenta = rgb(180, 0, 158);
+  static BrightCyan = rgb(97, 214, 214);
+  static BrightWhite = rgb(242, 242, 242);
 }
 
 export const enum Intensity {
   I0 = 0,
-  I20 = 1,
-  I40 = 2,
-  I60 = 3,
-  I80 = 4,
-  I100 = 5,
+  I20 = (255 * 1 / 5) & 0xFF,
+  I40 = (255 * 2 / 5) & 0xFF,
+  I60 = (255 * 3 / 5) & 0xFF,
+  I80 = (255 * 4 / 5) & 0xFF,
+  I100 = 255,
 }
 
 export type RGB = number;
 
-export type Color = FixedColor | Grayscale | RGB;
+export type Color = RGB;
 
-export function rgb(r: Intensity, g: Intensity, b: Intensity): RGB {
-  return 16 + 36 * r + 6 * g + b;
+export function rgb(r: number, g: number, b: number): RGB {
+  return (
+    (255 << 24) | // alpha
+    (b << 16) | // blue
+    (g << 8) | // green
+    r
+  );
 }
 
 export interface WidgetLayout {
@@ -266,10 +267,11 @@ export class Rect {
 }
 
 export interface DrawContext {
+  //Text API
   moveCursorTo(x: number, y: number): EngineContext;
 
-  color(foreColor: FixedColor, backColor: FixedColor): EngineContext;
-  resetColor(): EngineContext;
+  textColor(foreColor: Color, backColor: Color): EngineContext;
+  resetTextColor(): EngineContext;
 
   text(str: string): EngineContext;
 
@@ -279,9 +281,14 @@ export interface DrawContext {
   specialChar(code: SpecialChar): EngineContext;
   specialCharTimes(code: SpecialChar, times: number): EngineContext;
 
-  border(x: number, y: number, width: number, height: number): EngineContext;
+  textBorder(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): EngineContext;
 
-  fill(
+  fillChar(
     x: number,
     y: number,
     width: number,
