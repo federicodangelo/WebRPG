@@ -25,7 +25,7 @@ mainUI.splitLayout = {
   direction: "horizontal",
   fixed: {
     panel: "panel2",
-    amount: 30 * FONT_SIZE,
+    amount: 19 * FONT_SIZE,
   },
 };
 
@@ -59,17 +59,10 @@ mainUI.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
 mainUI.panel2.childrenLayout = { type: "vertical", spacing: 1 * FONT_SIZE };
 
 new LabelWidget(
-  "Move P1: W/S/A/D\nMove P2: I/J/K/L\nQuit: Z",
+  "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L\nQuit: Z",
   FixedColor.White,
   mainUI.panel2.backColor,
 ).parent = mainUI.panel2;
-
-const cameraModeLabel = new LabelWidget(
-  "",
-  FixedColor.White,
-  mainUI.panel2.backColor,
-);
-cameraModeLabel.parent = mainUI.panel2;
 
 const enum CameraMode {
   FollowContinuous,
@@ -77,12 +70,6 @@ const enum CameraMode {
 }
 
 let cameraMode = CameraMode.FollowContinuous;
-
-function updateCameraModeText() {
-  cameraModeLabel.text = "Camera: " +
-    (cameraMode === CameraMode.FollowContinuous ? "Continuous" : "Discrete") +
-    " (F)";
-}
 
 function random<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -176,8 +163,6 @@ for (let i = 0; i < OBSTACLES_COUNT; i++) {
 
 characters.forEach((c) => c.parent = playingBox);
 
-updateCameraModeText();
-
 let pendingInput = "";
 
 function onInput(input: string) {
@@ -254,7 +239,6 @@ export function updateGame(engine: Engine): boolean {
           } else {
             cameraMode = CameraMode.FollowContinuous;
           }
-          updateCameraModeText();
           break;
       }
     });

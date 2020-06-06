@@ -1467,7 +1467,6 @@ System.register(
       OBSTACLES_COUNT,
       mainUI,
       playingBox,
-      cameraModeLabel,
       cameraMode,
       p1,
       p2,
@@ -1478,11 +1477,6 @@ System.register(
       obtacleColors,
       pendingInput;
     var __moduleName = context_13 && context_13.id;
-    function updateCameraModeText() {
-      cameraModeLabel.text = "Camera: " +
-        (cameraMode === 0 /* FollowContinuous */ ? "Continuous" : "Discrete") +
-        " (F)";
-    }
     function random(arr) {
       return arr[Math.floor(Math.random() * arr.length)];
     }
@@ -1553,7 +1547,6 @@ System.register(
               } else {
                 cameraMode = 0 /* FollowContinuous */;
               }
-              updateCameraModeText();
               break;
           }
         });
@@ -1649,7 +1642,7 @@ System.register(
           direction: "horizontal",
           fixed: {
             panel: "panel2",
-            amount: 30 * types_ts_9.FONT_SIZE,
+            amount: 19 * types_ts_9.FONT_SIZE,
           },
         };
         mainUI.panel2.border = 2 * types_ts_9.FONT_SIZE;
@@ -1704,16 +1697,10 @@ System.register(
           spacing: 1 * types_ts_9.FONT_SIZE,
         };
         new label_ts_1.LabelWidget(
-          "Move P1: W/S/A/D\nMove P2: I/J/K/L\nQuit: Z",
+          "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L\nQuit: Z",
           types_ts_9.FixedColor.White,
           mainUI.panel2.backColor,
         ).parent = mainUI.panel2;
-        cameraModeLabel = new label_ts_1.LabelWidget(
-          "",
-          types_ts_9.FixedColor.White,
-          mainUI.panel2.backColor,
-        );
-        cameraModeLabel.parent = mainUI.panel2;
         cameraMode = 0 /* FollowContinuous */;
         p1 = new character_ts_1.CharacterWidget(
           "@",
@@ -1793,7 +1780,6 @@ System.register(
           obstacle.parent = playingBox;
         }
         characters.forEach((c) => c.parent = playingBox);
-        updateCameraModeText();
         pendingInput = "";
       },
     };
@@ -2192,7 +2178,7 @@ System.register(
       frames++;
       if (now - framesTime > 1000) {
         const fps = frames / ((now - framesTime) / 1000);
-        const stats = "FPS: " + fps.toFixed(2) + "\nRender Time: " +
+        const stats = "FPS: " + fps.toFixed(2) + "\nRender: " +
           (totalRenderTime / frames).toFixed(2) + "ms";
         fpsLabel.text = stats;
         framesTime = now;
@@ -2207,7 +2193,7 @@ System.register(
       game_ts_1.initGame(engine);
       console.log("Game Initialized");
       fpsLabel = new label_ts_2.LabelWidget(
-        "FPS: 0.00\nRender Time: 0.00ms",
+        "FPS: 0.00\nRender: 0.00ms",
         types_ts_11.FixedColor.White,
         game_ts_1.mainUI.panel2.backColor,
       );

@@ -19,7 +19,7 @@ function updateFps() {
   frames++;
   if (now - framesTime > 1000) {
     const fps = frames / ((now - framesTime) / 1000);
-    const stats = "FPS: " + fps.toFixed(2) + "\nRender Time: " +
+    const stats = "FPS: " + fps.toFixed(2) + "\nRender: " +
       (totalRenderTime / frames).toFixed(2) + "ms";
     fpsLabel.text = stats;
     framesTime = now;
@@ -40,7 +40,7 @@ async function init() {
   console.log("Game Initialized");
 
   fpsLabel = new LabelWidget(
-    "FPS: 0.00\nRender Time: 0.00ms",
+    "FPS: 0.00\nRender: 0.00ms",
     FixedColor.White,
     mainUI.panel2.backColor,
   );
