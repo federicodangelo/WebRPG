@@ -270,7 +270,7 @@ export function getWebNativeContext(): NativeContext {
 
     if (tileset === undefined) return;
 
-    const tilePixels = tileset.pixels32[t.index];
+    const tilePixels8 = tileset.pixels[t.index];
     const tileWidth = tileset.dimensions.width;
     const tileHeight = tileset.dimensions.height;
 
@@ -278,14 +278,23 @@ export function getWebNativeContext(): NativeContext {
     let f = 0;
 
     for (let py = 0; py < tileHeight; py++) {
-      p = (y + py) * imageData.width + x;
-      f = py * tileWidth;
+      p = ((y + py) * imageData.width + x) << 2;
+      f = (py * tileWidth) << 2;
       for (let px = 0; px < tileWidth; px++) {
         if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-          imageDataPixels32[p++] = tilePixels[f++];
+          const r = tilePixels8[f++];
+          const g = tilePixels8[f++];
+          const b = tilePixels8[f++];
+          const a = tilePixels8[f++] > 0 ? 1 : 0;
+          const invA = 1 - a;
+          imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
+          imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
+          imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
+          imageDataPixels[p + 3] = 255; //a
+          p += 4;
         } else {
-          p++;
-          f++;
+          p += 4;
+          f += 4;
         }
       }
     }

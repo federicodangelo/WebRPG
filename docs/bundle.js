@@ -841,6 +841,8 @@ System.register(
             this._y = 0;
             this._width = 0;
             this._height = 0;
+            this._pivotX = 0;
+            this._pivotY = 0;
             this._parent = null;
             this._engine = null;
             this._boundingBox = new types_ts_3.Rect();
@@ -898,6 +900,26 @@ System.register(
               this.invalidate();
             }
           }
+          get pivotX() {
+            return this._pivotX;
+          }
+          set pivotX(v) {
+            if (v !== this._pivotX) {
+              this.invalidate();
+              this._pivotX = v;
+              this.invalidate();
+            }
+          }
+          get pivotY() {
+            return this._pivotY;
+          }
+          set pivotY(v) {
+            if (v !== this._pivotY) {
+              this.invalidate();
+              this._pivotY = v;
+              this.invalidate();
+            }
+          }
           get parent() {
             return this._parent;
           }
@@ -952,18 +974,33 @@ System.register(
             }
           }
           draw(context) {
-            if (!context.isVisible(this.x, this.y, this.width, this.height)) {
+            if (
+              !context.isVisible(
+                this._x + this._pivotX,
+                this._y + this._pivotY,
+                this._width,
+                this._height,
+              )
+            ) {
               return;
             }
-            context.pushTransform(this.x, this.y);
-            context.pushClip(0, 0, this.width, this.height);
+            context.pushTransform(
+              this._x + this._pivotX,
+              this._y + this._pivotY,
+            );
+            context.pushClip(0, 0, this._width, this._height);
             context.moveCursorTo(0, 0);
             this.drawSelf(context);
             context.popClip();
             context.popTransform();
           }
           getBoundingBox() {
-            this._boundingBox.set(this._x, this._y, this._width, this._height);
+            this._boundingBox.set(
+              this._x + this._pivotX,
+              this._y + this._pivotY,
+              this._width,
+              this._height,
+            );
             let p = this._parent;
             while (p !== null) {
               this._boundingBox.x += p.x + p.innerX;
@@ -1162,10 +1199,17 @@ System.register(
             //The last option is "none".. so we don't do anything
           }
           draw(context) {
-            if (!context.isVisible(this.x, this.y, this.width, this.height)) {
+            if (
+              !context.isVisible(
+                this.x + this.pivotY,
+                this.y + this.pivotY,
+                this.width,
+                this.height,
+              )
+            ) {
               return;
             }
-            context.pushTransform(this.x, this.y);
+            context.pushTransform(this.x + this.pivotX, this.y + this.pivotY);
             context.pushClip(0, 0, this.width, this.height);
             context.moveCursorTo(0, 0);
             this.drawSelf(context);
@@ -2121,6 +2165,8 @@ System.register(
           princessAnimations,
           "down",
         );
+        p1.pivotX = -Math.floor(p1.width / 2);
+        p1.pivotY = -Math.floor(p1.height * 7 / 8);
         p1.x = 10 * types_ts_9.FONT_SIZE;
         p1.y = 10 * types_ts_9.FONT_SIZE;
         p2 = new character_ts_1.CharacterWidget(
@@ -2509,20 +2555,29 @@ System.register(
         if (tileset === undefined) {
           return;
         }
-        const tilePixels = tileset.pixels32[t.index];
+        const tilePixels8 = tileset.pixels[t.index];
         const tileWidth = tileset.dimensions.width;
         const tileHeight = tileset.dimensions.height;
         let p = 0;
         let f = 0;
         for (let py = 0; py < tileHeight; py++) {
-          p = (y + py) * imageData.width + x;
-          f = py * tileWidth;
+          p = ((y + py) * imageData.width + x) << 2;
+          f = (py * tileWidth) << 2;
           for (let px = 0; px < tileWidth; px++) {
             if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-              imageDataPixels32[p++] = tilePixels[f++];
+              const r = tilePixels8[f++];
+              const g = tilePixels8[f++];
+              const b = tilePixels8[f++];
+              const a = tilePixels8[f++] > 0 ? 1 : 0;
+              const invA = 1 - a;
+              imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
+              imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
+              imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
+              imageDataPixels[p + 3] = 255; //a
+              p += 4;
             } else {
-              p++;
-              f++;
+              p += 4;
+              f += 4;
             }
           }
         }

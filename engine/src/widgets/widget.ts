@@ -13,6 +13,8 @@ export abstract class BaseWidget implements Widget {
   private _y: number = 0;
   private _width: number = 0;
   private _height: number = 0;
+  private _pivotX: number = 0;
+  private _pivotY: number = 0;
   private _parent: WidgetContainer | null = null;
   private _engine: Engine | null = null;
   private _boundingBox: Rect = new Rect();
@@ -82,6 +84,30 @@ export abstract class BaseWidget implements Widget {
     }
   }
 
+  public get pivotX() {
+    return this._pivotX;
+  }
+
+  public set pivotX(v: number) {
+    if (v !== this._pivotX) {
+      this.invalidate();
+      this._pivotX = v;
+      this.invalidate();
+    }
+  }
+
+  public get pivotY() {
+    return this._pivotY;
+  }
+
+  public set pivotY(v: number) {
+    if (v !== this._pivotY) {
+      this.invalidate();
+      this._pivotY = v;
+      this.invalidate();
+    }
+  }
+
   public get parent() {
     return this._parent;
   }
@@ -140,9 +166,18 @@ export abstract class BaseWidget implements Widget {
   }
 
   public draw(context: EngineContext): void {
-    if (!context.isVisible(this.x, this.y, this.width, this.height)) return;
-    context.pushTransform(this.x, this.y);
-    context.pushClip(0, 0, this.width, this.height);
+    if (
+      !context.isVisible(
+        this._x + this._pivotX,
+        this._y + this._pivotY,
+        this._width,
+        this._height,
+      )
+    ) {
+      return;
+    }
+    context.pushTransform(this._x + this._pivotX, this._y + this._pivotY);
+    context.pushClip(0, 0, this._width, this._height);
     context.moveCursorTo(0, 0);
     this.drawSelf(context);
     context.popClip();
@@ -152,7 +187,12 @@ export abstract class BaseWidget implements Widget {
   protected abstract drawSelf(context: DrawContext): void;
 
   public getBoundingBox() {
-    this._boundingBox.set(this._x, this._y, this._width, this._height);
+    this._boundingBox.set(
+      this._x + this._pivotX,
+      this._y + this._pivotY,
+      this._width,
+      this._height,
+    );
     let p = this._parent;
     while (p !== null) {
       this._boundingBox.x += p.x + p.innerX;

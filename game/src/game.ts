@@ -351,6 +351,8 @@ function random<T>(arr: T[]): T {
 }
 
 const p1 = new AnimatedTileWidget(princessAnimations, "down");
+p1.pivotX = -Math.floor(p1.width / 2);
+p1.pivotY = -Math.floor(p1.height * 7 / 8);
 
 p1.x = 10 * FONT_SIZE;
 p1.y = 10 * FONT_SIZE;

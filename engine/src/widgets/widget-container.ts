@@ -91,8 +91,17 @@ export abstract class BaseWidgetContainer extends BaseWidget
   }
 
   public draw(context: EngineContext): void {
-    if (!context.isVisible(this.x, this.y, this.width, this.height)) return;
-    context.pushTransform(this.x, this.y);
+    if (
+      !context.isVisible(
+        this.x + this.pivotY,
+        this.y + this.pivotY,
+        this.width,
+        this.height,
+      )
+    ) {
+      return;
+    }
+    context.pushTransform(this.x + this.pivotX, this.y + this.pivotY);
     context.pushClip(0, 0, this.width, this.height);
     context.moveCursorTo(0, 0);
     this.drawSelf(context);
