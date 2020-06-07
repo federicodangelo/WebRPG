@@ -154,8 +154,10 @@ export function getWebNativeContext(): NativeContext {
     backColor: Color,
     x: number,
     y: number,
-    w: number,
-    h: number,
+    cfx: number,
+    cfy: number,
+    ctx: number,
+    cty: number,
   ) => {
     dirty = true;
 
@@ -172,11 +174,6 @@ export function getWebNativeContext(): NativeContext {
     const tileWidth = tileset.dimensions.width;
     const tileHeight = tileset.dimensions.height;
 
-    if (w <= 0) w += tileWidth;
-    if (h <= 0) h += tileHeight;
-
-    const fx = x;
-    const fy = y;
     const backTransparent = (backColor >> 24) == 0;
 
     let p = 0;
@@ -184,10 +181,10 @@ export function getWebNativeContext(): NativeContext {
 
     if (backTransparent) {
       for (let py = 0; py < tileHeight; py++) {
-        p = (fy + py) * imageData.width + fx;
+        p = (y + py) * imageData.width + x;
         f = py * tileWidth;
         for (let px = 0; px < tileWidth; px++) {
-          if (px < w && py < h) {
+          if (px >= cfx && px < ctx && py >= cfy && py < cty) {
             const cp = tilePixels[f++];
             if (cp == 1) {
               imageDataPixels32[p++] = colorsRGB[cp];
@@ -202,10 +199,10 @@ export function getWebNativeContext(): NativeContext {
       }
     } else {
       for (let py = 0; py < tileHeight; py++) {
-        p = (fy + py) * imageData.width + fx;
+        p = (y + py) * imageData.width + x;
         f = py * tileWidth;
         for (let px = 0; px < tileWidth; px++) {
-          if (px < w && py < h) {
+          if (px >= cfx && px < ctx && py >= cfy && py < cty) {
             imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
           } else {
             p++;
@@ -250,8 +247,10 @@ export function getWebNativeContext(): NativeContext {
     t: Tile,
     x: number,
     y: number,
-    w: number,
-    h: number,
+    cfx: number,
+    cfy: number,
+    ctx: number,
+    cty: number,
   ) => {
     dirty = true;
 
@@ -263,20 +262,14 @@ export function getWebNativeContext(): NativeContext {
     const tileWidth = tileset.dimensions.width;
     const tileHeight = tileset.dimensions.height;
 
-    if (w <= 0) w += tileWidth;
-    if (h <= 0) h += tileHeight;
-
-    const fx = x;
-    const fy = y;
-
     let p = 0;
     let f = 0;
 
     for (let py = 0; py < tileHeight; py++) {
-      p = (fy + py) * imageData.width + fx;
+      p = (y + py) * imageData.width + x;
       f = py * tileWidth;
       for (let px = 0; px < tileWidth; px++) {
-        if (px < w && py < h) {
+        if (px >= cfx && px < ctx && py >= cfy && py < cty) {
           imageDataPixels32[p++] = tilePixels[f++];
         } else {
           p++;

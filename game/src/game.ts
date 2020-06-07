@@ -174,6 +174,8 @@ export function initGame(engine: Engine) {
   engine.onInput(onInput);
 }
 
+const WALK_SPEED = 4;
+
 export function updateGame(engine: Engine): boolean {
   let running = true;
 
@@ -181,16 +183,16 @@ export function updateGame(engine: Engine): boolean {
     const npc = npcs[i];
     switch (Math.floor(Math.random() * 4)) {
       case 0:
-        npc.x -= FONT_SIZE;
+        npc.x -= WALK_SPEED;
         break;
       case 1:
-        npc.x += FONT_SIZE;
+        npc.x += WALK_SPEED;
         break;
       case 2:
-        npc.y -= FONT_SIZE;
+        npc.y -= WALK_SPEED;
         break;
       case 3:
-        npc.y += FONT_SIZE;
+        npc.y += WALK_SPEED;
         break;
     }
   }
@@ -200,29 +202,29 @@ export function updateGame(engine: Engine): boolean {
     uniqueChars.forEach((c) => {
       switch (c) {
         case "a":
-          p1.x -= FONT_SIZE;
+          p1.x -= WALK_SPEED;
           break;
         case "d":
-          p1.x += FONT_SIZE;
+          p1.x += WALK_SPEED;
           break;
         case "w":
-          p1.y -= FONT_SIZE;
+          p1.y -= WALK_SPEED;
           break;
         case "s":
-          p1.y += FONT_SIZE;
+          p1.y += WALK_SPEED;
           break;
 
         case "j":
-          p2.x -= FONT_SIZE;
+          p2.x -= WALK_SPEED;
           break;
         case "l":
-          p2.x += FONT_SIZE;
+          p2.x += WALK_SPEED;
           break;
         case "i":
-          p2.y -= FONT_SIZE;
+          p2.y -= WALK_SPEED;
           break;
         case "k":
-          p2.y += FONT_SIZE;
+          p2.y += WALK_SPEED;
           break;
 
         case String.fromCharCode(27): //Escape
@@ -280,13 +282,13 @@ export function updateGame(engine: Engine): boolean {
 
   playingBox.setOffset(
     Math.trunc(Math.max(
-      Math.min(newOffsetX / FONT_SIZE, 0),
-      -(MAP_SIZE - playingBox.width / FONT_SIZE),
-    )) * FONT_SIZE,
+      Math.min(newOffsetX, 0),
+      -(MAP_SIZE * FONT_SIZE - playingBox.width),
+    )),
     Math.trunc(Math.max(
-      Math.min(newOffsetY / FONT_SIZE, 0),
-      -(MAP_SIZE - playingBox.height / FONT_SIZE),
-    )) * FONT_SIZE,
+      Math.min(newOffsetY, 0),
+      -(MAP_SIZE * FONT_SIZE - playingBox.height),
+    )),
   );
 
   return running;

@@ -274,6 +274,18 @@ System.register(
     "use strict";
     var types_ts_1, useCp437, AnsiSpecialChar, EngineContextImpl;
     var __moduleName = context_3 && context_3.id;
+    function ceilToMultipleOf(n, m) {
+      if (n % m === 0) {
+        return n;
+      }
+      return Math.ceil(n / m) * m;
+    }
+    function floorToMultipleOf(n, m) {
+      if (n % m === 0) {
+        return n;
+      }
+      return Math.floor(n / m) * m;
+    }
     return {
       setters: [
         function (types_ts_1_1) {
@@ -422,17 +434,33 @@ System.register(
           char(code) {
             const screenX = this.x + this.tx;
             const screenY = this.y + this.ty;
+            const width = types_ts_1.FONT_SIZE;
+            const height = types_ts_1.FONT_SIZE;
+            const clip = this.clip;
             if (
-              screenX >= this.clip.x &&
-              screenX < this.clip.x1 &&
-              screenY >= this.clip.y &&
-              screenY < this.clip.y1
+              screenX + width > clip.x &&
+              screenX < clip.x1 &&
+              screenY + height > clip.y &&
+              screenY < clip.y1
             ) {
               this.fontTile.index = code;
-              if (
-                screenX + types_ts_1.FONT_SIZE <= this.clip.x1 &&
-                screenY + types_ts_1.FONT_SIZE <= this.clip.y1
-              ) {
+              const cfx = Math.max(clip.x - screenX, 0);
+              const cfy = Math.max(clip.y - screenY, 0);
+              const ctx = Math.min(clip.x1 - screenX, width);
+              const cty = Math.min(clip.y1 - screenY, height);
+              if (cfx > 0 || cfy > 0 || ctx < width || cty < height) {
+                this.nativeContext.tintTileClip(
+                  this.fontTile,
+                  this.foreColor,
+                  this.backColor,
+                  screenX,
+                  screenY,
+                  cfx,
+                  cfy,
+                  ctx,
+                  cty,
+                );
+              } else {
                 this.nativeContext.tintTile(
                   this.fontTile,
                   this.foreColor,
@@ -440,19 +468,9 @@ System.register(
                   screenX,
                   screenY,
                 );
-              } else {
-                this.nativeContext.tintTileClip(
-                  this.fontTile,
-                  this.foreColor,
-                  this.backColor,
-                  screenX,
-                  screenY,
-                  this.clip.x1 - (screenX + types_ts_1.FONT_SIZE),
-                  this.clip.y1 - (screenY + types_ts_1.FONT_SIZE),
-                );
               }
             }
-            this.x += types_ts_1.FONT_SIZE;
+            this.x += width;
             return this;
           }
           charTimes(code, times) {
@@ -523,44 +541,51 @@ System.register(
             if (char.length === 0) {
               return this;
             }
+            const fontWidth = types_ts_1.FONT_SIZE;
+            const fontHeight = types_ts_1.FONT_SIZE;
             const clip = this.clip;
             const tx = this.tx;
             const ty = this.ty;
-            const x0 = Math.max(tx + x, clip.x);
-            const y0 = Math.max(ty + y, clip.y);
-            const x1 = Math.min(tx + x + width, clip.x1);
-            const y1 = Math.min(ty + y + height, clip.y1);
+            const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, fontWidth));
+            const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, fontHeight));
+            const x1 = Math.min(
+              tx + x + width,
+              ceilToMultipleOf(clip.x1, fontWidth),
+            );
+            const y1 = Math.min(
+              ty + y + height,
+              ceilToMultipleOf(clip.y1, fontHeight),
+            );
             if (x1 <= x0 || y1 <= y0) {
               return this;
             }
             const code = char.charCodeAt(0);
             this.fontTile.index = code;
-            for (
-              let screenY = y0; screenY < y1; screenY += types_ts_1.FONT_SIZE
-            ) {
-              for (
-                let screenX = x0; screenX < x1; screenX += types_ts_1.FONT_SIZE
-              ) {
-                if (
-                  screenX + types_ts_1.FONT_SIZE <= x1 &&
-                  screenY + types_ts_1.FONT_SIZE <= y1
-                ) {
-                  this.nativeContext.tintTile(
-                    this.fontTile,
-                    this.foreColor,
-                    this.backColor,
-                    screenX,
-                    screenY,
-                  );
-                } else {
+            for (let screenY = y0; screenY < y1; screenY += fontHeight) {
+              for (let screenX = x0; screenX < x1; screenX += fontWidth) {
+                const cfx = Math.max(clip.x - screenX, 0);
+                const cfy = Math.max(clip.y - screenY, 0);
+                const ctx = Math.min(clip.x1 - screenX, fontWidth);
+                const cty = Math.min(clip.y1 - screenY, fontHeight);
+                if (cfx > 0 || cfy > 0 || ctx < fontWidth || cty < fontHeight) {
                   this.nativeContext.tintTileClip(
                     this.fontTile,
                     this.foreColor,
                     this.backColor,
                     screenX,
                     screenY,
-                    x1 - (screenX + types_ts_1.FONT_SIZE),
-                    y1 - (screenY + types_ts_1.FONT_SIZE),
+                    cfx,
+                    cfy,
+                    ctx,
+                    cty,
+                  );
+                } else {
+                  this.nativeContext.tintTile(
+                    this.fontTile,
+                    this.foreColor,
+                    this.backColor,
+                    screenX,
+                    screenY,
                   );
                 }
               }
@@ -570,25 +595,31 @@ System.register(
           tile(x, y, t) {
             const screenX = this.x + this.tx;
             const screenY = this.y + this.ty;
+            const clip = this.clip;
+            const width = t.width;
+            const height = t.height;
             if (
-              screenX >= this.clip.x &&
-              screenX < this.clip.x1 &&
-              screenY >= this.clip.y &&
-              screenY < this.clip.y1
+              screenX + width > clip.x &&
+              screenX < clip.x1 &&
+              screenY + height > clip.y &&
+              screenY < clip.y1
             ) {
-              if (
-                screenX + t.width <= this.clip.x1 &&
-                screenY + t.height <= this.clip.y1
-              ) {
-                this.nativeContext.setTile(t, screenX, screenY);
-              } else {
+              const cfx = Math.max(clip.x - screenX, 0);
+              const cfy = Math.max(clip.y - screenY, 0);
+              const ctx = Math.min(clip.x1 - screenX, width);
+              const cty = Math.min(clip.y1 - screenY, height);
+              if (cfx > 0 || cfy > 0 || ctx < width || cty < height) {
                 this.nativeContext.setTileClip(
                   t,
                   screenX,
                   screenY,
-                  this.clip.x1 - (screenX + t.width),
-                  this.clip.y1 - (screenY + t.height),
+                  cfx,
+                  cfy,
+                  ctx,
+                  cty,
                 );
+              } else {
+                this.nativeContext.setTile(t, screenX, screenY);
               }
             }
             return this;
@@ -597,28 +628,37 @@ System.register(
             const clip = this.clip;
             const tx = this.tx;
             const ty = this.ty;
-            const x0 = Math.max(tx + x, clip.x);
-            const y0 = Math.max(ty + y, clip.y);
-            const x1 = Math.min(tx + x + width, clip.x1);
-            const y1 = Math.min(ty + y + height, clip.y1);
+            const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, t.width));
+            const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, t.height));
+            const x1 = Math.min(
+              tx + x + width,
+              ceilToMultipleOf(clip.x1, t.width),
+            );
+            const y1 = Math.min(
+              ty + y + height,
+              ceilToMultipleOf(clip.y1, t.height),
+            );
             if (x1 <= x0 || y1 <= y0) {
               return this;
             }
             for (let screenY = y0; screenY < y1; screenY += t.width) {
               for (let screenX = x0; screenX < x1; screenX += t.height) {
-                if (
-                  screenX + t.width <= x1 &&
-                  screenY + t.height <= y1
-                ) {
-                  this.nativeContext.setTile(t, screenX, screenY);
-                } else {
+                const cfx = Math.max(clip.x - screenX, 0);
+                const cfy = Math.max(clip.y - screenY, 0);
+                const ctx = Math.min(clip.x1 - screenX, t.width);
+                const cty = Math.min(clip.y1 - screenY, t.height);
+                if (cfx > 0 || cfy > 0 || ctx < t.width || cty < t.height) {
                   this.nativeContext.setTileClip(
                     t,
                     screenX,
                     screenY,
-                    this.clip.x1 - (screenX + t.width),
-                    this.clip.y1 - (screenY + t.height),
+                    cfx,
+                    cfy,
+                    ctx,
+                    cty,
                   );
+                } else {
+                  this.nativeContext.setTile(t, screenX, screenY);
                 }
               }
             }
@@ -1475,7 +1515,8 @@ System.register(
       characters,
       obtacleChars,
       obtacleColors,
-      pendingInput;
+      pendingInput,
+      WALK_SPEED;
     var __moduleName = context_13 && context_13.id;
     function random(arr) {
       return arr[Math.floor(Math.random() * arr.length)];
@@ -1494,16 +1535,16 @@ System.register(
         const npc = npcs[i];
         switch (Math.floor(Math.random() * 4)) {
           case 0:
-            npc.x -= types_ts_9.FONT_SIZE;
+            npc.x -= WALK_SPEED;
             break;
           case 1:
-            npc.x += types_ts_9.FONT_SIZE;
+            npc.x += WALK_SPEED;
             break;
           case 2:
-            npc.y -= types_ts_9.FONT_SIZE;
+            npc.y -= WALK_SPEED;
             break;
           case 3:
-            npc.y += types_ts_9.FONT_SIZE;
+            npc.y += WALK_SPEED;
             break;
         }
       }
@@ -1512,28 +1553,28 @@ System.register(
         uniqueChars.forEach((c) => {
           switch (c) {
             case "a":
-              p1.x -= types_ts_9.FONT_SIZE;
+              p1.x -= WALK_SPEED;
               break;
             case "d":
-              p1.x += types_ts_9.FONT_SIZE;
+              p1.x += WALK_SPEED;
               break;
             case "w":
-              p1.y -= types_ts_9.FONT_SIZE;
+              p1.y -= WALK_SPEED;
               break;
             case "s":
-              p1.y += types_ts_9.FONT_SIZE;
+              p1.y += WALK_SPEED;
               break;
             case "j":
-              p2.x -= types_ts_9.FONT_SIZE;
+              p2.x -= WALK_SPEED;
               break;
             case "l":
-              p2.x += types_ts_9.FONT_SIZE;
+              p2.x += WALK_SPEED;
               break;
             case "i":
-              p2.y -= types_ts_9.FONT_SIZE;
+              p2.y -= WALK_SPEED;
               break;
             case "k":
-              p2.y += types_ts_9.FONT_SIZE;
+              p2.y += WALK_SPEED;
               break;
             case String.fromCharCode(27): //Escape
               running = false;
@@ -1591,16 +1632,16 @@ System.register(
       playingBox.setOffset(
         Math.trunc(
           Math.max(
-            Math.min(newOffsetX / types_ts_9.FONT_SIZE, 0),
-            -(MAP_SIZE - playingBox.width / types_ts_9.FONT_SIZE),
+            Math.min(newOffsetX, 0),
+            -(MAP_SIZE * types_ts_9.FONT_SIZE - playingBox.width),
           ),
-        ) * types_ts_9.FONT_SIZE,
+        ),
         Math.trunc(
           Math.max(
-            Math.min(newOffsetY / types_ts_9.FONT_SIZE, 0),
-            -(MAP_SIZE - playingBox.height / types_ts_9.FONT_SIZE),
+            Math.min(newOffsetY, 0),
+            -(MAP_SIZE * types_ts_9.FONT_SIZE - playingBox.height),
           ),
-        ) * types_ts_9.FONT_SIZE,
+        ),
       );
       return running;
     }
@@ -1781,6 +1822,7 @@ System.register(
         }
         characters.forEach((c) => c.parent = playingBox);
         pendingInput = "";
+        WALK_SPEED = 4;
       },
     };
   },
@@ -1988,7 +2030,17 @@ System.register(
           }
         }
       };
-      const tintTileClip = (t, foreColor, backColor, x, y, w, h) => {
+      const tintTileClip = (
+        t,
+        foreColor,
+        backColor,
+        x,
+        y,
+        cfx,
+        cfy,
+        ctx,
+        cty,
+      ) => {
         dirty = true;
         if (t.index < 0 || t.index > 255) {
           return;
@@ -2002,23 +2054,15 @@ System.register(
         const tilePixels = tileset.pixels[t.index];
         const tileWidth = tileset.dimensions.width;
         const tileHeight = tileset.dimensions.height;
-        if (w <= 0) {
-          w += tileWidth;
-        }
-        if (h <= 0) {
-          h += tileHeight;
-        }
-        const fx = x;
-        const fy = y;
         const backTransparent = (backColor >> 24) == 0;
         let p = 0;
         let f = 0;
         if (backTransparent) {
           for (let py = 0; py < tileHeight; py++) {
-            p = (fy + py) * imageData.width + fx;
+            p = (y + py) * imageData.width + x;
             f = py * tileWidth;
             for (let px = 0; px < tileWidth; px++) {
-              if (px < w && py < h) {
+              if (px >= cfx && px < ctx && py >= cfy && py < cty) {
                 const cp = tilePixels[f++];
                 if (cp == 1) {
                   imageDataPixels32[p++] = colorsRGB[cp];
@@ -2033,10 +2077,10 @@ System.register(
           }
         } else {
           for (let py = 0; py < tileHeight; py++) {
-            p = (fy + py) * imageData.width + fx;
+            p = (y + py) * imageData.width + x;
             f = py * tileWidth;
             for (let px = 0; px < tileWidth; px++) {
-              if (px < w && py < h) {
+              if (px >= cfx && px < ctx && py >= cfy && py < cty) {
                 imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
               } else {
                 p++;
@@ -2067,7 +2111,7 @@ System.register(
           }
         }
       };
-      const setTileClip = (t, x, y, w, h) => {
+      const setTileClip = (t, x, y, cfx, cfy, ctx, cty) => {
         dirty = true;
         const tileset = tilesets.get(t.tilemap);
         if (tileset === undefined) {
@@ -2076,21 +2120,13 @@ System.register(
         const tilePixels = tileset.pixels[t.index];
         const tileWidth = tileset.dimensions.width;
         const tileHeight = tileset.dimensions.height;
-        if (w <= 0) {
-          w += tileWidth;
-        }
-        if (h <= 0) {
-          h += tileHeight;
-        }
-        const fx = x;
-        const fy = y;
         let p = 0;
         let f = 0;
         for (let py = 0; py < tileHeight; py++) {
-          p = (fy + py) * imageData.width + fx;
+          p = (y + py) * imageData.width + x;
           f = py * tileWidth;
           for (let px = 0; px < tileWidth; px++) {
-            if (px < w && py < h) {
+            if (px >= cfx && px < ctx && py >= cfy && py < cty) {
               imageDataPixels32[p++] = tilePixels[f++];
             } else {
               p++;
@@ -2242,7 +2278,7 @@ System.register(
         },
       ],
       execute: function () {
-        TARGET_FPS = 10;
+        TARGET_FPS = 30;
         totalRenderTime = 0;
         frames = 0;
         framesTime = performance.now();

@@ -20,8 +20,10 @@ export interface NativeContextScreen {
     backColor: Color,
     x: number,
     y: number,
-    w: number,
-    h: number,
+    cfx: number,
+    cfy: number,
+    ctx: number,
+    cty: number,
   ): void;
 
   setTile(
@@ -34,8 +36,10 @@ export interface NativeContextScreen {
     t: Tile,
     x: number,
     y: number,
-    w: number,
-    h: number,
+    cfx: number,
+    cfy: number,
+    ctx: number,
+    cty: number,
   ): void;
 
   endDraw(): void;

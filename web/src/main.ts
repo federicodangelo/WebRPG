@@ -4,7 +4,7 @@ import { LabelWidget } from "engine/widgets/label.ts";
 import { initGame, updateGame, mainUI } from "game/game.ts";
 import { getWebNativeContext } from "./native/web.ts";
 
-const TARGET_FPS = 10;
+const TARGET_FPS = 30;
 
 let engine: Engine;
 let fpsLabel: LabelWidget;

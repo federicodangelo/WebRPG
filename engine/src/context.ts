@@ -53,6 +53,16 @@ const AnsiSpecialChar: number[] = [
   useCp437 ? 206 : "╬".charCodeAt(0),
 ];
 
+function ceilToMultipleOf(n: number, m: number) {
+  if (n % m === 0) return n;
+  return Math.ceil(n / m) * m;
+}
+
+function floorToMultipleOf(n: number, m: number) {
+  if (n % m === 0) return n;
+  return Math.floor(n / m) * m;
+}
+
 export class EngineContextImpl implements EngineContext {
   private bounds = new Rect();
   private clip = new Rect();
@@ -178,17 +188,36 @@ export class EngineContextImpl implements EngineContext {
   public char(code: number) {
     const screenX = this.x + this.tx;
     const screenY = this.y + this.ty;
+    const width = FONT_SIZE;
+    const height = FONT_SIZE;
+    const clip = this.clip;
+
     if (
-      screenX >= this.clip.x &&
-      screenX < this.clip.x1 &&
-      screenY >= this.clip.y &&
-      screenY < this.clip.y1
+      screenX + width > clip.x &&
+      screenX < clip.x1 &&
+      screenY + height > clip.y &&
+      screenY < clip.y1
     ) {
       this.fontTile.index = code;
-      if (
-        screenX + FONT_SIZE <= this.clip.x1 &&
-        screenY + FONT_SIZE <= this.clip.y1
-      ) {
+
+      const cfx = Math.max(clip.x - screenX, 0);
+      const cfy = Math.max(clip.y - screenY, 0);
+      const ctx = Math.min(clip.x1 - screenX, width);
+      const cty = Math.min(clip.y1 - screenY, height);
+
+      if (cfx > 0 || cfy > 0 || ctx < width || cty < height) {
+        this.nativeContext.tintTileClip(
+          this.fontTile,
+          this.foreColor,
+          this.backColor,
+          screenX,
+          screenY,
+          cfx,
+          cfy,
+          ctx,
+          cty,
+        );
+      } else {
         this.nativeContext.tintTile(
           this.fontTile,
           this.foreColor,
@@ -196,19 +225,9 @@ export class EngineContextImpl implements EngineContext {
           screenX,
           screenY,
         );
-      } else {
-        this.nativeContext.tintTileClip(
-          this.fontTile,
-          this.foreColor,
-          this.backColor,
-          screenX,
-          screenY,
-          this.clip.x1 - (screenX + FONT_SIZE),
-          this.clip.y1 - (screenY + FONT_SIZE),
-        );
       }
     }
-    this.x += FONT_SIZE;
+    this.x += width;
     return this;
   }
 
@@ -278,14 +297,17 @@ export class EngineContextImpl implements EngineContext {
   ) {
     if (char.length === 0) return this;
 
+    const fontWidth = FONT_SIZE;
+    const fontHeight = FONT_SIZE;
+
     const clip = this.clip;
     const tx = this.tx;
     const ty = this.ty;
 
-    const x0 = Math.max(tx + x, clip.x);
-    const y0 = Math.max(ty + y, clip.y);
-    const x1 = Math.min(tx + x + width, clip.x1);
-    const y1 = Math.min(ty + y + height, clip.y1);
+    const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, fontWidth));
+    const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, fontHeight));
+    const x1 = Math.min(tx + x + width, ceilToMultipleOf(clip.x1, fontWidth));
+    const y1 = Math.min(ty + y + height, ceilToMultipleOf(clip.y1, fontHeight));
 
     if (x1 <= x0 || y1 <= y0) {
       return this;
@@ -295,25 +317,32 @@ export class EngineContextImpl implements EngineContext {
 
     this.fontTile.index = code;
 
-    for (let screenY = y0; screenY < y1; screenY += FONT_SIZE) {
-      for (let screenX = x0; screenX < x1; screenX += FONT_SIZE) {
-        if (screenX + FONT_SIZE <= x1 && screenY + FONT_SIZE <= y1) {
-          this.nativeContext.tintTile(
-            this.fontTile,
-            this.foreColor,
-            this.backColor,
-            screenX,
-            screenY,
-          );
-        } else {
+    for (let screenY = y0; screenY < y1; screenY += fontHeight) {
+      for (let screenX = x0; screenX < x1; screenX += fontWidth) {
+        const cfx = Math.max(clip.x - screenX, 0);
+        const cfy = Math.max(clip.y - screenY, 0);
+        const ctx = Math.min(clip.x1 - screenX, fontWidth);
+        const cty = Math.min(clip.y1 - screenY, fontHeight);
+
+        if (cfx > 0 || cfy > 0 || ctx < fontWidth || cty < fontHeight) {
           this.nativeContext.tintTileClip(
             this.fontTile,
             this.foreColor,
             this.backColor,
             screenX,
             screenY,
-            x1 - (screenX + FONT_SIZE),
-            y1 - (screenY + FONT_SIZE),
+            cfx,
+            cfy,
+            ctx,
+            cty,
+          );
+        } else {
+          this.nativeContext.tintTile(
+            this.fontTile,
+            this.foreColor,
+            this.backColor,
+            screenX,
+            screenY,
           );
         }
       }
@@ -324,28 +353,36 @@ export class EngineContextImpl implements EngineContext {
   public tile(x: number, y: number, t: Tile): EngineContext {
     const screenX = this.x + this.tx;
     const screenY = this.y + this.ty;
+    const clip = this.clip;
+    const width = t.width;
+    const height = t.height;
+
     if (
-      screenX >= this.clip.x &&
-      screenX < this.clip.x1 &&
-      screenY >= this.clip.y &&
-      screenY < this.clip.y1
+      screenX + width > clip.x &&
+      screenX < clip.x1 &&
+      screenY + height > clip.y &&
+      screenY < clip.y1
     ) {
-      if (
-        screenX + t.width <= this.clip.x1 &&
-        screenY + t.height <= this.clip.y1
-      ) {
-        this.nativeContext.setTile(
-          t,
-          screenX,
-          screenY,
-        );
-      } else {
+      const cfx = Math.max(clip.x - screenX, 0);
+      const cfy = Math.max(clip.y - screenY, 0);
+      const ctx = Math.min(clip.x1 - screenX, width);
+      const cty = Math.min(clip.y1 - screenY, height);
+
+      if (cfx > 0 || cfy > 0 || ctx < width || cty < height) {
         this.nativeContext.setTileClip(
           t,
           screenX,
           screenY,
-          this.clip.x1 - (screenX + t.width),
-          this.clip.y1 - (screenY + t.height),
+          cfx,
+          cfy,
+          ctx,
+          cty,
+        );
+      } else {
+        this.nativeContext.setTile(
+          t,
+          screenX,
+          screenY,
         );
       }
     }
@@ -363,10 +400,10 @@ export class EngineContextImpl implements EngineContext {
     const tx = this.tx;
     const ty = this.ty;
 
-    const x0 = Math.max(tx + x, clip.x);
-    const y0 = Math.max(ty + y, clip.y);
-    const x1 = Math.min(tx + x + width, clip.x1);
-    const y1 = Math.min(ty + y + height, clip.y1);
+    const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, t.width));
+    const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, t.height));
+    const x1 = Math.min(tx + x + width, ceilToMultipleOf(clip.x1, t.width));
+    const y1 = Math.min(ty + y + height, ceilToMultipleOf(clip.y1, t.height));
 
     if (x1 <= x0 || y1 <= y0) {
       return this;
@@ -374,22 +411,26 @@ export class EngineContextImpl implements EngineContext {
 
     for (let screenY = y0; screenY < y1; screenY += t.width) {
       for (let screenX = x0; screenX < x1; screenX += t.height) {
-        if (
-          screenX + t.width <= x1 &&
-          screenY + t.height <= y1
-        ) {
-          this.nativeContext.setTile(
-            t,
-            screenX,
-            screenY,
-          );
-        } else {
+        const cfx = Math.max(clip.x - screenX, 0);
+        const cfy = Math.max(clip.y - screenY, 0);
+        const ctx = Math.min(clip.x1 - screenX, t.width);
+        const cty = Math.min(clip.y1 - screenY, t.height);
+
+        if (cfx > 0 || cfy > 0 || ctx < t.width || cty < t.height) {
           this.nativeContext.setTileClip(
             t,
             screenX,
             screenY,
-            this.clip.x1 - (screenX + t.width),
-            this.clip.y1 - (screenY + t.height),
+            cfx,
+            cfy,
+            ctx,
+            cty,
+          );
+        } else {
+          this.nativeContext.setTile(
+            t,
+            screenX,
+            screenY,
           );
         }
       }
