@@ -11,10 +11,285 @@ import {
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { ScrollableContainerWidget } from "engine/widgets/scrollable.ts";
 import { TileWidget } from "../../engine/src/widgets/tile.ts";
+import { AnimatedTileWidget } from "../../engine/src/widgets/animated-tile.ts";
+import { Animations, Animation } from "../../engine/src/types.ts";
 
 const NPCS_COUNT = 2;
 const MAP_SIZE = 512;
 const OBSTACLES_COUNT = 512;
+
+const princessAnimations: Animations = new Map<string, Animation>([
+  ["down-walking", {
+    tiles: [
+      {
+        width: 64,
+        height: 64,
+        index: 19,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 20,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 21,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 22,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 23,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 24,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 25,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 26,
+        tilemap: "princess",
+      },
+    ],
+    delay: 1000 / 9,
+    sequence: [0, 1, 2, 3, 4, 5, 6, 7],
+  }],
+  ["left-walking", {
+    tiles: [
+      {
+        width: 64,
+        height: 64,
+        index: 10,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 11,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 12,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 13,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 14,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 15,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 16,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 17,
+        tilemap: "princess",
+      },
+    ],
+    delay: 1000 / 9,
+    sequence: [0, 1, 2, 3, 4, 5, 6, 7],
+  }],
+  ["up-walking", {
+    tiles: [
+      {
+        width: 64,
+        height: 64,
+        index: 1,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 2,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 3,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 4,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 5,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 6,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 7,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 8,
+        tilemap: "princess",
+      },
+    ],
+    delay: 1000 / 9,
+    sequence: [0, 1, 2, 3, 4, 5, 6, 7],
+  }],
+  ["right-walking", {
+    tiles: [
+      {
+        width: 64,
+        height: 64,
+        index: 27,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 28,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 29,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 30,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 31,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 32,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 33,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 34,
+        tilemap: "princess",
+      },
+      {
+        width: 64,
+        height: 64,
+        index: 35,
+        tilemap: "princess",
+      },
+    ],
+    delay: 1000 / 9,
+    sequence: [0, 1, 2, 3, 4, 5, 6, 7],
+  }],
+  ["up", {
+    tiles: [
+      {
+        width: 64,
+        height: 64,
+        index: 0,
+        tilemap: "princess",
+      },
+    ],
+    delay: 0,
+    sequence: [0],
+  }],
+  ["left", {
+    tiles: [
+      {
+        width: 64,
+        height: 64,
+        index: 9,
+        tilemap: "princess",
+      },
+    ],
+    delay: 0,
+    sequence: [0],
+  }],
+  ["down", {
+    tiles: [
+      {
+        width: 64,
+        height: 64,
+        index: 18,
+        tilemap: "princess",
+      },
+    ],
+    delay: 0,
+    sequence: [0],
+  }],
+  ["right", {
+    tiles: [
+      {
+        width: 64,
+        height: 64,
+        index: 27,
+        tilemap: "princess",
+      },
+    ],
+    delay: 0,
+    sequence: [0],
+  }],
+]);
 
 export const mainUI = new SplitPanelContainerWidget();
 mainUI.layout = {
@@ -75,13 +350,10 @@ function random<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-const p1 = new CharacterWidget(
-  "@",
-  FixedColor.BrightRed,
-  FixedColor.Transparent,
-);
-p1.x = 3 * FONT_SIZE;
-p1.y = 3 * FONT_SIZE;
+const p1 = new AnimatedTileWidget(princessAnimations, "down");
+
+p1.x = 10 * FONT_SIZE;
+p1.y = 10 * FONT_SIZE;
 
 const p2 = new CharacterWidget(
   "@",
@@ -176,6 +448,8 @@ export function initGame(engine: Engine) {
 
 const WALK_SPEED = 4;
 
+let p1idleFrames = 0;
+
 export function updateGame(engine: Engine): boolean {
   let running = true;
 
@@ -197,21 +471,27 @@ export function updateGame(engine: Engine): boolean {
     }
   }
 
+  let p1oldPos = { x: p1.x, y: p1.y };
+
   if (pendingInput) {
     const uniqueChars = pendingInput.split("").map((c) => c.toLowerCase());
     uniqueChars.forEach((c) => {
       switch (c) {
         case "a":
           p1.x -= WALK_SPEED;
+          p1.setAnimation("left-walking");
           break;
         case "d":
           p1.x += WALK_SPEED;
+          p1.setAnimation("right-walking");
           break;
         case "w":
           p1.y -= WALK_SPEED;
+          p1.setAnimation("up-walking");
           break;
         case "s":
           p1.y += WALK_SPEED;
+          p1.setAnimation("down-walking");
           break;
 
         case "j":
@@ -258,6 +538,17 @@ export function updateGame(engine: Engine): boolean {
       Math.min(char.y, MAP_SIZE * FONT_SIZE - char.height * FONT_SIZE),
       0,
     );
+  }
+
+  if (p1oldPos.x === p1.x && p1oldPos.y === p1.y) {
+    p1idleFrames++;
+    if (p1idleFrames > 2) {
+      if (p1.animationId.endsWith("-walking")) {
+        p1.setAnimation(p1.animationId.replace("-walking", ""));
+      }
+    }
+  } else {
+    p1idleFrames = 0;
   }
 
   let newOffsetX = playingBox.offsetX;

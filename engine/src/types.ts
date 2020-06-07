@@ -281,6 +281,14 @@ export type Tile = {
   height: number;
 };
 
+export type Animation = {
+  tiles: Tile[];
+  sequence: number[];
+  delay: number;
+};
+
+export type Animations = Map<string, Animation>;
+
 export interface DrawContext {
   //Text API
   font(name: string): EngineContext;
