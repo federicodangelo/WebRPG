@@ -6,6 +6,7 @@ import {
   EngineContext,
   FixedColor,
   Tile,
+  Tilemap,
   Font,
 } from "./types.ts";
 import { NativeContextScreen } from "./native-types.ts";
@@ -137,7 +138,7 @@ export class EngineContextImpl implements EngineContext {
     x: number,
     y: number,
     width: number,
-    height: number
+    height: number,
   ): boolean {
     return !(
       this.tx + x + width < this.clip.x ||
@@ -202,7 +203,7 @@ export class EngineContextImpl implements EngineContext {
         cfx,
         cfy,
         ctx,
-        cty
+        cty,
       );
     }
     this.x += width;
@@ -233,7 +234,7 @@ export class EngineContextImpl implements EngineContext {
     x: number,
     y: number,
     width: number,
-    height: number
+    height: number,
   ) {
     const clip = this.clip;
     const tx = this.tx;
@@ -281,7 +282,7 @@ export class EngineContextImpl implements EngineContext {
     y: number,
     width: number,
     height: number,
-    char: string
+    char: string,
   ) {
     if (char.length === 0) return this;
 
@@ -321,8 +322,77 @@ export class EngineContextImpl implements EngineContext {
           cfx,
           cfy,
           ctx,
-          cty
+          cty,
         );
+      }
+    }
+    return this;
+  }
+
+  public tilemap(
+    x: number,
+    y: number,
+    tilemap: Tilemap,
+    indexes: number[][],
+  ): EngineContext {
+    const tileWidth = tilemap.tileWidth;
+    const tileHeight = tilemap.tileHeight;
+    const clip = this.clip;
+    const tx = this.tx;
+    const ty = this.ty;
+
+    if (indexes.length == 0) return this;
+
+    const height = indexes.length * tileHeight;
+    const width = indexes[0].length * tileWidth;
+
+    const rtx = tx + x;
+    const rty = ty + y;
+
+    const x0 = Math.max(
+      tx + x,
+      floorToMultipleOf(clip.x - rtx, tileWidth) + rtx,
+    );
+    const y0 = Math.max(
+      ty + y,
+      floorToMultipleOf(clip.y - rty, tileHeight) + rty,
+    );
+    const x1 = Math.min(
+      tx + x + width,
+      ceilToMultipleOf(clip.x1 - rtx, tileWidth) + rtx,
+    );
+    const y1 = Math.min(
+      ty + y + height,
+      ceilToMultipleOf(clip.y1 - rty, tileHeight) + rty,
+    );
+
+    if (x1 <= x0 || y1 <= y0) {
+      return this;
+    }
+
+    const tiles = tilemap.tiles;
+
+    for (let screenY = y0; screenY < y1; screenY += tileHeight) {
+      const tileY = Math.trunc((screenY - y - ty) / tileHeight);
+      const row = indexes[tileY];
+      let tileX = Math.trunc((x0 - x - tx) / tileWidth);
+
+      for (let screenX = x0; screenX < x1; screenX += tileWidth) {
+        const cfx = Math.max(clip.x - screenX, 0);
+        const cfy = Math.max(clip.y - screenY, 0);
+        const ctx = Math.min(clip.x1 - screenX, tileWidth);
+        const cty = Math.min(clip.y1 - screenY, tileHeight);
+
+        this.nativeContext.setTile(
+          tiles[row[tileX]],
+          screenX,
+          screenY,
+          cfx,
+          cfy,
+          ctx,
+          cty,
+        );
+        tileX++;
       }
     }
     return this;
@@ -356,7 +426,7 @@ export class EngineContextImpl implements EngineContext {
     y: number,
     width: number,
     height: number,
-    t: Tile
+    t: Tile,
   ): EngineContext {
     const clip = this.clip;
     const tx = this.tx;
@@ -371,8 +441,8 @@ export class EngineContextImpl implements EngineContext {
       return this;
     }
 
-    for (let screenY = y0; screenY < y1; screenY += t.width) {
-      for (let screenX = x0; screenX < x1; screenX += t.height) {
+    for (let screenY = y0; screenY < y1; screenY += t.height) {
+      for (let screenX = x0; screenX < x1; screenX += t.width) {
         const cfx = Math.max(clip.x - screenX, 0);
         const cfy = Math.max(clip.y - screenY, 0);
         const ctx = Math.min(clip.x1 - screenX, t.width);

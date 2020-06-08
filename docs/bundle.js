@@ -551,6 +551,62 @@ System.register(
             }
             return this;
           }
+          tilemap(x, y, tilemap, indexes) {
+            const tileWidth = tilemap.tileWidth;
+            const tileHeight = tilemap.tileHeight;
+            const clip = this.clip;
+            const tx = this.tx;
+            const ty = this.ty;
+            if (indexes.length == 0) {
+              return this;
+            }
+            const height = indexes.length * tileHeight;
+            const width = indexes[0].length * tileWidth;
+            const rtx = tx + x;
+            const rty = ty + y;
+            const x0 = Math.max(
+              tx + x,
+              floorToMultipleOf(clip.x - rtx, tileWidth) + rtx,
+            );
+            const y0 = Math.max(
+              ty + y,
+              floorToMultipleOf(clip.y - rty, tileHeight) + rty,
+            );
+            const x1 = Math.min(
+              tx + x + width,
+              ceilToMultipleOf(clip.x1 - rtx, tileWidth) + rtx,
+            );
+            const y1 = Math.min(
+              ty + y + height,
+              ceilToMultipleOf(clip.y1 - rty, tileHeight) + rty,
+            );
+            if (x1 <= x0 || y1 <= y0) {
+              return this;
+            }
+            const tiles = tilemap.tiles;
+            for (let screenY = y0; screenY < y1; screenY += tileHeight) {
+              const tileY = Math.trunc((screenY - y - ty) / tileHeight);
+              const row = indexes[tileY];
+              let tileX = Math.trunc((x0 - x - tx) / tileWidth);
+              for (let screenX = x0; screenX < x1; screenX += tileWidth) {
+                const cfx = Math.max(clip.x - screenX, 0);
+                const cfy = Math.max(clip.y - screenY, 0);
+                const ctx = Math.min(clip.x1 - screenX, tileWidth);
+                const cty = Math.min(clip.y1 - screenY, tileHeight);
+                this.nativeContext.setTile(
+                  tiles[row[tileX]],
+                  screenX,
+                  screenY,
+                  cfx,
+                  cfy,
+                  ctx,
+                  cty,
+                );
+                tileX++;
+              }
+            }
+            return this;
+          }
           tile(x, y, t) {
             const screenX = x + this.tx;
             const screenY = y + this.ty;
@@ -596,8 +652,8 @@ System.register(
             if (x1 <= x0 || y1 <= y0) {
               return this;
             }
-            for (let screenY = y0; screenY < y1; screenY += t.width) {
-              for (let screenX = x0; screenX < x1; screenX += t.height) {
+            for (let screenY = y0; screenY < y1; screenY += t.height) {
+              for (let screenX = x0; screenX < x1; screenX += t.width) {
                 const cfx = Math.max(clip.x - screenX, 0);
                 const cfy = Math.max(clip.y - screenY, 0);
                 const ctx = Math.min(clip.x1 - screenX, t.width);
@@ -1578,30 +1634,45 @@ System.register(
               this.updateChildrenIndex(child);
             }
             drawSelf(context) {
-              super.drawSelf(context);
               const tilemap = this.floorTilemap;
               const tiles = this.floorTiles;
               if (tilemap !== null && tiles !== null) {
-                for (let y = 0; y < tiles.length; y++) {
-                  const row = tiles[y];
-                  if (
-                    !context.isVisible(
-                      this.innerX + 0,
-                      this.innerY + y * tilemap.tileHeight,
-                      row.length * tilemap.tileWidth,
-                      tilemap.tileHeight,
-                    )
-                  ) {
-                    continue;
-                  }
-                  for (let x = 0; x < row.length; x++) {
-                    context.tile(
-                      this.innerX + x * tilemap.tileWidth,
-                      this.innerY + y * tilemap.tileHeight,
-                      tilemap.tiles[row[x]],
-                    );
-                  }
-                }
+                //Draw tilemap
+                context.tilemap(this.innerX, this.innerY, tilemap, tiles);
+                //Draw "outside" tilemap
+                const tilemapHeight = tiles.length * tilemap.tileHeight;
+                const tilemapWidth = tiles.length > 0
+                  ? tiles[0].length * tilemap.tileWidth : 0;
+                context.textColor(this.foreColor, this.backColor);
+                //Left
+                context.fillChar(
+                  this.font,
+                  this.innerX + tilemapWidth,
+                  this.innerY + 0,
+                  9999999,
+                  tilemapHeight,
+                  this.fillChar,
+                );
+                //Bottom
+                context.fillChar(
+                  this.font,
+                  this.innerX + 0,
+                  this.innerY + tilemapHeight,
+                  tilemapWidth,
+                  9999999,
+                  this.fillChar,
+                );
+                //Bottom right
+                context.fillChar(
+                  this.font,
+                  this.innerX + tilemapWidth,
+                  this.innerY + tilemapHeight,
+                  9999999,
+                  9999999,
+                  this.fillChar,
+                );
+              } else {
+                super.drawSelf(context);
               }
             }
             updateChildrenIndex(child) {

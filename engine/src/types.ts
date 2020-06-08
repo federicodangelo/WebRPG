@@ -93,12 +93,12 @@ export interface WidgetLayout {
   customSizeFn?: (
     widget: Widget,
     parentWidth: number,
-    parentHeight: number
+    parentHeight: number,
   ) => void;
   customPositionFn?: (
     widget: Widget,
     parentWidth: number,
-    parentHeight: number
+    parentHeight: number,
   ) => void;
 }
 
@@ -216,7 +216,7 @@ export class Rect {
     x: number = 0,
     y: number = 0,
     width: number = 0,
-    height: number = 0
+    height: number = 0,
   ) {
     this.x = x;
     this.y = y;
@@ -348,7 +348,7 @@ export interface DrawContext {
     x: number,
     y: number,
     width: number,
-    height: number
+    height: number,
   ): EngineContext;
 
   fillChar(
@@ -357,10 +357,17 @@ export interface DrawContext {
     y: number,
     width: number,
     height: number,
-    char: string
+    char: string,
   ): EngineContext;
 
   //Tile API
+  tilemap(
+    x: number,
+    y: number,
+    tilemap: Tilemap,
+    indexes: number[][],
+  ): EngineContext;
+
   tile(x: number, y: number, t: Tile): EngineContext;
 
   fillTile(
@@ -368,7 +375,7 @@ export interface DrawContext {
     y: number,
     width: number,
     height: number,
-    t: Tile
+    t: Tile,
   ): EngineContext;
 }
 

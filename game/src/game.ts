@@ -75,17 +75,17 @@ export function initGame(engine: Engine, assets_: Assets) {
   mainUI.panel1.titleBackColor = rgb(
     Intensity.I20,
     Intensity.I0,
-    Intensity.I20
+    Intensity.I20,
   );
   mainUI.panel1.borderForeColor = rgb(
     Intensity.I60,
     Intensity.I0,
-    Intensity.I60
+    Intensity.I60,
   );
   mainUI.panel1.borderBackColor = rgb(
     Intensity.I20,
     Intensity.I0,
-    Intensity.I20
+    Intensity.I20,
   );
   mainUI.panel1.backColor = FixedColor.Black;
   mainUI.panel1.fillChar = "";
@@ -95,17 +95,17 @@ export function initGame(engine: Engine, assets_: Assets) {
   mainUI.panel2.titleBackColor = rgb(
     Intensity.I0,
     Intensity.I20,
-    Intensity.I40
+    Intensity.I40,
   );
   mainUI.panel2.borderForeColor = rgb(
     Intensity.I0,
     Intensity.I0,
-    Intensity.I60
+    Intensity.I60,
   );
   mainUI.panel2.borderBackColor = rgb(
     Intensity.I0,
     Intensity.I20,
-    Intensity.I40
+    Intensity.I40,
   );
   mainUI.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
   mainUI.panel2.childrenLayout = {
@@ -117,7 +117,7 @@ export function initGame(engine: Engine, assets_: Assets) {
     font,
     "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L\nQuit: Z",
     FixedColor.White,
-    mainUI.panel2.backColor
+    mainUI.panel2.backColor,
   ).parent = mainUI.panel2;
 
   function random<T>(arr: T[]): T {
@@ -148,8 +148,8 @@ export function initGame(engine: Engine, assets_: Assets) {
         font,
         "@",
         npcsColors[i % npcsColors.length],
-        FixedColor.Transparent
-      )
+        FixedColor.Transparent,
+      ),
     );
   }
 
@@ -181,7 +181,7 @@ export function initGame(engine: Engine, assets_: Assets) {
       font,
       random(obtacleChars),
       random(obtacleColors),
-      FixedColor.Transparent
+      FixedColor.Transparent,
     );
     obstacle.x = Math.floor(Math.random() * MAP_SIZE) * font.tileWidth;
     obstacle.y = Math.floor(Math.random() * MAP_SIZE) * font.tileHeight;
@@ -270,21 +270,21 @@ export function updateGame(engine: Engine): boolean {
     const char = characters[i];
     char.x = Math.max(
       Math.min(char.x, MAP_SIZE * font.tileWidth - char.width * font.tileWidth),
-      0
+      0,
     );
     char.y = Math.max(
       Math.min(
         char.y,
-        MAP_SIZE * font.tileHeight - char.height * font.tileHeight
+        MAP_SIZE * font.tileHeight - char.height * font.tileHeight,
       ),
-      0
+      0,
     );
   }
 
   if (p1oldPos.x === p1.x && p1oldPos.y === p1.y) {
     if (p1.animation.id.endsWith("-walking")) {
       p1.setAnimation(
-        assets.getAnimation(p1.animation.id.replace("-walking", ""))
+        assets.getAnimation(p1.animation.id.replace("-walking", "")),
       );
     }
   }
@@ -292,7 +292,7 @@ export function updateGame(engine: Engine): boolean {
   if (p2oldPos.x === p2.x && p2oldPos.y === p2.y) {
     if (p2.animation.id.endsWith("-walking")) {
       p2.setAnimation(
-        assets.getAnimation(p1.animation.id.replace("-walking", ""))
+        assets.getAnimation(p1.animation.id.replace("-walking", "")),
       );
     }
   }
@@ -321,15 +321,15 @@ export function updateGame(engine: Engine): boolean {
     Math.trunc(
       Math.max(
         Math.min(newOffsetX, 0),
-        -(MAP_SIZE * font.tileWidth - playingBox.width)
-      )
+        -(MAP_SIZE * font.tileWidth - playingBox.width),
+      ),
     ),
     Math.trunc(
       Math.max(
         Math.min(newOffsetY, 0),
-        -(MAP_SIZE * font.tileHeight - playingBox.height)
-      )
-    )
+        -(MAP_SIZE * font.tileHeight - playingBox.height),
+      ),
+    ),
   );
 
   return running;

@@ -4,7 +4,6 @@ import {
   DrawContext,
   EngineContext,
   Font,
-  Widget,
 } from "../types.ts";
 import { BaseWidgetContainer } from "./widget-container.ts";
 
@@ -45,7 +44,7 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
     font: Font,
     foreColor = FixedColor.White,
     backColor = FixedColor.Black,
-    fillChar = " "
+    fillChar = " ",
   ) {
     super();
     this.font = font;
