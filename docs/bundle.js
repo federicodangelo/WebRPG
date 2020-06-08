@@ -1953,7 +1953,25 @@ System.register(
       let imageDataPixels = imageData.data;
       let imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
       const colorsRGB = new Uint32Array(2);
-      let dirty = true;
+      let dirty = false;
+      let dirtyLeft = 0;
+      let dirtyRight = 0;
+      let dirtyTop = 0;
+      let dirtyBottom = 0;
+      const setDirty = (x, y, width, height) => {
+        if (!dirty) {
+          dirty = true;
+          dirtyLeft = x;
+          dirtyTop = y;
+          dirtyRight = x + width;
+          dirtyBottom = y + height;
+        } else {
+          dirtyLeft = Math.min(dirtyLeft, x);
+          dirtyTop = Math.min(dirtyTop, y);
+          dirtyRight = Math.max(dirtyRight, x + width);
+          dirtyBottom = Math.max(dirtyBottom, y + height);
+        }
+      };
       ctx.imageSmoothingEnabled = false;
       let screenSizeChangedListeners = [];
       let inputListeners = [];
@@ -2013,10 +2031,7 @@ System.register(
         screenSizeChangedListeners.forEach((l) => l(screenSize));
       };
       const tintTile = (t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) => {
-        dirty = true;
-        if (t.index < 0 || t.index > 255) {
-          return;
-        }
+        setDirty(x, y, t.width, t.height);
         colorsRGB[1] = foreColor;
         colorsRGB[0] = backColor;
         const tilePixels = t.pixels32;
@@ -2084,7 +2099,7 @@ System.register(
         }
       };
       const setTile = (t, x, y, cfx, cfy, ctx, cty) => {
-        dirty = true;
+        setDirty(x, y, t.width, t.height);
         const tilePixels8 = t.pixels;
         const tileWidth = t.width;
         const tileHeight = t.height;
@@ -2145,10 +2160,27 @@ System.register(
           },
           tintTile,
           setTile,
-          beginDraw: () => {},
+          beginDraw: () => {
+            dirty = false;
+          },
           endDraw: () => {
             if (dirty) {
-              ctx.putImageData(imageData, 0, 0);
+              dirtyLeft = Math.max(Math.min(dirtyLeft, screenSize.width), 0);
+              dirtyRight = Math.max(Math.min(dirtyRight, screenSize.width), 0);
+              dirtyTop = Math.max(Math.min(dirtyTop, screenSize.height), 0);
+              dirtyBottom = Math.max(
+                Math.min(dirtyBottom, screenSize.height),
+                0,
+              );
+              ctx.putImageData(
+                imageData,
+                0,
+                0,
+                dirtyLeft,
+                dirtyTop,
+                dirtyRight - dirtyLeft,
+                dirtyBottom - dirtyTop,
+              );
               dirty = false;
             }
           },

@@ -1,5 +1,5 @@
 import { NativeContext } from "engine/native-types.ts";
-import { Size, Color, Tile, KeyEvent } from "engine/types.ts";
+import { Size, Color, Tile, KeyEvent, Rect } from "engine/types.ts";
 
 const SCALE = 1;
 
@@ -41,7 +41,26 @@ export function getWebNativeContext(): NativeContext {
   let imageDataPixels32: Uint32Array = new Uint32Array(imageDataPixels.buffer);
 
   const colorsRGB = new Uint32Array(2);
-  let dirty = true;
+  let dirty = false;
+  let dirtyLeft = 0;
+  let dirtyRight = 0;
+  let dirtyTop = 0;
+  let dirtyBottom = 0;
+
+  const setDirty = (x: number, y: number, width: number, height: number) => {
+    if (!dirty) {
+      dirty = true;
+      dirtyLeft = x;
+      dirtyTop = y;
+      dirtyRight = x + width;
+      dirtyBottom = y + height;
+    } else {
+      dirtyLeft = Math.min(dirtyLeft, x);
+      dirtyTop = Math.min(dirtyTop, y);
+      dirtyRight = Math.max(dirtyRight, x + width);
+      dirtyBottom = Math.max(dirtyBottom, y + height);
+    }
+  };
 
   ctx.imageSmoothingEnabled = false;
 
@@ -122,9 +141,7 @@ export function getWebNativeContext(): NativeContext {
     ctx: number,
     cty: number
   ) => {
-    dirty = true;
-
-    if (t.index < 0 || t.index > 255) return;
+    setDirty(x, y, t.width, t.height);
 
     colorsRGB[1] = foreColor;
     colorsRGB[0] = backColor;
@@ -206,7 +223,7 @@ export function getWebNativeContext(): NativeContext {
     ctx: number,
     cty: number
   ) => {
-    dirty = true;
+    setDirty(x, y, t.width, t.height);
 
     const tilePixels8 = t.pixels;
     const tileWidth = t.width;
@@ -272,10 +289,24 @@ export function getWebNativeContext(): NativeContext {
       },
       tintTile,
       setTile,
-      beginDraw: () => {},
+      beginDraw: () => {
+        dirty = false;
+      },
       endDraw: () => {
         if (dirty) {
-          ctx.putImageData(imageData, 0, 0);
+          dirtyLeft = Math.max(Math.min(dirtyLeft, screenSize.width), 0);
+          dirtyRight = Math.max(Math.min(dirtyRight, screenSize.width), 0);
+          dirtyTop = Math.max(Math.min(dirtyTop, screenSize.height), 0);
+          dirtyBottom = Math.max(Math.min(dirtyBottom, screenSize.height), 0);
+          ctx.putImageData(
+            imageData,
+            0,
+            0,
+            dirtyLeft,
+            dirtyTop,
+            dirtyRight - dirtyLeft,
+            dirtyBottom - dirtyTop
+          );
           dirty = false;
         }
       },
