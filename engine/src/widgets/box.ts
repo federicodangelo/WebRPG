@@ -3,11 +3,12 @@ import {
   Color,
   DrawContext,
   EngineContext,
-  FONT_SIZE,
+  Font,
 } from "../types.ts";
 import { BaseWidgetContainer } from "./widget-container.ts";
 
 export class BoxContainerWidget extends BaseWidgetContainer {
+  public font: Font;
   public backColor: Color;
   public foreColor: Color;
   public borderForeColor: Color;
@@ -19,7 +20,8 @@ export class BoxContainerWidget extends BaseWidgetContainer {
   public border: number = 0;
 
   constructor(
-    border = FONT_SIZE,
+    font: Font,
+    border: number = font.tileWidth,
     borderForeColor = FixedColor.White,
     borderBackColor = FixedColor.Black,
     foreColor = FixedColor.White,
@@ -27,6 +29,7 @@ export class BoxContainerWidget extends BaseWidgetContainer {
     fillChar = " ",
   ) {
     super();
+    this.font = font;
     this.border = border;
     this.borderForeColor = borderForeColor;
     this.borderBackColor = borderBackColor;
@@ -36,19 +39,19 @@ export class BoxContainerWidget extends BaseWidgetContainer {
   }
 
   public get innerX() {
-    return this.border;
+    return this.border * this.font.tileWidth;
   }
 
   public get innerY() {
-    return this.border;
+    return this.border * this.font.tileHeight;
   }
 
   public get innerWidth() {
-    return this.width - this.border * 2;
+    return this.width - this.border * 2 * this.font.tileWidth;
   }
 
   public get innerHeight() {
-    return this.height - this.border * 2;
+    return this.height - this.border * 2 * this.font.tileHeight;
   }
 
   preDrawChildren(context: EngineContext) {
@@ -68,14 +71,16 @@ export class BoxContainerWidget extends BaseWidgetContainer {
   drawSelf(context: DrawContext) {
     if (this.border > 0) {
       context.textColor(this.foreColor, this.backColor).fillChar(
-        FONT_SIZE,
-        FONT_SIZE,
-        this.width - 2 * FONT_SIZE,
-        this.height - 2 * FONT_SIZE,
+        this.font,
+        this.font.tileWidth,
+        this.font.tileHeight,
+        this.width - 2 * this.font.tileWidth,
+        this.height - 2 * this.font.tileHeight,
         this.fillChar,
       );
 
       context.textColor(this.borderForeColor, this.borderBackColor).textBorder(
+        this.font,
         0,
         0,
         this.width,
@@ -83,6 +88,7 @@ export class BoxContainerWidget extends BaseWidgetContainer {
       );
     } else {
       context.textColor(this.foreColor, this.backColor).fillChar(
+        this.font,
         0,
         0,
         this.width,
@@ -93,11 +99,11 @@ export class BoxContainerWidget extends BaseWidgetContainer {
 
     if (this.title.length > 0) {
       context.moveCursorTo(
-        Math.floor((this.width - this.title.length * FONT_SIZE) / 2),
+        Math.floor((this.width - this.title.length * this.font.tileWidth) / 2),
         0,
       )
         .textColor(this.titleForeColor, this.titleBackColor)
-        .text(this.title);
+        .text(this.font, this.title);
     }
   }
 }

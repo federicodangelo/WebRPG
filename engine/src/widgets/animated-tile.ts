@@ -3,7 +3,6 @@ import {
   DrawContext,
   Tile,
   Animation,
-  Animations,
 } from "../types.ts";
 
 function buildDefaultSequence(len: number) {
@@ -13,34 +12,26 @@ function buildDefaultSequence(len: number) {
 }
 
 export class AnimatedTileWidget extends BaseWidget {
-  public animationId: string;
-
-  private animations: Animations;
-  private animation: Animation | null;
+  public animation: Animation;
   private tile: Tile | null = null;
   private frame = 0;
   private lastTimeoutCB = -1;
 
-  constructor(animations: Animations, defaultAnimationId: string) {
+  constructor(animation: Animation) {
     super();
-    this.animationId = defaultAnimationId;
-    this.animations = animations;
-    this.animation = animations.get(defaultAnimationId) || null;
-    this.updateCurrentTile(true);
+    this.animation = animation;
+    this.updateCurrentTile();
   }
 
-  public setAnimation(id: string) {
-    this.animationId = id;
-    const newAnimation = this.animations.get(id) || null;
-
-    if (newAnimation !== this.animation) {
-      this.animation = newAnimation;
+  public setAnimation(animation: Animation) {
+    if (animation !== this.animation) {
+      this.animation = animation;
       this.frame = 0;
       this.updateCurrentTile();
     }
   }
 
-  private updateCurrentTile(first = false) {
+  private updateCurrentTile() {
     const animation = this.animation;
     if (animation === null) {
       return;

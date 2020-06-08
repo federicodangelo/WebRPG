@@ -68,9 +68,6 @@ export const enum Intensity {
   I100 = 255,
 }
 
-export const FONT_SIZE = 16;
-export const FONT_NAME = "font16x16";
-
 export type RGB = number;
 
 export type Color = RGB;
@@ -126,6 +123,8 @@ export interface Widget {
   y: number;
   width: number;
   height: number;
+  pivotX: number;
+  pivotY: number;
   parent: WidgetContainer | null;
   updateLayout(parentWidth: number, parentHeight: number): void;
   draw(context: EngineContext): void;
@@ -274,38 +273,73 @@ export class Rect {
   }
 }
 
+export type TileSetType = "color" | "blackandwhite";
+
+export type Tilemap = {
+  id: string;
+  tiles: Tile[];
+  tilesById: Map<string, Tile>;
+  type: TileSetType;
+  tileWidth: number;
+  tileHeight: number;
+};
+
 export type Tile = {
-  tilemap: string;
+  id: string;
+  tilemap: Tilemap;
   index: number;
   width: number;
   height: number;
+  pixels: Uint8ClampedArray;
+  pixels32: Uint32Array;
 };
 
 export type Animation = {
+  id: string;
   tiles: Tile[];
   sequence: number[];
   delay: number;
 };
 
+export type Font = Tilemap;
+
+export type Fonts = Map<string, Font>;
+
 export type Animations = Map<string, Animation>;
+
+export type Tilemaps = Map<string, Tilemap>;
+
+export type Assets = {
+  fonts: Fonts;
+  tilemaps: Tilemaps;
+  animations: Animations;
+  defaultFont: Font;
+  getTilemap(id: string): Tilemap;
+  getFont(id: string): Font;
+  getAnimation(id: string): Animation;
+};
 
 export interface DrawContext {
   //Text API
-  font(name: string): EngineContext;
   moveCursorTo(x: number, y: number): EngineContext;
 
   textColor(foreColor: Color, backColor: Color): EngineContext;
   resetTextColor(): EngineContext;
 
-  text(str: string): EngineContext;
+  text(font: Font, str: string): EngineContext;
 
-  char(code: number): EngineContext;
-  charTimes(code: number, times: number): EngineContext;
+  char(font: Font, code: number): EngineContext;
+  charTimes(font: Font, code: number, times: number): EngineContext;
 
-  specialChar(code: SpecialChar): EngineContext;
-  specialCharTimes(code: SpecialChar, times: number): EngineContext;
+  specialChar(font: Font, code: SpecialChar): EngineContext;
+  specialCharTimes(
+    font: Font,
+    code: SpecialChar,
+    times: number,
+  ): EngineContext;
 
   textBorder(
+    font: Font,
     x: number,
     y: number,
     width: number,
@@ -313,6 +347,7 @@ export interface DrawContext {
   ): EngineContext;
 
   fillChar(
+    font: Font,
     x: number,
     y: number,
     width: number,

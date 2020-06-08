@@ -1,6 +1,6 @@
 import { BaseWidgetContainer } from "./widget-container.ts";
 import { BoxContainerWidget } from "./box.ts";
-import { FONT_SIZE } from "../types.ts";
+import { Font } from "../types.ts";
 
 export interface SplitPanelLayout {
   direction: "vertical" | "horizontal";
@@ -12,12 +12,16 @@ export interface SplitPanelLayout {
 }
 
 export class SplitPanelContainerWidget extends BaseWidgetContainer {
-  public panel1: BoxContainerWidget = new BoxContainerWidget(FONT_SIZE);
-  public panel2: BoxContainerWidget = new BoxContainerWidget(FONT_SIZE);
+  public font: Font;
+  public panel1: BoxContainerWidget;
+  public panel2: BoxContainerWidget;
   public splitLayout: SplitPanelLayout | null = null;
 
-  constructor(sl: SplitPanelLayout | null = null) {
+  constructor(font: Font, sl: SplitPanelLayout | null = null) {
     super();
+    this.font = font;
+    this.panel1 = new BoxContainerWidget(this.font, 1);
+    this.panel2 = new BoxContainerWidget(this.font, 1);
     this.panel1.parent = this;
     this.panel2.parent = this;
     this.splitLayout = sl;

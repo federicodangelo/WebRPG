@@ -109,7 +109,7 @@ let System, __instantiateAsync, __instantiate;
 
 System.register("engine/src/types", [], function (exports_1, context_1) {
   "use strict";
-  var FixedColor, FONT_SIZE, FONT_NAME, Point, Size, Rect;
+  var FixedColor, Point, Size, Rect;
   var __moduleName = context_1 && context_1.id;
   function rgb(r, g, b) {
     return rgba(r, g, b, 255);
@@ -148,8 +148,6 @@ System.register("engine/src/types", [], function (exports_1, context_1) {
         return FixedColor;
       })();
       exports_1("FixedColor", FixedColor);
-      exports_1("FONT_SIZE", FONT_SIZE = 16);
-      exports_1("FONT_NAME", FONT_NAME = "font16x16");
       Point = class Point {
         constructor(x = 0, y = 0) {
           this.x = x;
@@ -336,12 +334,6 @@ System.register(
             this.clip = new types_ts_1.Rect();
             this.tx = 0;
             this.ty = 0;
-            this.fontTile = {
-              tilemap: "",
-              index: 0,
-              width: types_ts_1.FONT_SIZE,
-              height: types_ts_1.FONT_SIZE,
-            };
             this.x = 0;
             this.y = 0;
             this.foreColor = types_ts_1.FixedColor.White;
@@ -351,7 +343,6 @@ System.register(
             this.nativeContext = nativeContext;
           }
           beginDraw() {
-            this.font(types_ts_1.FONT_NAME);
             this.nativeContext.beginDraw();
           }
           beginClip(x, y, width, height) {
@@ -406,10 +397,6 @@ System.register(
               this.tx + x > this.clip.x + this.clip.width ||
               this.ty + y > this.clip.y + this.clip.height);
           }
-          font(name) {
-            this.fontTile.tilemap = name;
-            return this;
-          }
           moveCursorTo(x, y) {
             this.x = x;
             this.y = y;
@@ -425,71 +412,61 @@ System.register(
             this.backColor = types_ts_1.FixedColor.Black;
             return this;
           }
-          text(str) {
+          text(font, str) {
             for (let i = 0; i < str.length; i++) {
-              this.char(str.charCodeAt(i));
+              this.char(font, str.charCodeAt(i));
             }
             return this;
           }
-          char(code) {
+          char(font, code) {
             const screenX = this.x + this.tx;
             const screenY = this.y + this.ty;
-            const width = types_ts_1.FONT_SIZE;
-            const height = types_ts_1.FONT_SIZE;
             const clip = this.clip;
+            const width = font.tileWidth;
+            const height = font.tileHeight;
             if (
               screenX + width > clip.x &&
               screenX < clip.x1 &&
               screenY + height > clip.y &&
               screenY < clip.y1
             ) {
-              this.fontTile.index = code;
+              const fontTile = font.tiles[code];
               const cfx = Math.max(clip.x - screenX, 0);
               const cfy = Math.max(clip.y - screenY, 0);
               const ctx = Math.min(clip.x1 - screenX, width);
               const cty = Math.min(clip.y1 - screenY, height);
-              if (cfx > 0 || cfy > 0 || ctx < width || cty < height) {
-                this.nativeContext.tintTileClip(
-                  this.fontTile,
-                  this.foreColor,
-                  this.backColor,
-                  screenX,
-                  screenY,
-                  cfx,
-                  cfy,
-                  ctx,
-                  cty,
-                );
-              } else {
-                this.nativeContext.tintTile(
-                  this.fontTile,
-                  this.foreColor,
-                  this.backColor,
-                  screenX,
-                  screenY,
-                );
-              }
+              this.nativeContext.tintTile(
+                fontTile,
+                this.foreColor,
+                this.backColor,
+                screenX,
+                screenY,
+                cfx,
+                cfy,
+                ctx,
+                cty,
+              );
             }
             this.x += width;
             return this;
           }
-          charTimes(code, times) {
+          charTimes(font, code, times) {
             for (let t = 0; t < times; t++) {
-              this.char(code);
+              this.char(font, code);
             }
             return this;
           }
-          specialChar(code) {
-            this.char(AnsiSpecialChar[code]);
+          specialChar(font, code) {
+            this.char(font, AnsiSpecialChar[code]);
             return this;
           }
-          specialCharTimes(code, times) {
+          specialCharTimes(font, code, times) {
             for (let t = 0; t < times; t++) {
-              this.specialChar(code);
+              this.specialChar(font, code);
             }
             return this;
           }
-          textBorder(x, y, width, height) {
+          textBorder(font, x, y, width, height) {
             const clip = this.clip;
             const tx = this.tx;
             const ty = this.ty;
@@ -503,46 +480,40 @@ System.register(
             if (x0 !== x && x0 !== x + width && y0 !== y && y0 !== y + height) {
               return this;
             }
+            const fontWidth = font.tileWidth;
+            const fontHeight = font.tileHeight;
             this.moveCursorTo(x, y);
-            this.specialChar(10 /* CornerTopLeft */);
+            this.specialChar(font, 10 /* CornerTopLeft */);
             this.specialCharTimes(
+              font,
               9, /* Horizontal */
-              width / types_ts_1.FONT_SIZE - 2,
+              width / fontWidth - 2,
             );
-            this.moveCursorTo(x + width - types_ts_1.FONT_SIZE, y);
-            this.specialChar(11 /* CornerTopRight */);
-            for (
-              let i = 0;
-              i < height - 2 * types_ts_1.FONT_SIZE;
-              i += types_ts_1.FONT_SIZE
-            ) {
-              this.moveCursorTo(x, y + types_ts_1.FONT_SIZE + i);
-              this.specialChar(8 /* Vertical */);
-              this.moveCursorTo(
-                x + width - types_ts_1.FONT_SIZE,
-                y + types_ts_1.FONT_SIZE + i,
-              );
-              this.specialChar(8 /* Vertical */);
+            this.moveCursorTo(x + width - fontWidth, y);
+            this.specialChar(font, 11 /* CornerTopRight */);
+            for (let i = 0; i < height - 2 * fontHeight; i += fontHeight) {
+              this.moveCursorTo(x, y + fontHeight + i);
+              this.specialChar(font, 8 /* Vertical */);
+              this.moveCursorTo(x + width - fontWidth, y + fontHeight + i);
+              this.specialChar(font, 8 /* Vertical */);
             }
-            this.moveCursorTo(x, y + height - types_ts_1.FONT_SIZE);
-            this.specialChar(12 /* CornerBottomLeft */);
+            this.moveCursorTo(x, y + height - fontHeight);
+            this.specialChar(font, 12 /* CornerBottomLeft */);
             this.specialCharTimes(
+              font,
               9, /* Horizontal */
-              width / types_ts_1.FONT_SIZE - 2,
+              width / fontWidth - 2,
             );
-            this.moveCursorTo(
-              x + width - types_ts_1.FONT_SIZE,
-              y + height - types_ts_1.FONT_SIZE,
-            );
-            this.specialChar(13 /* CornerBottomRight */);
+            this.moveCursorTo(x + width - fontWidth, y + height - fontHeight);
+            this.specialChar(font, 13 /* CornerBottomRight */);
             return this;
           }
-          fillChar(x, y, width, height, char) {
+          fillChar(font, x, y, width, height, char) {
             if (char.length === 0) {
               return this;
             }
-            const fontWidth = types_ts_1.FONT_SIZE;
-            const fontHeight = types_ts_1.FONT_SIZE;
+            const fontWidth = font.tileWidth;
+            const fontHeight = font.tileHeight;
             const clip = this.clip;
             const tx = this.tx;
             const ty = this.ty;
@@ -560,34 +531,24 @@ System.register(
               return this;
             }
             const code = char.charCodeAt(0);
-            this.fontTile.index = code;
+            const fontTile = font.tiles[code];
             for (let screenY = y0; screenY < y1; screenY += fontHeight) {
               for (let screenX = x0; screenX < x1; screenX += fontWidth) {
                 const cfx = Math.max(clip.x - screenX, 0);
                 const cfy = Math.max(clip.y - screenY, 0);
                 const ctx = Math.min(clip.x1 - screenX, fontWidth);
                 const cty = Math.min(clip.y1 - screenY, fontHeight);
-                if (cfx > 0 || cfy > 0 || ctx < fontWidth || cty < fontHeight) {
-                  this.nativeContext.tintTileClip(
-                    this.fontTile,
-                    this.foreColor,
-                    this.backColor,
-                    screenX,
-                    screenY,
-                    cfx,
-                    cfy,
-                    ctx,
-                    cty,
-                  );
-                } else {
-                  this.nativeContext.tintTile(
-                    this.fontTile,
-                    this.foreColor,
-                    this.backColor,
-                    screenX,
-                    screenY,
-                  );
-                }
+                this.nativeContext.tintTile(
+                  fontTile,
+                  this.foreColor,
+                  this.backColor,
+                  screenX,
+                  screenY,
+                  cfx,
+                  cfy,
+                  ctx,
+                  cty,
+                );
               }
             }
             return this;
@@ -608,19 +569,15 @@ System.register(
               const cfy = Math.max(clip.y - screenY, 0);
               const ctx = Math.min(clip.x1 - screenX, width);
               const cty = Math.min(clip.y1 - screenY, height);
-              if (cfx > 0 || cfy > 0 || ctx < width || cty < height) {
-                this.nativeContext.setTileClip(
-                  t,
-                  screenX,
-                  screenY,
-                  cfx,
-                  cfy,
-                  ctx,
-                  cty,
-                );
-              } else {
-                this.nativeContext.setTile(t, screenX, screenY);
-              }
+              this.nativeContext.setTile(
+                t,
+                screenX,
+                screenY,
+                cfx,
+                cfy,
+                ctx,
+                cty,
+              );
             }
             return this;
           }
@@ -647,19 +604,15 @@ System.register(
                 const cfy = Math.max(clip.y - screenY, 0);
                 const ctx = Math.min(clip.x1 - screenX, t.width);
                 const cty = Math.min(clip.y1 - screenY, t.height);
-                if (cfx > 0 || cfy > 0 || ctx < t.width || cty < t.height) {
-                  this.nativeContext.setTileClip(
-                    t,
-                    screenX,
-                    screenY,
-                    cfx,
-                    cfy,
-                    ctx,
-                    cty,
-                  );
-                } else {
-                  this.nativeContext.setTile(t, screenX, screenY);
-                }
+                this.nativeContext.setTile(
+                  t,
+                  screenX,
+                  screenY,
+                  cfx,
+                  cfy,
+                  ctx,
+                  cty,
+                );
               }
             }
             return this;
@@ -1022,27 +975,25 @@ System.register(
 );
 System.register(
   "engine/src/widgets/label",
-  ["engine/src/widgets/widget", "engine/src/types"],
+  ["engine/src/widgets/widget"],
   function (exports_6, context_6) {
     "use strict";
-    var widget_ts_1, types_ts_4, LabelWidget;
+    var widget_ts_1, LabelWidget;
     var __moduleName = context_6 && context_6.id;
     return {
       setters: [
         function (widget_ts_1_1) {
           widget_ts_1 = widget_ts_1_1;
         },
-        function (types_ts_4_1) {
-          types_ts_4 = types_ts_4_1;
-        },
       ],
       execute: function () {
         LabelWidget = class LabelWidget extends widget_ts_1.BaseWidget {
-          constructor(text, foreColor, backColor) {
+          constructor(font, text, foreColor, backColor) {
             super();
             this._text = "";
             this._lines = [];
-            this.height = types_ts_4.FONT_SIZE;
+            this.font = font;
+            this.height = font.tileHeight;
             this.text = text;
             this.foreColor = foreColor;
             this.backColor = backColor;
@@ -1051,9 +1002,12 @@ System.register(
             if (val !== this._text) {
               this._text = val;
               this._lines = val.split("\n");
-              this.width = this._lines.map((s) => s.length).reduce((max, c) =>
-                Math.max(max, c), 0) * types_ts_4.FONT_SIZE;
-              this.height = this._lines.length * types_ts_4.FONT_SIZE;
+              this.width =
+                this._lines.map((s) => s.length).reduce(
+                  (max, c) => Math.max(max, c),
+                  0,
+                ) * this.font.tileWidth;
+              this.height = this._lines.length * this.font.tileHeight;
               this.invalidate();
             }
           }
@@ -1063,7 +1017,8 @@ System.register(
           drawSelf(context) {
             context.textColor(this.foreColor, this.backColor);
             for (let i = 0; i < this._lines.length; i++) {
-              context.moveCursorTo(0, i * types_ts_4.FONT_SIZE).text(
+              context.moveCursorTo(0, i * this.font.tileHeight).text(
+                this.font,
                 this._lines[i],
               );
             }
@@ -1076,31 +1031,33 @@ System.register(
 );
 System.register(
   "engine/src/widgets/character",
-  ["engine/src/widgets/widget", "engine/src/types"],
+  ["engine/src/widgets/widget"],
   function (exports_7, context_7) {
     "use strict";
-    var widget_ts_2, types_ts_5, CharacterWidget;
+    var widget_ts_2, CharacterWidget;
     var __moduleName = context_7 && context_7.id;
     return {
       setters: [
         function (widget_ts_2_1) {
           widget_ts_2 = widget_ts_2_1;
         },
-        function (types_ts_5_1) {
-          types_ts_5 = types_ts_5_1;
-        },
       ],
       execute: function () {
         CharacterWidget = class CharacterWidget extends widget_ts_2.BaseWidget {
-          constructor(char, foreColor, backColor) {
+          constructor(font, char, foreColor, backColor) {
             super();
-            this.width = this.height = types_ts_5.FONT_SIZE;
+            this.font = font;
             this.char = char;
             this.foreColor = foreColor;
             this.backColor = backColor;
+            this.width = font.tileWidth;
+            this.height = font.tileHeight;
           }
           drawSelf(context) {
-            context.textColor(this.foreColor, this.backColor).text(this.char);
+            context.textColor(this.foreColor, this.backColor).text(
+              this.font,
+              this.char,
+            );
           }
         };
         exports_7("CharacterWidget", CharacterWidget);
@@ -1234,12 +1191,12 @@ System.register(
   ["engine/src/types", "engine/src/widgets/widget-container"],
   function (exports_9, context_9) {
     "use strict";
-    var types_ts_6, widget_container_ts_1, BoxContainerWidget;
+    var types_ts_4, widget_container_ts_1, BoxContainerWidget;
     var __moduleName = context_9 && context_9.id;
     return {
       setters: [
-        function (types_ts_6_1) {
-          types_ts_6 = types_ts_6_1;
+        function (types_ts_4_1) {
+          types_ts_4 = types_ts_4_1;
         },
         function (widget_container_ts_1_1) {
           widget_container_ts_1 = widget_container_ts_1_1;
@@ -1249,18 +1206,20 @@ System.register(
         BoxContainerWidget = class BoxContainerWidget
           extends widget_container_ts_1.BaseWidgetContainer {
           constructor(
-            border = types_ts_6.FONT_SIZE,
-            borderForeColor = types_ts_6.FixedColor.White,
-            borderBackColor = types_ts_6.FixedColor.Black,
-            foreColor = types_ts_6.FixedColor.White,
-            backColor = types_ts_6.FixedColor.Black,
+            font,
+            border = font.tileWidth,
+            borderForeColor = types_ts_4.FixedColor.White,
+            borderBackColor = types_ts_4.FixedColor.Black,
+            foreColor = types_ts_4.FixedColor.White,
+            backColor = types_ts_4.FixedColor.Black,
             fillChar = " ",
           ) {
             super();
             this.title = "";
-            this.titleForeColor = types_ts_6.FixedColor.White;
-            this.titleBackColor = types_ts_6.FixedColor.Black;
+            this.titleForeColor = types_ts_4.FixedColor.White;
+            this.titleBackColor = types_ts_4.FixedColor.Black;
             this.border = 0;
+            this.font = font;
             this.border = border;
             this.borderForeColor = borderForeColor;
             this.borderBackColor = borderBackColor;
@@ -1269,16 +1228,16 @@ System.register(
             this.fillChar = fillChar;
           }
           get innerX() {
-            return this.border;
+            return this.border * this.font.tileWidth;
           }
           get innerY() {
-            return this.border;
+            return this.border * this.font.tileHeight;
           }
           get innerWidth() {
-            return this.width - this.border * 2;
+            return this.width - this.border * 2 * this.font.tileWidth;
           }
           get innerHeight() {
-            return this.height - this.border * 2;
+            return this.height - this.border * 2 * this.font.tileHeight;
           }
           preDrawChildren(context) {
             if (this.innerX > 0 || this.innerY > 0) {
@@ -1295,16 +1254,18 @@ System.register(
           drawSelf(context) {
             if (this.border > 0) {
               context.textColor(this.foreColor, this.backColor).fillChar(
-                types_ts_6.FONT_SIZE,
-                types_ts_6.FONT_SIZE,
-                this.width - 2 * types_ts_6.FONT_SIZE,
-                this.height - 2 * types_ts_6.FONT_SIZE,
+                this.font,
+                this.font.tileWidth,
+                this.font.tileHeight,
+                this.width - 2 * this.font.tileWidth,
+                this.height - 2 * this.font.tileHeight,
                 this.fillChar,
               );
               context.textColor(this.borderForeColor, this.borderBackColor)
-                .textBorder(0, 0, this.width, this.height);
+                .textBorder(this.font, 0, 0, this.width, this.height);
             } else {
               context.textColor(this.foreColor, this.backColor).fillChar(
+                this.font,
                 0,
                 0,
                 this.width,
@@ -1315,12 +1276,12 @@ System.register(
             if (this.title.length > 0) {
               context.moveCursorTo(
                 Math.floor(
-                  (this.width - this.title.length * types_ts_6.FONT_SIZE) / 2,
+                  (this.width - this.title.length * this.font.tileWidth) / 2,
                 ),
                 0,
               )
                 .textColor(this.titleForeColor, this.titleBackColor)
-                .text(this.title);
+                .text(this.font, this.title);
             }
           }
         };
@@ -1331,14 +1292,10 @@ System.register(
 );
 System.register(
   "engine/src/widgets/split-panel",
-  [
-    "engine/src/widgets/widget-container",
-    "engine/src/widgets/box",
-    "engine/src/types",
-  ],
+  ["engine/src/widgets/widget-container", "engine/src/widgets/box"],
   function (exports_10, context_10) {
     "use strict";
-    var widget_container_ts_2, box_ts_1, types_ts_7, SplitPanelContainerWidget;
+    var widget_container_ts_2, box_ts_1, SplitPanelContainerWidget;
     var __moduleName = context_10 && context_10.id;
     return {
       setters: [
@@ -1348,18 +1305,16 @@ System.register(
         function (box_ts_1_1) {
           box_ts_1 = box_ts_1_1;
         },
-        function (types_ts_7_1) {
-          types_ts_7 = types_ts_7_1;
-        },
       ],
       execute: function () {
         SplitPanelContainerWidget = class SplitPanelContainerWidget
           extends widget_container_ts_2.BaseWidgetContainer {
-          constructor(sl = null) {
+          constructor(font, sl = null) {
             super();
-            this.panel1 = new box_ts_1.BoxContainerWidget(types_ts_7.FONT_SIZE);
-            this.panel2 = new box_ts_1.BoxContainerWidget(types_ts_7.FONT_SIZE);
             this.splitLayout = null;
+            this.font = font;
+            this.panel1 = new box_ts_1.BoxContainerWidget(this.font, 1);
+            this.panel2 = new box_ts_1.BoxContainerWidget(this.font, 1);
             this.panel1.parent = this;
             this.panel2.parent = this;
             this.splitLayout = sl;
@@ -1432,12 +1387,12 @@ System.register(
   ["engine/src/types", "engine/src/widgets/widget-container"],
   function (exports_11, context_11) {
     "use strict";
-    var types_ts_8, widget_container_ts_3, ScrollableContainerWidget;
+    var types_ts_5, widget_container_ts_3, ScrollableContainerWidget;
     var __moduleName = context_11 && context_11.id;
     return {
       setters: [
-        function (types_ts_8_1) {
-          types_ts_8 = types_ts_8_1;
+        function (types_ts_5_1) {
+          types_ts_5 = types_ts_5_1;
         },
         function (widget_container_ts_3_1) {
           widget_container_ts_3 = widget_container_ts_3_1;
@@ -1447,13 +1402,15 @@ System.register(
         ScrollableContainerWidget = class ScrollableContainerWidget
           extends widget_container_ts_3.BaseWidgetContainer {
           constructor(
-            foreColor = types_ts_8.FixedColor.White,
-            backColor = types_ts_8.FixedColor.Black,
+            font,
+            foreColor = types_ts_5.FixedColor.White,
+            backColor = types_ts_5.FixedColor.Black,
             fillChar = " ",
           ) {
             super();
             this._offsetX = 0;
             this._offsetY = 0;
+            this.font = font;
             this.foreColor = foreColor;
             this.backColor = backColor;
             this.fillChar = fillChar;
@@ -1485,6 +1442,7 @@ System.register(
           }
           drawSelf(context) {
             context.textColor(this.foreColor, this.backColor).fillChar(
+              this.font,
               0,
               0,
               this.width,
@@ -1551,26 +1509,22 @@ System.register(
       execute: function () {
         AnimatedTileWidget = class AnimatedTileWidget
           extends widget_ts_5.BaseWidget {
-          constructor(animations, defaultAnimationId) {
+          constructor(animation) {
             super();
             this.tile = null;
             this.frame = 0;
             this.lastTimeoutCB = -1;
-            this.animationId = defaultAnimationId;
-            this.animations = animations;
-            this.animation = animations.get(defaultAnimationId) || null;
-            this.updateCurrentTile(true);
+            this.animation = animation;
+            this.updateCurrentTile();
           }
-          setAnimation(id) {
-            this.animationId = id;
-            const newAnimation = this.animations.get(id) || null;
-            if (newAnimation !== this.animation) {
-              this.animation = newAnimation;
+          setAnimation(animation) {
+            if (animation !== this.animation) {
+              this.animation = animation;
               this.frame = 0;
               this.updateCurrentTile();
             }
           }
-          updateCurrentTile(first = false) {
+          updateCurrentTile() {
             const animation = this.animation;
             if (animation === null) {
               return;
@@ -1623,7 +1577,7 @@ System.register(
     "use strict";
     var character_ts_1,
       label_ts_1,
-      types_ts_9,
+      types_ts_6,
       split_panel_ts_1,
       scrollable_ts_1,
       tile_ts_1,
@@ -1631,28 +1585,171 @@ System.register(
       NPCS_COUNT,
       MAP_SIZE,
       OBSTACLES_COUNT,
-      princessAnimations,
       mainUI,
-      playingBox,
       cameraMode,
+      npcs,
+      characters,
+      playingBox,
       p1,
       p2,
-      npcs,
-      npcsColors,
-      characters,
-      obtacleChars,
-      obtacleColors,
       pendingInput,
+      assets,
+      font,
       WALK_SPEED,
       p1idleFrames;
     var __moduleName = context_14 && context_14.id;
-    function random(arr) {
-      return arr[Math.floor(Math.random() * arr.length)];
-    }
-    function onInput(input) {
-      pendingInput += input;
-    }
-    function initGame(engine) {
+    function initGame(engine, assets_) {
+      assets = assets_;
+      font = assets.defaultFont;
+      exports_14(
+        "mainUI",
+        mainUI = new split_panel_ts_1.SplitPanelContainerWidget(font),
+      );
+      mainUI.layout = {
+        widthPercent: 100,
+        heightPercent: 100,
+      };
+      mainUI.splitLayout = {
+        direction: "horizontal",
+        fixed: {
+          panel: "panel2",
+          amount: 19 * font.tileWidth,
+        },
+      };
+      mainUI.panel2.border = 2;
+      mainUI.panel2.backColor = types_ts_6.FixedColor.BrightBlack;
+      playingBox = new scrollable_ts_1.ScrollableContainerWidget(font);
+      playingBox.setLayout({ heightPercent: 100, widthPercent: 100 });
+      playingBox.setChildrenLayout({ type: "none" });
+      playingBox.parent = mainUI.panel1;
+      mainUI.panel1.title = " Map ";
+      mainUI.panel1.titleForeColor = types_ts_6.FixedColor.BrightWhite;
+      mainUI.panel1.titleBackColor = types_ts_6.rgb(
+        51, /* I20 */
+        0, /* I0 */
+        51, /* I20 */
+      );
+      mainUI.panel1.borderForeColor = types_ts_6.rgb(
+        153, /* I60 */
+        0, /* I0 */
+        153, /* I60 */
+      );
+      mainUI.panel1.borderBackColor = types_ts_6.rgb(
+        51, /* I20 */
+        0, /* I0 */
+        51, /* I20 */
+      );
+      mainUI.panel1.backColor = types_ts_6.FixedColor.Black;
+      mainUI.panel1.fillChar = "";
+      mainUI.panel2.title = " Stats ";
+      mainUI.panel2.titleForeColor = types_ts_6.FixedColor.BrightWhite;
+      mainUI.panel2.titleBackColor = types_ts_6.rgb(
+        0, /* I0 */
+        51, /* I20 */
+        102, /* I40 */
+      );
+      mainUI.panel2.borderForeColor = types_ts_6.rgb(
+        0, /* I0 */
+        0, /* I0 */
+        153, /* I60 */
+      );
+      mainUI.panel2.borderBackColor = types_ts_6.rgb(
+        0, /* I0 */
+        51, /* I20 */
+        102, /* I40 */
+      );
+      mainUI.panel2.backColor = types_ts_6.rgb(
+        0, /* I0 */
+        51, /* I20 */
+        102, /* I40 */
+      );
+      mainUI.panel2.childrenLayout = {
+        type: "vertical",
+        spacing: 1 * font.tileWidth,
+      };
+      new label_ts_1.LabelWidget(
+        font,
+        "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L\nQuit: Z",
+        types_ts_6.FixedColor.White,
+        mainUI.panel2.backColor,
+      ).parent = mainUI.panel2;
+      function random(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+      }
+      p1 = new animated_tile_ts_1.AnimatedTileWidget(
+        assets.getAnimation("down"),
+      );
+      p1.pivotX = -Math.floor(p1.width / 2);
+      p1.pivotY = -Math.floor(p1.height * 7 / 8);
+      p1.x = 10 * font.tileWidth;
+      p1.y = 10 * font.tileHeight;
+      p2 = new character_ts_1.CharacterWidget(
+        font,
+        "@",
+        types_ts_6.FixedColor.BrightBlue,
+        types_ts_6.FixedColor.Transparent,
+      );
+      p2.x = 13 * font.tileWidth;
+      p2.y = 3 * font.tileHeight;
+      const npcsColors = [
+        types_ts_6.FixedColor.Green,
+        types_ts_6.FixedColor.Yellow,
+        types_ts_6.FixedColor.Cyan,
+      ];
+      for (let i = 0; i < NPCS_COUNT; i++) {
+        npcs.push(
+          new character_ts_1.CharacterWidget(
+            font,
+            "@",
+            npcsColors[i % npcsColors.length],
+            types_ts_6.FixedColor.Transparent,
+          ),
+        );
+      }
+      characters.push(...npcs, p1, p2);
+      const obtacleChars = ["."];
+      const obtacleColors = [
+        types_ts_6.rgb(0, /* I0 */ 51, /* I20 */ 0 /* I0 */),
+        types_ts_6.rgb(0, /* I0 */ 102, /* I40 */ 0 /* I0 */),
+        types_ts_6.rgb(0, /* I0 */ 153, /* I60 */ 0 /* I0 */),
+        types_ts_6.rgb(0, /* I0 */ 204, /* I80 */ 0 /* I0 */),
+      ];
+      /*for (let i = 0; i < 255; i++) {
+          const obstacle = new TileWidget(
+            {
+              tilemap: "floor",
+              index: i,
+            },
+          );
+          obstacle.x = i % 21;
+          obstacle.y = Math.floor(i / 21);
+          obstacle.parent = playingBox;
+        }*/
+      for (let x = 0; x < 128; x++) {
+        for (let y = 0; y < 128; y++) {
+          const obstacle = new tile_ts_1.TileWidget(
+            assets.getTilemap("floor").tiles[(7 + 6) * 21 + 1],
+          );
+          obstacle.x = x * obstacle.tile.width;
+          obstacle.y = y * obstacle.tile.height;
+          obstacle.parent = playingBox;
+        }
+      }
+      for (let i = 0; i < OBSTACLES_COUNT; i++) {
+        const obstacle = new character_ts_1.CharacterWidget(
+          font,
+          random(obtacleChars),
+          random(obtacleColors),
+          types_ts_6.FixedColor.Transparent,
+        );
+        obstacle.x = Math.floor(Math.random() * MAP_SIZE) * font.tileWidth;
+        obstacle.y = Math.floor(Math.random() * MAP_SIZE) * font.tileHeight;
+        obstacle.parent = playingBox;
+      }
+      characters.forEach((c) => c.parent = playingBox);
+      function onInput(input) {
+        pendingInput += input;
+      }
       engine.addWidget(mainUI);
       engine.onInput(onInput);
     }
@@ -1683,19 +1780,19 @@ System.register(
           switch (c) {
             case "a":
               p1.x -= WALK_SPEED;
-              p1.setAnimation("left-walking");
+              p1.setAnimation(assets.getAnimation("left-walking"));
               break;
             case "d":
               p1.x += WALK_SPEED;
-              p1.setAnimation("right-walking");
+              p1.setAnimation(assets.getAnimation("right-walking"));
               break;
             case "w":
               p1.y -= WALK_SPEED;
-              p1.setAnimation("up-walking");
+              p1.setAnimation(assets.getAnimation("up-walking"));
               break;
             case "s":
               p1.y += WALK_SPEED;
-              p1.setAnimation("down-walking");
+              p1.setAnimation(assets.getAnimation("down-walking"));
               break;
             case "j":
               p2.x -= WALK_SPEED;
@@ -1731,16 +1828,14 @@ System.register(
         char.x = Math.max(
           Math.min(
             char.x,
-            MAP_SIZE * types_ts_9.FONT_SIZE -
-              char.width * types_ts_9.FONT_SIZE,
+            MAP_SIZE * font.tileWidth - char.width * font.tileWidth,
           ),
           0,
         );
         char.y = Math.max(
           Math.min(
             char.y,
-            MAP_SIZE * types_ts_9.FONT_SIZE -
-              char.height * types_ts_9.FONT_SIZE,
+            MAP_SIZE * font.tileHeight - char.height * font.tileHeight,
           ),
           0,
         );
@@ -1748,8 +1843,10 @@ System.register(
       if (p1oldPos.x === p1.x && p1oldPos.y === p1.y) {
         p1idleFrames++;
         if (p1idleFrames > 2) {
-          if (p1.animationId.endsWith("-walking")) {
-            p1.setAnimation(p1.animationId.replace("-walking", ""));
+          if (p1.animation.id.endsWith("-walking")) {
+            p1.setAnimation(
+              assets.getAnimation(p1.animation.id.replace("-walking", "")),
+            );
           }
         }
       } else {
@@ -1776,13 +1873,13 @@ System.register(
         Math.trunc(
           Math.max(
             Math.min(newOffsetX, 0),
-            -(MAP_SIZE * types_ts_9.FONT_SIZE - playingBox.width),
+            -(MAP_SIZE * font.tileWidth - playingBox.width),
           ),
         ),
         Math.trunc(
           Math.max(
             Math.min(newOffsetY, 0),
-            -(MAP_SIZE * types_ts_9.FONT_SIZE - playingBox.height),
+            -(MAP_SIZE * font.tileHeight - playingBox.height),
           ),
         ),
       );
@@ -1797,8 +1894,8 @@ System.register(
         function (label_ts_1_1) {
           label_ts_1 = label_ts_1_1;
         },
-        function (types_ts_9_1) {
-          types_ts_9 = types_ts_9_1;
+        function (types_ts_6_1) {
+          types_ts_6 = types_ts_6_1;
         },
         function (split_panel_ts_1_1) {
           split_panel_ts_1 = split_panel_ts_1_1;
@@ -1817,429 +1914,9 @@ System.register(
         NPCS_COUNT = 2;
         MAP_SIZE = 512;
         OBSTACLES_COUNT = 512;
-        princessAnimations = new Map([
-          ["down-walking", {
-            tiles: [
-              {
-                width: 64,
-                height: 64,
-                index: 19,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 20,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 21,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 22,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 23,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 24,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 25,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 26,
-                tilemap: "princess",
-              },
-            ],
-            delay: 1000 / 9,
-            sequence: [0, 1, 2, 3, 4, 5, 6, 7],
-          }],
-          ["left-walking", {
-            tiles: [
-              {
-                width: 64,
-                height: 64,
-                index: 10,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 11,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 12,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 13,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 14,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 15,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 16,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 17,
-                tilemap: "princess",
-              },
-            ],
-            delay: 1000 / 9,
-            sequence: [0, 1, 2, 3, 4, 5, 6, 7],
-          }],
-          ["up-walking", {
-            tiles: [
-              {
-                width: 64,
-                height: 64,
-                index: 1,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 2,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 3,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 4,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 5,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 6,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 7,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 8,
-                tilemap: "princess",
-              },
-            ],
-            delay: 1000 / 9,
-            sequence: [0, 1, 2, 3, 4, 5, 6, 7],
-          }],
-          ["right-walking", {
-            tiles: [
-              {
-                width: 64,
-                height: 64,
-                index: 27,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 28,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 29,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 30,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 31,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 32,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 33,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 34,
-                tilemap: "princess",
-              },
-              {
-                width: 64,
-                height: 64,
-                index: 35,
-                tilemap: "princess",
-              },
-            ],
-            delay: 1000 / 9,
-            sequence: [0, 1, 2, 3, 4, 5, 6, 7],
-          }],
-          ["up", {
-            tiles: [
-              {
-                width: 64,
-                height: 64,
-                index: 0,
-                tilemap: "princess",
-              },
-            ],
-            delay: 0,
-            sequence: [0],
-          }],
-          ["left", {
-            tiles: [
-              {
-                width: 64,
-                height: 64,
-                index: 9,
-                tilemap: "princess",
-              },
-            ],
-            delay: 0,
-            sequence: [0],
-          }],
-          ["down", {
-            tiles: [
-              {
-                width: 64,
-                height: 64,
-                index: 18,
-                tilemap: "princess",
-              },
-            ],
-            delay: 0,
-            sequence: [0],
-          }],
-          ["right", {
-            tiles: [
-              {
-                width: 64,
-                height: 64,
-                index: 27,
-                tilemap: "princess",
-              },
-            ],
-            delay: 0,
-            sequence: [0],
-          }],
-        ]);
-        exports_14(
-          "mainUI",
-          mainUI = new split_panel_ts_1.SplitPanelContainerWidget(),
-        );
-        mainUI.layout = {
-          widthPercent: 100,
-          heightPercent: 100,
-        };
-        mainUI.splitLayout = {
-          direction: "horizontal",
-          fixed: {
-            panel: "panel2",
-            amount: 19 * types_ts_9.FONT_SIZE,
-          },
-        };
-        mainUI.panel2.border = 2 * types_ts_9.FONT_SIZE;
-        mainUI.panel2.backColor = types_ts_9.FixedColor.BrightBlack;
-        playingBox = new scrollable_ts_1.ScrollableContainerWidget();
-        playingBox.setLayout({ heightPercent: 100, widthPercent: 100 });
-        playingBox.setChildrenLayout({ type: "none" });
-        playingBox.parent = mainUI.panel1;
-        mainUI.panel1.title = " Map ";
-        mainUI.panel1.titleForeColor = types_ts_9.FixedColor.BrightWhite;
-        mainUI.panel1.titleBackColor = types_ts_9.rgb(
-          51, /* I20 */
-          0, /* I0 */
-          51, /* I20 */
-        );
-        mainUI.panel1.borderForeColor = types_ts_9.rgb(
-          153, /* I60 */
-          0, /* I0 */
-          153, /* I60 */
-        );
-        mainUI.panel1.borderBackColor = types_ts_9.rgb(
-          51, /* I20 */
-          0, /* I0 */
-          51, /* I20 */
-        );
-        mainUI.panel1.backColor = types_ts_9.FixedColor.Black;
-        mainUI.panel1.fillChar = "";
-        mainUI.panel2.title = " Stats ";
-        mainUI.panel2.titleForeColor = types_ts_9.FixedColor.BrightWhite;
-        mainUI.panel2.titleBackColor = types_ts_9.rgb(
-          0, /* I0 */
-          51, /* I20 */
-          102, /* I40 */
-        );
-        mainUI.panel2.borderForeColor = types_ts_9.rgb(
-          0, /* I0 */
-          0, /* I0 */
-          153, /* I60 */
-        );
-        mainUI.panel2.borderBackColor = types_ts_9.rgb(
-          0, /* I0 */
-          51, /* I20 */
-          102, /* I40 */
-        );
-        mainUI.panel2.backColor = types_ts_9.rgb(
-          0, /* I0 */
-          51, /* I20 */
-          102, /* I40 */
-        );
-        mainUI.panel2.childrenLayout = {
-          type: "vertical",
-          spacing: 1 * types_ts_9.FONT_SIZE,
-        };
-        new label_ts_1.LabelWidget(
-          "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L\nQuit: Z",
-          types_ts_9.FixedColor.White,
-          mainUI.panel2.backColor,
-        ).parent = mainUI.panel2;
         cameraMode = 0 /* FollowContinuous */;
-        p1 = new animated_tile_ts_1.AnimatedTileWidget(
-          princessAnimations,
-          "down",
-        );
-        p1.pivotX = -Math.floor(p1.width / 2);
-        p1.pivotY = -Math.floor(p1.height * 7 / 8);
-        p1.x = 10 * types_ts_9.FONT_SIZE;
-        p1.y = 10 * types_ts_9.FONT_SIZE;
-        p2 = new character_ts_1.CharacterWidget(
-          "@",
-          types_ts_9.FixedColor.BrightBlue,
-          types_ts_9.FixedColor.Transparent,
-        );
-        p2.x = 13 * types_ts_9.FONT_SIZE;
-        p2.y = 3 * types_ts_9.FONT_SIZE;
         npcs = [];
-        npcsColors = [
-          types_ts_9.FixedColor.Green,
-          types_ts_9.FixedColor.Yellow,
-          types_ts_9.FixedColor.Cyan,
-        ];
-        for (let i = 0; i < NPCS_COUNT; i++) {
-          npcs.push(
-            new character_ts_1.CharacterWidget(
-              "@",
-              npcsColors[i % npcsColors.length],
-              types_ts_9.FixedColor.Transparent,
-            ),
-          );
-        }
-        characters = [
-          ...npcs,
-          p1,
-          p2,
-        ];
-        obtacleChars = ["."];
-        obtacleColors = [
-          types_ts_9.rgb(0, /* I0 */ 51, /* I20 */ 0 /* I0 */),
-          types_ts_9.rgb(0, /* I0 */ 102, /* I40 */ 0 /* I0 */),
-          types_ts_9.rgb(0, /* I0 */ 153, /* I60 */ 0 /* I0 */),
-          types_ts_9.rgb(0, /* I0 */ 204, /* I80 */ 0 /* I0 */),
-        ];
-        /*for (let i = 0; i < 255; i++) {
-              const obstacle = new TileWidget(
-                {
-                  tilemap: "floor",
-                  index: i,
-                },
-              );
-              obstacle.x = i % 21;
-              obstacle.y = Math.floor(i / 21);
-              obstacle.parent = playingBox;
-            }*/
-        for (let x = 0; x < 128; x++) {
-          for (let y = 0; y < 128; y++) {
-            const obstacle = new tile_ts_1.TileWidget({
-              tilemap: "floor",
-              index: (7 + 6) * 21 + 1,
-              width: types_ts_9.FONT_SIZE,
-              height: types_ts_9.FONT_SIZE,
-            });
-            obstacle.x = x * types_ts_9.FONT_SIZE;
-            obstacle.y = y * types_ts_9.FONT_SIZE;
-            obstacle.parent = playingBox;
-          }
-        }
-        for (let i = 0; i < OBSTACLES_COUNT; i++) {
-          const obstacle = new character_ts_1.CharacterWidget(
-            random(obtacleChars),
-            random(obtacleColors),
-            types_ts_9.FixedColor.Transparent,
-          );
-          obstacle.x = Math.floor(Math.random() * MAP_SIZE) *
-            types_ts_9.FONT_SIZE;
-          obstacle.y = Math.floor(Math.random() * MAP_SIZE) *
-            types_ts_9.FONT_SIZE;
-          obstacle.parent = playingBox;
-        }
-        characters.forEach((c) => c.parent = playingBox);
+        characters = [];
         pendingInput = "";
         WALK_SPEED = 4;
         p1idleFrames = 0;
@@ -2248,102 +1925,12 @@ System.register(
   },
 );
 System.register(
-  "web/src/native/tileset",
-  [],
+  "web/src/native/web",
+  ["engine/src/types"],
   function (exports_15, context_15) {
     "use strict";
-    var tilesets;
+    var types_ts_7, SCALE;
     var __moduleName = context_15 && context_15.id;
-    async function loadImage(src) {
-      return new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = reject;
-        image.src = "res/" + src;
-      });
-    }
-    async function initTilesets() {
-      const map = new Map();
-      for (var kv of tilesets) {
-        const id = kv[0];
-        const tileset = kv[1];
-        const image = await loadImage(tileset.filename);
-        const canvas = document.createElement("canvas");
-        canvas.width = image.width;
-        canvas.height = image.height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(image, 0, 0);
-        const pixels = [];
-        const pixels32 = [];
-        for (let y = 0; y < image.height / tileset.dimensions.width; y++) {
-          for (let x = 0; x < image.width / tileset.dimensions.height; x++) {
-            const pxs =
-              ctx.getImageData(
-                x * tileset.dimensions.width,
-                y * tileset.dimensions.height,
-                tileset.dimensions.width,
-                tileset.dimensions.height,
-              ).data;
-            const pxs32 = new Uint32Array(pxs.buffer);
-            if (tileset.type === "blackandwhite") {
-              for (let i = 0; i < pxs32.length; i++) {
-                pxs32[i] = ((pxs32[i] & 0xFFFFFF) === 0) ? 0 : 1;
-              }
-            }
-            pixels.push(pxs);
-            pixels32.push(pxs32);
-          }
-        }
-        map.set(id, {
-          type: tileset.type,
-          pixels,
-          pixels32,
-          dimensions: tileset.dimensions,
-        });
-      }
-      return map;
-    }
-    exports_15("initTilesets", initTilesets);
-    return {
-      setters: [],
-      execute: function () {
-        tilesets = new Map([
-          [
-            "floor",
-            {
-              type: "color",
-              filename: "floor.png",
-              dimensions: { width: 16, height: 16 },
-            },
-          ],
-          [
-            "font16x16",
-            {
-              type: "blackandwhite",
-              filename: "font16x16.png",
-              dimensions: { width: 16, height: 16 },
-            },
-          ],
-          [
-            "princess",
-            {
-              type: "color",
-              filename: "princess.png",
-              dimensions: { width: 64, height: 64 },
-            },
-          ],
-        ]);
-      },
-    };
-  },
-);
-System.register(
-  "web/src/native/web",
-  ["engine/src/types", "web/src/native/tileset"],
-  function (exports_16, context_16) {
-    "use strict";
-    var types_ts_10, tileset_ts_1, SCALE;
-    var __moduleName = context_16 && context_16.id;
     function updateCanvasSize(canvas, width, height) {
       canvas.width = Math.floor(width / SCALE);
       canvas.height = Math.floor(height / SCALE);
@@ -2365,8 +1952,7 @@ System.register(
     function getWebNativeContext() {
       const canvas = createFullScreenCanvas();
       const ctx = canvas.getContext("2d");
-      const screenSize = new types_ts_10.Size(256, 256);
-      let tilesets;
+      const screenSize = new types_ts_7.Size(256, 256);
       let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       let imageDataPixels = imageData.data;
       let imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
@@ -2385,11 +1971,10 @@ System.register(
         }
       };
       const handleMouseDown = (e) => {
-        const dx = (e.clientX < window.innerWidth / 3)
-          ? -1
-          : (e.clientX > window.innerWidth * 2 / 3)
-          ? 1
-          : 0;
+        const dx = (e.clientX < window.innerWidth / 3) ? -1
+        : (e.clientX > window.innerWidth * 2 / 3)
+        ? 1
+        : 0;
         const dy = (e.clientY < window.innerHeight / 3)
           ? -1
           : (e.clientY > window.innerHeight * 2 / 3)
@@ -2416,155 +2001,89 @@ System.register(
         updateScreenSize();
         screenSizeChangedListeners.forEach((l) => l(screenSize));
       };
-      const tintTile = (t, foreColor, backColor, x, y) => {
+      const tintTile = (t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) => {
         dirty = true;
         if (t.index < 0 || t.index > 255) {
           return;
         }
         colorsRGB[1] = foreColor;
         colorsRGB[0] = backColor;
-        const tileset = tilesets.get(t.tilemap);
-        if (tileset === undefined) {
-          return;
-        }
-        const tilePixels = tileset.pixels32[t.index];
-        const tileWidth = tileset.dimensions.width;
-        const tileHeight = tileset.dimensions.height;
-        const fx = x;
-        const fy = y;
+        const tilePixels = t.pixels32;
+        const tileWidth = t.width;
+        const tileHeight = t.height;
         const backTransparent = (backColor >> 24) == 0;
         let p = 0;
         let f = 0;
-        if (backTransparent) {
-          for (let py = 0; py < tileHeight; py++) {
-            p = (fy + py) * imageData.width + fx;
-            f = py * tileWidth;
-            for (let px = 0; px < tileWidth; px++) {
-              const cp = tilePixels[f++];
-              if (cp == 1) {
-                imageDataPixels32[p++] = colorsRGB[cp];
-              } else {
-                p++;
-              }
-            }
-          }
-        } else {
-          for (let py = 0; py < tileHeight; py++) {
-            p = (fy + py) * imageData.width + fx;
-            f = py * tileWidth;
-            for (let px = 0; px < tileWidth; px++) {
-              imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-            }
-          }
-        }
-      };
-      const tintTileClip = (
-        t,
-        foreColor,
-        backColor,
-        x,
-        y,
-        cfx,
-        cfy,
-        ctx,
-        cty,
-      ) => {
-        dirty = true;
-        if (t.index < 0 || t.index > 255) {
-          return;
-        }
-        colorsRGB[1] = foreColor;
-        colorsRGB[0] = backColor;
-        const tileset = tilesets.get(t.tilemap);
-        if (tileset === undefined) {
-          return;
-        }
-        const tilePixels = tileset.pixels32[t.index];
-        const tileWidth = tileset.dimensions.width;
-        const tileHeight = tileset.dimensions.height;
-        const backTransparent = (backColor >> 24) == 0;
-        let p = 0;
-        let f = 0;
-        if (backTransparent) {
-          for (let py = 0; py < tileHeight; py++) {
-            p = (y + py) * imageData.width + x;
-            f = py * tileWidth;
-            for (let px = 0; px < tileWidth; px++) {
-              if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+        if (cfx <= 0 && cfy <= 0 && ctx >= tileWidth && cty >= tileHeight) {
+          if (backTransparent) {
+            for (let py = 0; py < tileHeight; py++) {
+              p = (y + py) * imageData.width + x;
+              f = py * tileWidth;
+              for (let px = 0; px < tileWidth; px++) {
                 const cp = tilePixels[f++];
                 if (cp == 1) {
                   imageDataPixels32[p++] = colorsRGB[cp];
                 } else {
                   p++;
                 }
-              } else {
-                p++;
-                f++;
+              }
+            }
+          } else {
+            for (let py = 0; py < tileHeight; py++) {
+              p = (y + py) * imageData.width + x;
+              f = py * tileWidth;
+              for (let px = 0; px < tileWidth; px++) {
+                imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
               }
             }
           }
         } else {
-          for (let py = 0; py < tileHeight; py++) {
-            p = (y + py) * imageData.width + x;
-            f = py * tileWidth;
-            for (let px = 0; px < tileWidth; px++) {
-              if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-              } else {
-                p++;
-                f++;
+          if (backTransparent) {
+            for (let py = 0; py < tileHeight; py++) {
+              p = (y + py) * imageData.width + x;
+              f = py * tileWidth;
+              for (let px = 0; px < tileWidth; px++) {
+                if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                  const cp = tilePixels[f++];
+                  if (cp == 1) {
+                    imageDataPixels32[p++] = colorsRGB[cp];
+                  } else {
+                    p++;
+                  }
+                } else {
+                  p++;
+                  f++;
+                }
+              }
+            }
+          } else {
+            for (let py = 0; py < tileHeight; py++) {
+              p = (y + py) * imageData.width + x;
+              f = py * tileWidth;
+              for (let px = 0; px < tileWidth; px++) {
+                if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                  imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
+                } else {
+                  p++;
+                  f++;
+                }
               }
             }
           }
         }
       };
-      const setTile = (t, x, y) => {
+      const setTile = (t, x, y, cfx, cfy, ctx, cty) => {
         dirty = true;
-        const tileset = tilesets.get(t.tilemap);
-        if (tileset === undefined) {
-          return;
-        }
-        //const tilePixels32 = tileset.pixels32[t.index];
-        const tilePixels8 = tileset.pixels[t.index];
-        const tileWidth = tileset.dimensions.width;
-        const tileHeight = tileset.dimensions.height;
-        const fx = x;
-        const fy = y;
+        const tilePixels8 = t.pixels;
+        const tileWidth = t.width;
+        const tileHeight = t.height;
         let p = 0;
         let f = 0;
-        for (let py = 0; py < tileHeight; py++) {
-          p = ((fy + py) * imageData.width + fx) << 2;
-          f = (py * tileWidth) << 2;
-          for (let px = 0; px < tileWidth; px++) {
-            const r = tilePixels8[f++];
-            const g = tilePixels8[f++];
-            const b = tilePixels8[f++];
-            const a = tilePixels8[f++] > 0 ? 1 : 0;
-            const invA = 1 - a;
-            imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
-            imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
-            imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
-            imageDataPixels[p + 3] = 255; //a
-            p += 4;
-          }
-        }
-      };
-      const setTileClip = (t, x, y, cfx, cfy, ctx, cty) => {
-        dirty = true;
-        const tileset = tilesets.get(t.tilemap);
-        if (tileset === undefined) {
-          return;
-        }
-        const tilePixels8 = tileset.pixels[t.index];
-        const tileWidth = tileset.dimensions.width;
-        const tileHeight = tileset.dimensions.height;
-        let p = 0;
-        let f = 0;
-        for (let py = 0; py < tileHeight; py++) {
-          p = ((y + py) * imageData.width + x) << 2;
-          f = (py * tileWidth) << 2;
-          for (let px = 0; px < tileWidth; px++) {
-            if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+        if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+          for (let py = 0; py < tileHeight; py++) {
+            p = ((y + py) * imageData.width + x) << 2;
+            f = (py * tileWidth) << 2;
+            for (let px = 0; px < tileWidth; px++) {
               const r = tilePixels8[f++];
               const g = tilePixels8[f++];
               const b = tilePixels8[f++];
@@ -2575,9 +2094,28 @@ System.register(
               imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
               imageDataPixels[p + 3] = 255; //a
               p += 4;
-            } else {
-              p += 4;
-              f += 4;
+            }
+          }
+        } else {
+          for (let py = 0; py < tileHeight; py++) {
+            p = ((y + py) * imageData.width + x) << 2;
+            f = (py * tileWidth) << 2;
+            for (let px = 0; px < tileWidth; px++) {
+              if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                const r = tilePixels8[f++];
+                const g = tilePixels8[f++];
+                const b = tilePixels8[f++];
+                const a = tilePixels8[f++] > 0 ? 1 : 0;
+                const invA = 1 - a;
+                imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
+                imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
+                imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
+                imageDataPixels[p + 3] = 255; //a
+                p += 4;
+              } else {
+                p += 4;
+                f += 4;
+              }
             }
           }
         }
@@ -2593,9 +2131,7 @@ System.register(
             screenSizeChangedListeners.push(listener);
           },
           tintTile,
-          tintTileClip,
           setTile,
-          setTileClip,
           beginDraw: () => {},
           endDraw: () => {
             if (dirty) {
@@ -2610,20 +2146,16 @@ System.register(
           },
         },
         init: async () => {
-          tilesets = await tileset_ts_1.initTilesets();
           updateScreenSize();
         },
         destroy: () => {},
       };
     }
-    exports_16("getWebNativeContext", getWebNativeContext);
+    exports_15("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
-        function (types_ts_10_1) {
-          types_ts_10 = types_ts_10_1;
-        },
-        function (tileset_ts_1_1) {
-          tileset_ts_1 = tileset_ts_1_1;
+        function (types_ts_7_1) {
+          types_ts_7 = types_ts_7_1;
         },
       ],
       execute: function () {
@@ -2632,6 +2164,116 @@ System.register(
     };
   },
 );
+System.register("web/src/native/assets", [], function (exports_16, context_16) {
+  "use strict";
+  var __moduleName = context_16 && context_16.id;
+  async function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = "res/" + src;
+    });
+  }
+  async function loadTilemap(id, json, type) {
+    const image = await loadImage(json.filename);
+    const tileWidth = parseInt(json.size.split("x")[0]);
+    const tileHeight = parseInt(json.size.split("x")[1]);
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(image, 0, 0);
+    const tiles = [];
+    const tilesById = new Map();
+    const tilemap = {
+      id,
+      tileWidth,
+      tileHeight,
+      tiles,
+      tilesById,
+      type,
+    };
+    let index = 0;
+    for (let y = 0; y < image.height / tileHeight; y++) {
+      for (let x = 0; x < image.width / tileWidth; x++) {
+        const pxs =
+          ctx.getImageData(x * tileWidth, y * tileHeight, tileWidth, tileHeight)
+            .data;
+        const pxs32 = new Uint32Array(pxs.buffer);
+        if (type === "blackandwhite") {
+          for (let i = 0; i < pxs32.length; i++) {
+            pxs32[i] = ((pxs32[i] & 0xFFFFFF) === 0) ? 0 : 1;
+          }
+        }
+        const tile = {
+          id: "",
+          height: tileHeight,
+          width: tileWidth,
+          index,
+          pixels: pxs,
+          pixels32: pxs32,
+          tilemap,
+        };
+        tiles.push(tile);
+        index++;
+      }
+    }
+    return tilemap;
+  }
+  function loadAnimation(id, json, tilemaps) {
+    const delay = json.fps > 0 ? 1000 / json.fps : 0;
+    const tiles = json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]);
+    const sequence = [];
+    for (let i = 0; i < tiles.length; i++) {
+      sequence.push(i);
+    }
+    return {
+      id,
+      delay,
+      tiles,
+      sequence,
+    };
+  }
+  async function initAssets() {
+    const fonts = new Map();
+    const animations = new Map();
+    const tilemaps = new Map();
+    const assetsJsonTxt = await (await fetch("res/assets.json")).text();
+    const assetsJson = JSON.parse(assetsJsonTxt);
+    for (const tilemapId in assetsJson.tilemaps) {
+      const tilemapJson = assetsJson.tilemaps[tilemapId];
+      const tilemap = await loadTilemap(tilemapId, tilemapJson, "color");
+      tilemaps.set(tilemapId, tilemap);
+    }
+    for (const fontId in assetsJson.fonts) {
+      const tilemapJson = assetsJson.fonts[fontId];
+      const font = await loadTilemap(fontId, tilemapJson, "blackandwhite");
+      fonts.set(fontId, font);
+    }
+    for (const animationId in assetsJson.animations) {
+      const animationJson = assetsJson.animations[animationId];
+      const animation = loadAnimation(animationId, animationJson, tilemaps);
+      animations.set(animationId, animation);
+    }
+    const assets = {
+      fonts,
+      animations,
+      tilemaps,
+      defaultFont: fonts.get(assetsJson.defaultFont),
+      getAnimation: (id) => animations.get(id),
+      getFont: (id) => fonts.get(id),
+      getTilemap: (id) => tilemaps.get(id),
+    };
+    return assets;
+  }
+  exports_16("initAssets", initAssets);
+  return {
+    setters: [],
+    execute: function () {
+    },
+  };
+});
 System.register(
   "web/src/main",
   [
@@ -2640,14 +2282,16 @@ System.register(
     "engine/src/widgets/label",
     "game/src/game",
     "web/src/native/web",
+    "web/src/native/assets",
   ],
   function (exports_17, context_17) {
     "use strict";
-    var types_ts_11,
+    var types_ts_8,
       engine_ts_1,
       label_ts_2,
       game_ts_1,
       web_ts_1,
+      assets_ts_1,
       TARGET_FPS,
       engine,
       fpsLabel,
@@ -2671,13 +2315,15 @@ System.register(
     }
     async function init() {
       console.log("Initializing Engine");
+      const assets = await assets_ts_1.initAssets();
       engine = await engine_ts_1.buildEngine(web_ts_1.getWebNativeContext());
       console.log("Engine Initialized");
-      game_ts_1.initGame(engine);
+      game_ts_1.initGame(engine, assets);
       console.log("Game Initialized");
       fpsLabel = new label_ts_2.LabelWidget(
+        assets.defaultFont,
         "FPS: 0.00\nRender: 0.00ms",
-        types_ts_11.FixedColor.White,
+        types_ts_8.FixedColor.White,
         game_ts_1.mainUI.panel2.backColor,
       );
       fpsLabel.parent = game_ts_1.mainUI.panel2;
@@ -2708,8 +2354,8 @@ System.register(
     }
     return {
       setters: [
-        function (types_ts_11_1) {
-          types_ts_11 = types_ts_11_1;
+        function (types_ts_8_1) {
+          types_ts_8 = types_ts_8_1;
         },
         function (engine_ts_1_1) {
           engine_ts_1 = engine_ts_1_1;
@@ -2722,6 +2368,9 @@ System.register(
         },
         function (web_ts_1_1) {
           web_ts_1 = web_ts_1_1;
+        },
+        function (assets_ts_1_1) {
+          assets_ts_1 = assets_ts_1_1;
         },
       ],
       execute: function () {

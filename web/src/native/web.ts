@@ -1,6 +1,5 @@
 import { NativeContext } from "engine/native-types.ts";
 import { Size, Color, Tile } from "engine/types.ts";
-import { initTilesets, TilesetInfo } from "./tileset.ts";
 
 const SCALE = 1;
 
@@ -32,8 +31,6 @@ export function getWebNativeContext(): NativeContext {
   const canvas = createFullScreenCanvas();
   const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
   const screenSize = new Size(256, 256);
-
-  let tilesets: Map<string, TilesetInfo>;
 
   let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   let imageDataPixels = imageData.data;
@@ -101,59 +98,6 @@ export function getWebNativeContext(): NativeContext {
     backColor: Color,
     x: number,
     y: number,
-  ) => {
-    dirty = true;
-
-    if (t.index < 0 || t.index > 255) return;
-
-    colorsRGB[1] = foreColor;
-    colorsRGB[0] = backColor;
-
-    const tileset = tilesets.get(t.tilemap);
-
-    if (tileset === undefined) return;
-
-    const tilePixels = tileset.pixels32[t.index];
-    const tileWidth = tileset.dimensions.width;
-    const tileHeight = tileset.dimensions.height;
-
-    const fx = x;
-    const fy = y;
-    const backTransparent = (backColor >> 24) == 0;
-
-    let p = 0;
-    let f = 0;
-
-    if (backTransparent) {
-      for (let py = 0; py < tileHeight; py++) {
-        p = (fy + py) * imageData.width + fx;
-        f = py * tileWidth;
-        for (let px = 0; px < tileWidth; px++) {
-          const cp = tilePixels[f++];
-          if (cp == 1) {
-            imageDataPixels32[p++] = colorsRGB[cp];
-          } else {
-            p++;
-          }
-        }
-      }
-    } else {
-      for (let py = 0; py < tileHeight; py++) {
-        p = (fy + py) * imageData.width + fx;
-        f = py * tileWidth;
-        for (let px = 0; px < tileWidth; px++) {
-          imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-        }
-      }
-    }
-  };
-
-  const tintTileClip = (
-    t: Tile,
-    foreColor: Color,
-    backColor: Color,
-    x: number,
-    y: number,
     cfx: number,
     cfy: number,
     ctx: number,
@@ -166,47 +110,68 @@ export function getWebNativeContext(): NativeContext {
     colorsRGB[1] = foreColor;
     colorsRGB[0] = backColor;
 
-    const tileset = tilesets.get(t.tilemap);
-
-    if (tileset === undefined) return;
-
-    const tilePixels = tileset.pixels32[t.index];
-    const tileWidth = tileset.dimensions.width;
-    const tileHeight = tileset.dimensions.height;
+    const tilePixels = t.pixels32;
+    const tileWidth = t.width;
+    const tileHeight = t.height;
 
     const backTransparent = (backColor >> 24) == 0;
 
     let p = 0;
     let f = 0;
 
-    if (backTransparent) {
-      for (let py = 0; py < tileHeight; py++) {
-        p = (y + py) * imageData.width + x;
-        f = py * tileWidth;
-        for (let px = 0; px < tileWidth; px++) {
-          if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+    if (cfx <= 0 && cfy <= 0 && ctx >= tileWidth && cty >= tileHeight) {
+      if (backTransparent) {
+        for (let py = 0; py < tileHeight; py++) {
+          p = (y + py) * imageData.width + x;
+          f = py * tileWidth;
+          for (let px = 0; px < tileWidth; px++) {
             const cp = tilePixels[f++];
             if (cp == 1) {
               imageDataPixels32[p++] = colorsRGB[cp];
             } else {
               p++;
             }
-          } else {
-            p++;
-            f++;
+          }
+        }
+      } else {
+        for (let py = 0; py < tileHeight; py++) {
+          p = (y + py) * imageData.width + x;
+          f = py * tileWidth;
+          for (let px = 0; px < tileWidth; px++) {
+            imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
           }
         }
       }
     } else {
-      for (let py = 0; py < tileHeight; py++) {
-        p = (y + py) * imageData.width + x;
-        f = py * tileWidth;
-        for (let px = 0; px < tileWidth; px++) {
-          if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-            imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-          } else {
-            p++;
-            f++;
+      if (backTransparent) {
+        for (let py = 0; py < tileHeight; py++) {
+          p = (y + py) * imageData.width + x;
+          f = py * tileWidth;
+          for (let px = 0; px < tileWidth; px++) {
+            if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+              const cp = tilePixels[f++];
+              if (cp == 1) {
+                imageDataPixels32[p++] = colorsRGB[cp];
+              } else {
+                p++;
+              }
+            } else {
+              p++;
+              f++;
+            }
+          }
+        }
+      } else {
+        for (let py = 0; py < tileHeight; py++) {
+          p = (y + py) * imageData.width + x;
+          f = py * tileWidth;
+          for (let px = 0; px < tileWidth; px++) {
+            if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+              imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
+            } else {
+              p++;
+              f++;
+            }
           }
         }
       }
@@ -217,48 +182,6 @@ export function getWebNativeContext(): NativeContext {
     t: Tile,
     x: number,
     y: number,
-  ) => {
-    dirty = true;
-
-    const tileset = tilesets.get(t.tilemap);
-
-    if (tileset === undefined) return;
-
-    //const tilePixels32 = tileset.pixels32[t.index];
-    const tilePixels8 = tileset.pixels[t.index];
-    const tileWidth = tileset.dimensions.width;
-    const tileHeight = tileset.dimensions.height;
-
-    const fx = x;
-    const fy = y;
-
-    let p = 0;
-    let f = 0;
-
-    for (let py = 0; py < tileHeight; py++) {
-      p = ((fy + py) * imageData.width + fx) << 2;
-      f = (py * tileWidth) << 2;
-      for (let px = 0; px < tileWidth; px++) {
-        const r = tilePixels8[f++];
-        const g = tilePixels8[f++];
-        const b = tilePixels8[f++];
-        const a = tilePixels8[f++] > 0 ? 1 : 0;
-        const invA = 1 - a;
-
-        imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
-        imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
-        imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
-        imageDataPixels[p + 3] = 255; //a
-
-        p += 4;
-      }
-    }
-  };
-
-  const setTileClip = (
-    t: Tile,
-    x: number,
-    y: number,
     cfx: number,
     cfy: number,
     ctx: number,
@@ -266,22 +189,18 @@ export function getWebNativeContext(): NativeContext {
   ) => {
     dirty = true;
 
-    const tileset = tilesets.get(t.tilemap);
-
-    if (tileset === undefined) return;
-
-    const tilePixels8 = tileset.pixels[t.index];
-    const tileWidth = tileset.dimensions.width;
-    const tileHeight = tileset.dimensions.height;
+    const tilePixels8 = t.pixels;
+    const tileWidth = t.width;
+    const tileHeight = t.height;
 
     let p = 0;
     let f = 0;
 
-    for (let py = 0; py < tileHeight; py++) {
-      p = ((y + py) * imageData.width + x) << 2;
-      f = (py * tileWidth) << 2;
-      for (let px = 0; px < tileWidth; px++) {
-        if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+    if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+      for (let py = 0; py < tileHeight; py++) {
+        p = ((y + py) * imageData.width + x) << 2;
+        f = (py * tileWidth) << 2;
+        for (let px = 0; px < tileWidth; px++) {
           const r = tilePixels8[f++];
           const g = tilePixels8[f++];
           const b = tilePixels8[f++];
@@ -292,9 +211,28 @@ export function getWebNativeContext(): NativeContext {
           imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
           imageDataPixels[p + 3] = 255; //a
           p += 4;
-        } else {
-          p += 4;
-          f += 4;
+        }
+      }
+    } else {
+      for (let py = 0; py < tileHeight; py++) {
+        p = ((y + py) * imageData.width + x) << 2;
+        f = (py * tileWidth) << 2;
+        for (let px = 0; px < tileWidth; px++) {
+          if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+            const r = tilePixels8[f++];
+            const g = tilePixels8[f++];
+            const b = tilePixels8[f++];
+            const a = tilePixels8[f++] > 0 ? 1 : 0;
+            const invA = 1 - a;
+            imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
+            imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
+            imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
+            imageDataPixels[p + 3] = 255; //a
+            p += 4;
+          } else {
+            p += 4;
+            f += 4;
+          }
         }
       }
     }
@@ -312,9 +250,7 @@ export function getWebNativeContext(): NativeContext {
         screenSizeChangedListeners.push(listener);
       },
       tintTile,
-      tintTileClip,
       setTile,
-      setTileClip,
       beginDraw: () => {},
       endDraw: () => {
         if (dirty) {
@@ -329,7 +265,6 @@ export function getWebNativeContext(): NativeContext {
       },
     },
     init: async () => {
-      tilesets = await initTilesets();
       updateScreenSize();
     },
     destroy: () => {},

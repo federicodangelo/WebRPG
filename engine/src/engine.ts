@@ -1,4 +1,10 @@
-import { Engine, Widget, Size, Point, Rect, EngineContext } from "./types.ts";
+import {
+  Engine,
+  Widget,
+  Size,
+  Rect,
+  Tilemap,
+} from "./types.ts";
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
 

@@ -12,14 +12,6 @@ export interface NativeContextScreen {
     backColor: Color,
     x: number,
     y: number,
-  ): void;
-
-  tintTileClip(
-    t: Tile,
-    foreColor: Color,
-    backColor: Color,
-    x: number,
-    y: number,
     cfx: number,
     cfy: number,
     ctx: number,
@@ -27,12 +19,6 @@ export interface NativeContextScreen {
   ): void;
 
   setTile(
-    t: Tile,
-    x: number,
-    y: number,
-  ): void;
-
-  setTileClip(
     t: Tile,
     x: number,
     y: number,

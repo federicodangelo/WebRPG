@@ -6,8 +6,7 @@ import {
   EngineContext,
   FixedColor,
   Tile,
-  FONT_NAME,
-  FONT_SIZE,
+  Font,
 } from "./types.ts";
 import { NativeContextScreen } from "./native-types.ts";
 
@@ -69,12 +68,6 @@ export class EngineContextImpl implements EngineContext {
   private tx: number = 0;
   private ty: number = 0;
 
-  private fontTile: Tile = {
-    tilemap: "",
-    index: 0,
-    width: FONT_SIZE,
-    height: FONT_SIZE,
-  };
   private x: number = 0;
   private y: number = 0;
   private foreColor = FixedColor.White;
@@ -90,7 +83,6 @@ export class EngineContextImpl implements EngineContext {
   }
 
   public beginDraw() {
-    this.font(FONT_NAME);
     this.nativeContext.beginDraw();
   }
 
@@ -155,11 +147,6 @@ export class EngineContextImpl implements EngineContext {
     );
   }
 
-  public font(name: string) {
-    this.fontTile.tilemap = name;
-    return this;
-  }
-
   public moveCursorTo(x: number, y: number) {
     this.x = x;
     this.y = y;
@@ -178,19 +165,20 @@ export class EngineContextImpl implements EngineContext {
     return this;
   }
 
-  public text(str: string) {
+  public text(font: Font, str: string) {
     for (let i = 0; i < str.length; i++) {
-      this.char(str.charCodeAt(i));
+      this.char(font, str.charCodeAt(i));
     }
     return this;
   }
 
-  public char(code: number) {
+  public char(font: Font, code: number) {
     const screenX = this.x + this.tx;
     const screenY = this.y + this.ty;
-    const width = FONT_SIZE;
-    const height = FONT_SIZE;
     const clip = this.clip;
+
+    const width = font.tileWidth;
+    const height = font.tileHeight;
 
     if (
       screenX + width > clip.x &&
@@ -198,59 +186,55 @@ export class EngineContextImpl implements EngineContext {
       screenY + height > clip.y &&
       screenY < clip.y1
     ) {
-      this.fontTile.index = code;
+      const fontTile = font.tiles[code];
 
       const cfx = Math.max(clip.x - screenX, 0);
       const cfy = Math.max(clip.y - screenY, 0);
       const ctx = Math.min(clip.x1 - screenX, width);
       const cty = Math.min(clip.y1 - screenY, height);
 
-      if (cfx > 0 || cfy > 0 || ctx < width || cty < height) {
-        this.nativeContext.tintTileClip(
-          this.fontTile,
-          this.foreColor,
-          this.backColor,
-          screenX,
-          screenY,
-          cfx,
-          cfy,
-          ctx,
-          cty,
-        );
-      } else {
-        this.nativeContext.tintTile(
-          this.fontTile,
-          this.foreColor,
-          this.backColor,
-          screenX,
-          screenY,
-        );
-      }
+      this.nativeContext.tintTile(
+        fontTile,
+        this.foreColor,
+        this.backColor,
+        screenX,
+        screenY,
+        cfx,
+        cfy,
+        ctx,
+        cty,
+      );
     }
     this.x += width;
     return this;
   }
 
-  public charTimes(code: number, times: number) {
+  public charTimes(font: Font, code: number, times: number) {
     for (let t = 0; t < times; t++) {
-      this.char(code);
+      this.char(font, code);
     }
     return this;
   }
 
-  public specialChar(code: SpecialChar) {
-    this.char(AnsiSpecialChar[code]);
+  public specialChar(font: Font, code: SpecialChar) {
+    this.char(font, AnsiSpecialChar[code]);
     return this;
   }
 
-  public specialCharTimes(code: number, times: number) {
+  public specialCharTimes(font: Font, code: number, times: number) {
     for (let t = 0; t < times; t++) {
-      this.specialChar(code);
+      this.specialChar(font, code);
     }
     return this;
   }
 
-  public textBorder(x: number, y: number, width: number, height: number) {
+  public textBorder(
+    font: Font,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) {
     const clip = this.clip;
     const tx = this.tx;
     const ty = this.ty;
@@ -268,27 +252,31 @@ export class EngineContextImpl implements EngineContext {
       return this;
     }
 
+    const fontWidth = font.tileWidth;
+    const fontHeight = font.tileHeight;
+
     this.moveCursorTo(x, y);
-    this.specialChar(SpecialChar.CornerTopLeft);
-    this.specialCharTimes(SpecialChar.Horizontal, width / FONT_SIZE - 2);
-    this.moveCursorTo(x + width - FONT_SIZE, y);
-    this.specialChar(SpecialChar.CornerTopRight);
-    for (let i = 0; i < height - 2 * FONT_SIZE; i += FONT_SIZE) {
-      this.moveCursorTo(x, y + FONT_SIZE + i);
-      this.specialChar(SpecialChar.Vertical);
-      this.moveCursorTo(x + width - FONT_SIZE, y + FONT_SIZE + i);
-      this.specialChar(SpecialChar.Vertical);
+    this.specialChar(font, SpecialChar.CornerTopLeft);
+    this.specialCharTimes(font, SpecialChar.Horizontal, width / fontWidth - 2);
+    this.moveCursorTo(x + width - fontWidth, y);
+    this.specialChar(font, SpecialChar.CornerTopRight);
+    for (let i = 0; i < height - 2 * fontHeight; i += fontHeight) {
+      this.moveCursorTo(x, y + fontHeight + i);
+      this.specialChar(font, SpecialChar.Vertical);
+      this.moveCursorTo(x + width - fontWidth, y + fontHeight + i);
+      this.specialChar(font, SpecialChar.Vertical);
     }
-    this.moveCursorTo(x, y + height - FONT_SIZE);
-    this.specialChar(SpecialChar.CornerBottomLeft);
-    this.specialCharTimes(SpecialChar.Horizontal, width / FONT_SIZE - 2);
-    this.moveCursorTo(x + width - FONT_SIZE, y + height - FONT_SIZE);
-    this.specialChar(SpecialChar.CornerBottomRight);
+    this.moveCursorTo(x, y + height - fontHeight);
+    this.specialChar(font, SpecialChar.CornerBottomLeft);
+    this.specialCharTimes(font, SpecialChar.Horizontal, width / fontWidth - 2);
+    this.moveCursorTo(x + width - fontWidth, y + height - fontHeight);
+    this.specialChar(font, SpecialChar.CornerBottomRight);
 
     return this;
   }
 
   public fillChar(
+    font: Font,
     x: number,
     y: number,
     width: number,
@@ -297,8 +285,8 @@ export class EngineContextImpl implements EngineContext {
   ) {
     if (char.length === 0) return this;
 
-    const fontWidth = FONT_SIZE;
-    const fontHeight = FONT_SIZE;
+    const fontWidth = font.tileWidth;
+    const fontHeight = font.tileHeight;
 
     const clip = this.clip;
     const tx = this.tx;
@@ -315,7 +303,7 @@ export class EngineContextImpl implements EngineContext {
 
     const code = char.charCodeAt(0);
 
-    this.fontTile.index = code;
+    const fontTile = font.tiles[code];
 
     for (let screenY = y0; screenY < y1; screenY += fontHeight) {
       for (let screenX = x0; screenX < x1; screenX += fontWidth) {
@@ -324,27 +312,17 @@ export class EngineContextImpl implements EngineContext {
         const ctx = Math.min(clip.x1 - screenX, fontWidth);
         const cty = Math.min(clip.y1 - screenY, fontHeight);
 
-        if (cfx > 0 || cfy > 0 || ctx < fontWidth || cty < fontHeight) {
-          this.nativeContext.tintTileClip(
-            this.fontTile,
-            this.foreColor,
-            this.backColor,
-            screenX,
-            screenY,
-            cfx,
-            cfy,
-            ctx,
-            cty,
-          );
-        } else {
-          this.nativeContext.tintTile(
-            this.fontTile,
-            this.foreColor,
-            this.backColor,
-            screenX,
-            screenY,
-          );
-        }
+        this.nativeContext.tintTile(
+          fontTile,
+          this.foreColor,
+          this.backColor,
+          screenX,
+          screenY,
+          cfx,
+          cfy,
+          ctx,
+          cty,
+        );
       }
     }
     return this;
@@ -368,23 +346,15 @@ export class EngineContextImpl implements EngineContext {
       const ctx = Math.min(clip.x1 - screenX, width);
       const cty = Math.min(clip.y1 - screenY, height);
 
-      if (cfx > 0 || cfy > 0 || ctx < width || cty < height) {
-        this.nativeContext.setTileClip(
-          t,
-          screenX,
-          screenY,
-          cfx,
-          cfy,
-          ctx,
-          cty,
-        );
-      } else {
-        this.nativeContext.setTile(
-          t,
-          screenX,
-          screenY,
-        );
-      }
+      this.nativeContext.setTile(
+        t,
+        screenX,
+        screenY,
+        cfx,
+        cfy,
+        ctx,
+        cty,
+      );
     }
     return this;
   }
@@ -416,23 +386,15 @@ export class EngineContextImpl implements EngineContext {
         const ctx = Math.min(clip.x1 - screenX, t.width);
         const cty = Math.min(clip.y1 - screenY, t.height);
 
-        if (cfx > 0 || cfy > 0 || ctx < t.width || cty < t.height) {
-          this.nativeContext.setTileClip(
-            t,
-            screenX,
-            screenY,
-            cfx,
-            cfy,
-            ctx,
-            cty,
-          );
-        } else {
-          this.nativeContext.setTile(
-            t,
-            screenX,
-            screenY,
-          );
-        }
+        this.nativeContext.setTile(
+          t,
+          screenX,
+          screenY,
+          cfx,
+          cfy,
+          ctx,
+          cty,
+        );
       }
     }
     return this;

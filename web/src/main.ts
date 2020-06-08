@@ -3,6 +3,7 @@ import { buildEngine, destroyEngine } from "engine/engine.ts";
 import { LabelWidget } from "engine/widgets/label.ts";
 import { initGame, updateGame, mainUI } from "game/game.ts";
 import { getWebNativeContext } from "./native/web.ts";
+import { initAssets } from "./native/assets.ts";
 
 const TARGET_FPS = 30;
 
@@ -31,15 +32,18 @@ function updateFps() {
 async function init() {
   console.log("Initializing Engine");
 
+  const assets = await initAssets();
+
   engine = await buildEngine(getWebNativeContext());
 
   console.log("Engine Initialized");
 
-  initGame(engine);
+  initGame(engine, assets);
 
   console.log("Game Initialized");
 
   fpsLabel = new LabelWidget(
+    assets.defaultFont,
     "FPS: 0.00\nRender: 0.00ms",
     FixedColor.White,
     mainUI.panel2.backColor,
