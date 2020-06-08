@@ -552,8 +552,8 @@ System.register(
             return this;
           }
           tile(x, y, t) {
-            const screenX = this.x + this.tx;
-            const screenY = this.y + this.ty;
+            const screenX = x + this.tx;
+            const screenY = y + this.ty;
             const clip = this.clip;
             const width = t.width;
             const height = t.height;
@@ -819,6 +819,7 @@ System.register(
               this.invalidate();
               this._x = v;
               this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
             }
           }
           get y() {
@@ -829,6 +830,7 @@ System.register(
               this.invalidate();
               this._y = v;
               this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
             }
           }
           get width() {
@@ -839,6 +841,7 @@ System.register(
               this.invalidate();
               this._width = v;
               this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
             }
           }
           get height() {
@@ -849,6 +852,7 @@ System.register(
               this.invalidate();
               this._height = v;
               this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
             }
           }
           get pivotX() {
@@ -859,6 +863,7 @@ System.register(
               this.invalidate();
               this._pivotX = v;
               this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
             }
           }
           get pivotY() {
@@ -869,7 +874,14 @@ System.register(
               this.invalidate();
               this._pivotY = v;
               this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
             }
+          }
+          get visibleX() {
+            return this._x + this._pivotX;
+          }
+          get visibleY() {
+            return this._y + this._pivotY;
           }
           get parent() {
             return this._parent;
@@ -887,6 +899,7 @@ System.register(
               if (this._parent !== null) {
                 this._parent.children.push(this);
                 this.engine = this._parent.engine;
+                this._parent.onChildrenAdded(this);
               } else {
                 this.engine = null;
               }
@@ -898,25 +911,27 @@ System.register(
             if (layout !== null) {
               if (layout.heightPercent !== undefined) {
                 this.height = Math.ceil(
-                  parentHeight * layout.heightPercent / 100,
+                  (parentHeight * layout.heightPercent) / 100,
                 );
               }
               if (layout.widthPercent !== undefined) {
-                this.width = Math.ceil(parentWidth * layout.widthPercent / 100);
+                this.width = Math.ceil(
+                  (parentWidth * layout.widthPercent) / 100,
+                );
               }
               if (layout.customSizeFn !== undefined) {
                 layout.customSizeFn(this, parentWidth, parentHeight);
               }
               if (layout.horizontalSpacingPercent !== undefined) {
                 this.x = Math.floor(
-                  (parentWidth - this.width) * layout.horizontalSpacingPercent /
-                    100,
+                  ((parentWidth - this.width) *
+                    layout.horizontalSpacingPercent) / 100,
                 );
               }
               if (layout.verticalSpacingPercent !== undefined) {
                 this.y = Math.floor(
-                  (parentHeight - this.height) * layout.verticalSpacingPercent /
-                    100,
+                  ((parentHeight - this.height) *
+                    layout.verticalSpacingPercent) / 100,
                 );
               }
               if (layout.customPositionFn !== undefined) {
@@ -927,19 +942,16 @@ System.register(
           draw(context) {
             if (
               !context.isVisible(
-                this._x + this._pivotX,
-                this._y + this._pivotY,
-                this._width,
-                this._height,
+                this.visibleX,
+                this.visibleY,
+                this.width,
+                this.height,
               )
             ) {
               return;
             }
-            context.pushTransform(
-              this._x + this._pivotX,
-              this._y + this._pivotY,
-            );
-            context.pushClip(0, 0, this._width, this._height);
+            context.pushTransform(this.visibleX, this.visibleY);
+            context.pushClip(0, 0, this.width, this.height);
             context.moveCursorTo(0, 0);
             this.drawSelf(context);
             context.popClip();
@@ -947,15 +959,15 @@ System.register(
           }
           getBoundingBox() {
             this._boundingBox.set(
-              this._x + this._pivotX,
-              this._y + this._pivotY,
-              this._width,
-              this._height,
+              this.visibleX,
+              this.visibleY,
+              this.width,
+              this.height,
             );
             let p = this._parent;
             while (p !== null) {
-              this._boundingBox.x += p.x + p.innerX;
-              this._boundingBox.y += p.y + p.innerY;
+              this._boundingBox.x += p.visibleX + p.innerX;
+              this._boundingBox.y += p.visibleY + p.innerY;
               p = p.parent;
             }
             return this._boundingBox;
@@ -1156,15 +1168,15 @@ System.register(
           draw(context) {
             if (
               !context.isVisible(
-                this.x + this.pivotY,
-                this.y + this.pivotY,
+                this.visibleX,
+                this.visibleY,
                 this.width,
                 this.height,
               )
             ) {
               return;
             }
-            context.pushTransform(this.x + this.pivotX, this.y + this.pivotY);
+            context.pushTransform(this.visibleX, this.visibleY);
             context.pushClip(0, 0, this.width, this.height);
             context.moveCursorTo(0, 0);
             this.drawSelf(context);
@@ -1178,6 +1190,8 @@ System.register(
           }
           preDrawChildren(context) {}
           postDrawChildren(context) {}
+          onChildrenTransformChanged(child) {}
+          onChildrenAdded(child) {}
         };
         exports_8("BaseWidgetContainer", BaseWidgetContainer);
       },
@@ -1381,12 +1395,89 @@ System.register(
   },
 );
 System.register(
-  "engine/src/widgets/scrollable",
-  ["engine/src/types", "engine/src/widgets/widget-container"],
+  "engine/src/widgets/animated-tile",
+  ["engine/src/widgets/widget"],
   function (exports_11, context_11) {
     "use strict";
-    var types_ts_5, widget_container_ts_3, ScrollableContainerWidget;
+    var widget_ts_4, AnimatedTileWidget;
     var __moduleName = context_11 && context_11.id;
+    function buildDefaultSequence(len) {
+      const seq = [];
+      for (let i = 0; i < len; i++) {
+        seq.push(i);
+      }
+      return seq;
+    }
+    return {
+      setters: [
+        function (widget_ts_4_1) {
+          widget_ts_4 = widget_ts_4_1;
+        },
+      ],
+      execute: function () {
+        AnimatedTileWidget = class AnimatedTileWidget
+          extends widget_ts_4.BaseWidget {
+          constructor(animation) {
+            super();
+            this.tile = null;
+            this.frame = 0;
+            this.lastTimeoutCB = -1;
+            this.animation = animation;
+            this.updateCurrentTile();
+          }
+          setAnimation(animation) {
+            if (animation !== this.animation) {
+              this.animation = animation;
+              this.frame = 0;
+              this.updateCurrentTile();
+            }
+          }
+          updateCurrentTile() {
+            const animation = this.animation;
+            if (animation === null) {
+              return;
+            }
+            const newTile =
+              animation
+                .tiles[
+                animation.sequence[this.frame % animation.sequence.length]
+              ];
+            if (newTile !== this.tile) {
+              this.tile = newTile;
+              this.width = newTile.width;
+              this.height = newTile.height;
+              this.invalidate();
+            }
+            this.frame++;
+            if (this.lastTimeoutCB >= 0) {
+              clearTimeout(this.lastTimeoutCB);
+              this.lastTimeoutCB = -1;
+            }
+            if (animation.delay > 0) {
+              this.lastTimeoutCB = setTimeout(() => {
+                this.lastTimeoutCB = -1;
+                this.updateCurrentTile();
+              }, animation.delay);
+            }
+          }
+          drawSelf(context) {
+            if (this.tile !== null) {
+              context.tile(0, 0, this.tile);
+            }
+          }
+        };
+        exports_11("AnimatedTileWidget", AnimatedTileWidget);
+      },
+    };
+  },
+);
+System.register(
+  "engine/src/widgets/scrollable",
+  ["engine/src/types", "engine/src/widgets/widget-container"],
+  function (exports_12, context_12) {
+    "use strict";
+    var types_ts_5, widget_container_ts_3, ScrollableContainerWidget;
+    var __moduleName = context_12 && context_12.id;
     return {
       setters: [
         function (types_ts_5_1) {
@@ -1439,123 +1530,115 @@ System.register(
             context.popTransform();
           }
           drawSelf(context) {
-            context.textColor(this.foreColor, this.backColor).fillChar(
-              this.font,
-              0,
-              0,
-              this.width,
-              this.height,
-              this.fillChar,
-            );
+            context
+              .textColor(this.foreColor, this.backColor)
+              .fillChar(
+                this.font,
+                0,
+                0,
+                this.width,
+                this.height,
+                this.fillChar,
+              );
           }
         };
-        exports_11("ScrollableContainerWidget", ScrollableContainerWidget);
+        exports_12("ScrollableContainerWidget", ScrollableContainerWidget);
       },
     };
   },
 );
 System.register(
-  "engine/src/widgets/tile",
-  ["engine/src/widgets/widget"],
-  function (exports_12, context_12) {
-    "use strict";
-    var widget_ts_4, TileWidget;
-    var __moduleName = context_12 && context_12.id;
-    return {
-      setters: [
-        function (widget_ts_4_1) {
-          widget_ts_4 = widget_ts_4_1;
-        },
-      ],
-      execute: function () {
-        TileWidget = class TileWidget extends widget_ts_4.BaseWidget {
-          constructor(tile) {
-            super();
-            this.tile = tile;
-            this.width = tile.width;
-            this.height = tile.height;
-          }
-          drawSelf(context) {
-            context.tile(this.x, this.y, this.tile);
-          }
-        };
-        exports_12("TileWidget", TileWidget);
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/animated-tile",
-  ["engine/src/widgets/widget"],
+  "engine/src/widgets/tilemap",
+  ["engine/src/widgets/scrollable"],
   function (exports_13, context_13) {
     "use strict";
-    var widget_ts_5, AnimatedTileWidget;
+    var scrollable_ts_1, ScrollableTilemapContainerWidget;
     var __moduleName = context_13 && context_13.id;
-    function buildDefaultSequence(len) {
-      const seq = [];
-      for (let i = 0; i < len; i++) {
-        seq.push(i);
-      }
-      return seq;
-    }
     return {
       setters: [
-        function (widget_ts_5_1) {
-          widget_ts_5 = widget_ts_5_1;
+        function (scrollable_ts_1_1) {
+          scrollable_ts_1 = scrollable_ts_1_1;
         },
       ],
       execute: function () {
-        AnimatedTileWidget = class AnimatedTileWidget
-          extends widget_ts_5.BaseWidget {
-          constructor(animation) {
-            super();
-            this.tile = null;
-            this.frame = 0;
-            this.lastTimeoutCB = -1;
-            this.animation = animation;
-            this.updateCurrentTile();
-          }
-          setAnimation(animation) {
-            if (animation !== this.animation) {
-              this.animation = animation;
-              this.frame = 0;
-              this.updateCurrentTile();
+        ScrollableTilemapContainerWidget =
+          class ScrollableTilemapContainerWidget
+            extends scrollable_ts_1.ScrollableContainerWidget {
+            constructor() {
+              super(...arguments);
+              this.floorTilemap = null;
+              this.floorTiles = null;
             }
-          }
-          updateCurrentTile() {
-            const animation = this.animation;
-            if (animation === null) {
-              return;
+            onChildrenAdded(child) {
+              super.onChildrenAdded(child);
+              this.updateChildrenIndex(child);
             }
-            const newTile = animation
-              .tiles[
-              animation.sequence[this.frame % animation.sequence.length]
-            ];
-            if (newTile !== this.tile) {
-              this.tile = newTile;
-              this.width = newTile.width;
-              this.height = newTile.height;
-              this.invalidate();
+            onChildrenTransformChanged(child) {
+              super.onChildrenTransformChanged(child);
+              this.updateChildrenIndex(child);
             }
-            this.frame++;
-            if (this.lastTimeoutCB >= 0) {
-              clearTimeout(this.lastTimeoutCB);
-              this.lastTimeoutCB = -1;
+            drawSelf(context) {
+              super.drawSelf(context);
+              const tilemap = this.floorTilemap;
+              const tiles = this.floorTiles;
+              if (tilemap !== null && tiles !== null) {
+                for (let y = 0; y < tiles.length; y++) {
+                  const row = tiles[y];
+                  if (
+                    !context.isVisible(
+                      this.innerX + 0,
+                      this.innerY + y * tilemap.tileHeight,
+                      row.length * tilemap.tileWidth,
+                      tilemap.tileHeight,
+                    )
+                  ) {
+                    continue;
+                  }
+                  for (let x = 0; x < row.length; x++) {
+                    context.tile(
+                      this.innerX + x * tilemap.tileWidth,
+                      this.innerY + y * tilemap.tileHeight,
+                      tilemap.tiles[row[x]],
+                    );
+                  }
+                }
+              }
             }
-            if (animation.delay > 0) {
-              this.lastTimeoutCB = setTimeout(() => {
-                this.lastTimeoutCB = -1;
-                this.updateCurrentTile();
-              }, animation.delay);
+            updateChildrenIndex(child) {
+              const children = this._children;
+              let idx = children.indexOf(child);
+              if (idx >= 0) {
+                const prevOk = idx == 0 ||
+                  children[idx - 1].visibleY <= child.visibleY;
+                const nextOk = idx == children.length - 1 ||
+                  children[idx + 1].visibleY >= child.visibleY;
+                if (!prevOk) {
+                  while (
+                    idx > 0 && children[idx - 1].visibleY > child.visibleY
+                  ) {
+                    const tmp = children[idx - 1];
+                    children[idx - 1] = children[idx];
+                    children[idx] = tmp;
+                    idx--;
+                  }
+                } else if (!nextOk) {
+                  while (
+                    idx < children.length - 1 &&
+                    children[idx + 1].visibleY < child.visibleY
+                  ) {
+                    const tmp = children[idx + 1];
+                    children[idx + 1] = children[idx];
+                    children[idx] = tmp;
+                    idx++;
+                  }
+                }
+              }
             }
-          }
-          drawSelf(context) {
-            if (this.tile !== null) {
-              context.tile(this.x, this.y, this.tile);
-            }
-          }
-        };
-        exports_13("AnimatedTileWidget", AnimatedTileWidget);
+          };
+        exports_13(
+          "ScrollableTilemapContainerWidget",
+          ScrollableTilemapContainerWidget,
+        );
       },
     };
   },
@@ -1567,9 +1650,8 @@ System.register(
     "engine/src/widgets/label",
     "engine/src/types",
     "engine/src/widgets/split-panel",
-    "engine/src/widgets/scrollable",
-    "engine/src/widgets/tile",
     "engine/src/widgets/animated-tile",
+    "engine/src/widgets/tilemap",
   ],
   function (exports_14, context_14) {
     "use strict";
@@ -1577,9 +1659,8 @@ System.register(
       label_ts_1,
       types_ts_6,
       split_panel_ts_1,
-      scrollable_ts_1,
-      tile_ts_1,
       animated_tile_ts_1,
+      tilemap_ts_1,
       NPCS_COUNT,
       MAP_SIZE,
       OBSTACLES_COUNT,
@@ -1619,7 +1700,7 @@ System.register(
       };
       mainUI.panel2.border = 2;
       mainUI.panel2.backColor = types_ts_6.FixedColor.BrightBlack;
-      playingBox = new scrollable_ts_1.ScrollableContainerWidget(font);
+      playingBox = new tilemap_ts_1.ScrollableTilemapContainerWidget(font);
       playingBox.setLayout({ heightPercent: 100, widthPercent: 100 });
       playingBox.setChildrenLayout({ type: "none" });
       playingBox.parent = mainUI.panel1;
@@ -1714,26 +1795,20 @@ System.register(
         types_ts_6.rgb(0, /* I0 */ 153, /* I60 */ 0 /* I0 */),
         types_ts_6.rgb(0, /* I0 */ 204, /* I80 */ 0 /* I0 */),
       ];
-      /*for (let i = 0; i < 255; i++) {
-          const obstacle = new TileWidget(
-            {
-              tilemap: "floor",
-              index: i,
-            },
-          );
-          obstacle.x = i % 21;
-          obstacle.y = Math.floor(i / 21);
-          obstacle.parent = playingBox;
-        }*/
-      for (let x = 0; x < 128; x++) {
-        for (let y = 0; y < 128; y++) {
-          const obstacle = new tile_ts_1.TileWidget(
-            assets.getTilemap("floor").tiles[(7 + 6) * 21 + 1],
-          );
-          obstacle.x = x * obstacle.tile.width;
-          obstacle.y = y * obstacle.tile.height;
-          obstacle.parent = playingBox;
+      playingBox.floorTilemap = assets.getTilemap("floor");
+      playingBox.floorTiles = [];
+      for (let y = 0; y < 128; y++) {
+        const row = [];
+        for (let x = 0; x < 128; x++) {
+          if (Math.random() > 0.5) {
+            row.push((7 + 6) * 21 + 1);
+          } else if (Math.random() > 0.5) {
+            row.push((7 + 3) * 21 + 1);
+          } else {
+            row.push((7 + 0) * 21 + 1);
+          }
         }
+        playingBox.floorTiles.push(row);
       }
       for (let i = 0; i < OBSTACLES_COUNT; i++) {
         const obstacle = new character_ts_1.CharacterWidget(
@@ -1892,14 +1967,11 @@ System.register(
         function (split_panel_ts_1_1) {
           split_panel_ts_1 = split_panel_ts_1_1;
         },
-        function (scrollable_ts_1_1) {
-          scrollable_ts_1 = scrollable_ts_1_1;
-        },
-        function (tile_ts_1_1) {
-          tile_ts_1 = tile_ts_1_1;
-        },
         function (animated_tile_ts_1_1) {
           animated_tile_ts_1 = animated_tile_ts_1_1;
+        },
+        function (tilemap_ts_1_1) {
+          tilemap_ts_1 = tilemap_ts_1_1;
         },
       ],
       execute: function () {
@@ -2100,47 +2172,64 @@ System.register(
       };
       const setTile = (t, x, y, cfx, cfy, ctx, cty) => {
         setDirty(x, y, t.width, t.height);
-        const tilePixels8 = t.pixels;
         const tileWidth = t.width;
         const tileHeight = t.height;
         let p = 0;
         let f = 0;
-        if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
-          for (let py = 0; py < tileHeight; py++) {
-            p = ((y + py) * imageData.width + x) << 2;
-            f = (py * tileWidth) << 2;
-            for (let px = 0; px < tileWidth; px++) {
-              const r = tilePixels8[f++];
-              const g = tilePixels8[f++];
-              const b = tilePixels8[f++];
-              const a = tilePixels8[f++] > 0 ? 1 : 0;
-              const invA = 1 - a;
-              imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
-              imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
-              imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
-              imageDataPixels[p + 3] = 255; //a
-              p += 4;
+        const tilePixels32 = t.pixels32;
+        if (t.hasAlpha) {
+          if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+            for (let py = 0; py < tileHeight; py++) {
+              p = (y + py) * imageData.width + x;
+              f = py * tileWidth;
+              for (let px = 0; px < tileWidth; px++) {
+                const pixel = tilePixels32[f++];
+                if (pixel >> 24 !== 0) {
+                  imageDataPixels32[p++] = pixel;
+                } else {
+                  p++;
+                }
+              }
+            }
+          } else {
+            for (let py = 0; py < tileHeight; py++) {
+              p = (y + py) * imageData.width + x;
+              f = py * tileWidth;
+              for (let px = 0; px < tileWidth; px++) {
+                if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                  const pixel = tilePixels32[f++];
+                  if (pixel >> 24 !== 0) {
+                    imageDataPixels32[p++] = pixel;
+                  } else {
+                    p++;
+                  }
+                } else {
+                  p++;
+                  f++;
+                }
+              }
             }
           }
         } else {
-          for (let py = 0; py < tileHeight; py++) {
-            p = ((y + py) * imageData.width + x) << 2;
-            f = (py * tileWidth) << 2;
-            for (let px = 0; px < tileWidth; px++) {
-              if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                const r = tilePixels8[f++];
-                const g = tilePixels8[f++];
-                const b = tilePixels8[f++];
-                const a = tilePixels8[f++] > 0 ? 1 : 0;
-                const invA = 1 - a;
-                imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
-                imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
-                imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
-                imageDataPixels[p + 3] = 255; //a
-                p += 4;
-              } else {
-                p += 4;
-                f += 4;
+          if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+            for (let py = 0; py < tileHeight; py++) {
+              p = (y + py) * imageData.width + x;
+              f = py * tileWidth;
+              for (let px = 0; px < tileWidth; px++) {
+                imageDataPixels32[p++] = tilePixels32[f++];
+              }
+            }
+          } else {
+            for (let py = 0; py < tileHeight; py++) {
+              p = (y + py) * imageData.width + x;
+              f = py * tileWidth;
+              for (let px = 0; px < tileWidth; px++) {
+                if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                  imageDataPixels32[p++] = tilePixels32[f++];
+                } else {
+                  p++;
+                  f++;
+                }
               }
             }
           }
@@ -2242,13 +2331,14 @@ System.register("web/src/native/assets", [], function (exports_16, context_16) {
     let index = 0;
     for (let y = 0; y < image.height / tileHeight; y++) {
       for (let x = 0; x < image.width / tileWidth; x++) {
-        const pxs =
+        const pixels =
           ctx.getImageData(x * tileWidth, y * tileHeight, tileWidth, tileHeight)
             .data;
-        const pxs32 = new Uint32Array(pxs.buffer);
+        const pixels32 = new Uint32Array(pixels.buffer);
+        const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
         if (type === "blackandwhite") {
-          for (let i = 0; i < pxs32.length; i++) {
-            pxs32[i] = ((pxs32[i] & 0xFFFFFF) === 0) ? 0 : 1;
+          for (let i = 0; i < pixels32.length; i++) {
+            pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 1;
           }
         }
         const tile = {
@@ -2256,9 +2346,10 @@ System.register("web/src/native/assets", [], function (exports_16, context_16) {
           height: tileHeight,
           width: tileWidth,
           index,
-          pixels: pxs,
-          pixels32: pxs32,
+          pixels,
+          pixels32,
           tilemap,
+          hasAlpha,
         };
         tiles.push(tile);
         index++;

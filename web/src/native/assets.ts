@@ -38,7 +38,7 @@ async function loadImage(src: string) {
 async function loadTilemap(
   id: string,
   json: TilemapJson,
-  type: TileSetType,
+  type: TileSetType
 ): Promise<Tilemap> {
   const image = await loadImage(json.filename);
 
@@ -67,18 +67,19 @@ async function loadTilemap(
 
   for (let y = 0; y < image.height / tileHeight; y++) {
     for (let x = 0; x < image.width / tileWidth; x++) {
-      const pxs = ctx.getImageData(
+      const pixels = ctx.getImageData(
         x * tileWidth,
         y * tileHeight,
         tileWidth,
-        tileHeight,
+        tileHeight
       ).data;
 
-      const pxs32 = new Uint32Array(pxs.buffer);
+      const pixels32 = new Uint32Array(pixels.buffer);
+      const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
 
       if (type === "blackandwhite") {
-        for (let i = 0; i < pxs32.length; i++) {
-          pxs32[i] = ((pxs32[i] & 0xFFFFFF) === 0) ? 0 : 1;
+        for (let i = 0; i < pixels32.length; i++) {
+          pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 1;
         }
       }
 
@@ -87,9 +88,10 @@ async function loadTilemap(
         height: tileHeight,
         width: tileWidth,
         index,
-        pixels: pxs,
-        pixels32: pxs32,
+        pixels,
+        pixels32,
         tilemap,
+        hasAlpha,
       };
 
       tiles.push(tile);
@@ -103,12 +105,12 @@ async function loadTilemap(
 function loadAnimation(
   id: string,
   json: AnimationJson,
-  tilemaps: Tilemaps,
+  tilemaps: Tilemaps
 ): Animation {
   const delay = json.fps > 0 ? 1000 / json.fps : 0;
 
-  const tiles = json.frames.map((f) =>
-    (tilemaps.get(json.tilemap) as Tilemap).tiles[f]
+  const tiles = json.frames.map(
+    (f) => (tilemaps.get(json.tilemap) as Tilemap).tiles[f]
   );
   const sequence: number[] = [];
   for (let i = 0; i < tiles.length; i++) sequence.push(i);
@@ -132,11 +134,7 @@ export async function initAssets(): Promise<Assets> {
   for (const tilemapId in assetsJson.tilemaps) {
     const tilemapJson = assetsJson.tilemaps[tilemapId];
 
-    const tilemap = await loadTilemap(
-      tilemapId,
-      tilemapJson,
-      "color",
-    );
+    const tilemap = await loadTilemap(tilemapId, tilemapJson, "color");
 
     tilemaps.set(tilemapId, tilemap);
   }
@@ -144,11 +142,7 @@ export async function initAssets(): Promise<Assets> {
   for (const fontId in assetsJson.fonts) {
     const tilemapJson = assetsJson.fonts[fontId];
 
-    const font = await loadTilemap(
-      fontId,
-      tilemapJson,
-      "blackandwhite",
-    );
+    const font = await loadTilemap(fontId, tilemapJson, "blackandwhite");
 
     fonts.set(fontId, font);
   }

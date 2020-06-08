@@ -45,6 +45,7 @@ export abstract class BaseWidget implements Widget {
       this.invalidate();
       this._x = v;
       this.invalidate();
+      this._parent?.onChildrenTransformChanged(this);
     }
   }
 
@@ -57,6 +58,7 @@ export abstract class BaseWidget implements Widget {
       this.invalidate();
       this._y = v;
       this.invalidate();
+      this._parent?.onChildrenTransformChanged(this);
     }
   }
 
@@ -69,6 +71,7 @@ export abstract class BaseWidget implements Widget {
       this.invalidate();
       this._width = v;
       this.invalidate();
+      this._parent?.onChildrenTransformChanged(this);
     }
   }
 
@@ -81,6 +84,7 @@ export abstract class BaseWidget implements Widget {
       this.invalidate();
       this._height = v;
       this.invalidate();
+      this._parent?.onChildrenTransformChanged(this);
     }
   }
 
@@ -93,6 +97,7 @@ export abstract class BaseWidget implements Widget {
       this.invalidate();
       this._pivotX = v;
       this.invalidate();
+      this._parent?.onChildrenTransformChanged(this);
     }
   }
 
@@ -105,7 +110,16 @@ export abstract class BaseWidget implements Widget {
       this.invalidate();
       this._pivotY = v;
       this.invalidate();
+      this._parent?.onChildrenTransformChanged(this);
     }
+  }
+
+  public get visibleX() {
+    return this._x + this._pivotX;
+  }
+
+  public get visibleY() {
+    return this._y + this._pivotY;
   }
 
   public get parent() {
@@ -123,6 +137,7 @@ export abstract class BaseWidget implements Widget {
       if (this._parent !== null) {
         this._parent.children.push(this);
         this.engine = this._parent.engine;
+        this._parent.onChildrenAdded(this);
       } else {
         this.engine = null;
       }
@@ -134,14 +149,10 @@ export abstract class BaseWidget implements Widget {
     const layout = this.layout;
     if (layout !== null) {
       if (layout.heightPercent !== undefined) {
-        this.height = Math.ceil(
-          parentHeight * layout.heightPercent / 100,
-        );
+        this.height = Math.ceil((parentHeight * layout.heightPercent) / 100);
       }
       if (layout.widthPercent !== undefined) {
-        this.width = Math.ceil(
-          parentWidth * layout.widthPercent / 100,
-        );
+        this.width = Math.ceil((parentWidth * layout.widthPercent) / 100);
       }
 
       if (layout.customSizeFn !== undefined) {
@@ -150,12 +161,12 @@ export abstract class BaseWidget implements Widget {
 
       if (layout.horizontalSpacingPercent !== undefined) {
         this.x = Math.floor(
-          (parentWidth - this.width) * layout.horizontalSpacingPercent / 100,
+          ((parentWidth - this.width) * layout.horizontalSpacingPercent) / 100
         );
       }
       if (layout.verticalSpacingPercent !== undefined) {
         this.y = Math.floor(
-          (parentHeight - this.height) * layout.verticalSpacingPercent / 100,
+          ((parentHeight - this.height) * layout.verticalSpacingPercent) / 100
         );
       }
 
@@ -167,17 +178,12 @@ export abstract class BaseWidget implements Widget {
 
   public draw(context: EngineContext): void {
     if (
-      !context.isVisible(
-        this._x + this._pivotX,
-        this._y + this._pivotY,
-        this._width,
-        this._height,
-      )
+      !context.isVisible(this.visibleX, this.visibleY, this.width, this.height)
     ) {
       return;
     }
-    context.pushTransform(this._x + this._pivotX, this._y + this._pivotY);
-    context.pushClip(0, 0, this._width, this._height);
+    context.pushTransform(this.visibleX, this.visibleY);
+    context.pushClip(0, 0, this.width, this.height);
     context.moveCursorTo(0, 0);
     this.drawSelf(context);
     context.popClip();
@@ -188,15 +194,15 @@ export abstract class BaseWidget implements Widget {
 
   public getBoundingBox() {
     this._boundingBox.set(
-      this._x + this._pivotX,
-      this._y + this._pivotY,
-      this._width,
-      this._height,
+      this.visibleX,
+      this.visibleY,
+      this.width,
+      this.height
     );
     let p = this._parent;
     while (p !== null) {
-      this._boundingBox.x += p.x + p.innerX;
-      this._boundingBox.y += p.y + p.innerY;
+      this._boundingBox.x += p.visibleX + p.innerX;
+      this._boundingBox.y += p.visibleY + p.innerY;
       p = p.parent;
     }
 

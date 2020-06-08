@@ -12,9 +12,8 @@ import {
   KeyEvent,
 } from "engine/types.ts";
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
-import { ScrollableContainerWidget } from "engine/widgets/scrollable.ts";
-import { TileWidget } from "../../engine/src/widgets/tile.ts";
 import { AnimatedTileWidget } from "../../engine/src/widgets/animated-tile.ts";
+import { ScrollableTilemapContainerWidget } from "../../engine/src/widgets/tilemap.ts";
 
 const NPCS_COUNT = 2;
 const MAP_SIZE = 512;
@@ -31,7 +30,7 @@ let cameraMode = CameraMode.FollowContinuous;
 
 const npcs: CharacterWidget[] = [];
 const characters: Widget[] = [];
-let playingBox: ScrollableContainerWidget;
+let playingBox: ScrollableTilemapContainerWidget;
 
 const keysDown = new Map<string, boolean>();
 
@@ -65,7 +64,7 @@ export function initGame(engine: Engine, assets_: Assets) {
   mainUI.panel2.border = 2;
   mainUI.panel2.backColor = FixedColor.BrightBlack;
 
-  playingBox = new ScrollableContainerWidget(font);
+  playingBox = new ScrollableTilemapContainerWidget(font);
 
   playingBox.setLayout({ heightPercent: 100, widthPercent: 100 });
   playingBox.setChildrenLayout({ type: "none" });
@@ -164,27 +163,17 @@ export function initGame(engine: Engine, assets_: Assets) {
     rgb(Intensity.I0, Intensity.I80, Intensity.I0),
   ];
 
-  /*for (let i = 0; i < 255; i++) {
-    const obstacle = new TileWidget(
-      {
-        tilemap: "floor",
-        index: i,
-      },
-    );
-    obstacle.x = i % 21;
-    obstacle.y = Math.floor(i / 21);
-    obstacle.parent = playingBox;
-  }*/
+  playingBox.floorTilemap = assets.getTilemap("floor");
+  playingBox.floorTiles = [];
 
-  for (let x = 0; x < 128; x++) {
-    for (let y = 0; y < 128; y++) {
-      const obstacle = new TileWidget(
-        assets.getTilemap("floor").tiles[(7 + 6) * 21 + 1]
-      );
-      obstacle.x = x * obstacle.tile.width;
-      obstacle.y = y * obstacle.tile.height;
-      obstacle.parent = playingBox;
+  for (let y = 0; y < 128; y++) {
+    const row: number[] = [];
+    for (let x = 0; x < 128; x++) {
+      if (Math.random() > 0.5) row.push((7 + 6) * 21 + 1);
+      else if (Math.random() > 0.5) row.push((7 + 3) * 21 + 1);
+      else row.push((7 + 0) * 21 + 1);
     }
+    playingBox.floorTiles.push(row);
   }
 
   for (let i = 0; i < OBSTACLES_COUNT; i++) {

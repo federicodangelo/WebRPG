@@ -1,9 +1,5 @@
 import { BaseWidget } from "./widget.ts";
-import {
-  DrawContext,
-  Tile,
-  Animation,
-} from "../types.ts";
+import { DrawContext, Tile, Animation } from "../types.ts";
 
 function buildDefaultSequence(len: number) {
   const seq: number[] = [];
@@ -37,8 +33,10 @@ export class AnimatedTileWidget extends BaseWidget {
       return;
     }
 
-    const newTile = animation
-      .tiles[animation.sequence[this.frame % animation.sequence.length]];
+    const newTile =
+      animation.tiles[
+        animation.sequence[this.frame % animation.sequence.length]
+      ];
 
     if (newTile !== this.tile) {
       this.tile = newTile;
@@ -54,17 +52,14 @@ export class AnimatedTileWidget extends BaseWidget {
     }
 
     if (animation.delay > 0) {
-      this.lastTimeoutCB = setTimeout(
-        () => {
-          this.lastTimeoutCB = -1;
-          this.updateCurrentTile();
-        },
-        animation.delay,
-      );
+      this.lastTimeoutCB = setTimeout(() => {
+        this.lastTimeoutCB = -1;
+        this.updateCurrentTile();
+      }, animation.delay);
     }
   }
 
   protected drawSelf(context: DrawContext) {
-    if (this.tile !== null) context.tile(this.x, this.y, this.tile);
+    if (this.tile !== null) context.tile(0, 0, this.tile);
   }
 }

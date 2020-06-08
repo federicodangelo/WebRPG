@@ -137,7 +137,7 @@ export class EngineContextImpl implements EngineContext {
     x: number,
     y: number,
     width: number,
-    height: number,
+    height: number
   ): boolean {
     return !(
       this.tx + x + width < this.clip.x ||
@@ -202,7 +202,7 @@ export class EngineContextImpl implements EngineContext {
         cfx,
         cfy,
         ctx,
-        cty,
+        cty
       );
     }
     this.x += width;
@@ -233,7 +233,7 @@ export class EngineContextImpl implements EngineContext {
     x: number,
     y: number,
     width: number,
-    height: number,
+    height: number
   ) {
     const clip = this.clip;
     const tx = this.tx;
@@ -281,7 +281,7 @@ export class EngineContextImpl implements EngineContext {
     y: number,
     width: number,
     height: number,
-    char: string,
+    char: string
   ) {
     if (char.length === 0) return this;
 
@@ -321,7 +321,7 @@ export class EngineContextImpl implements EngineContext {
           cfx,
           cfy,
           ctx,
-          cty,
+          cty
         );
       }
     }
@@ -329,8 +329,8 @@ export class EngineContextImpl implements EngineContext {
   }
 
   public tile(x: number, y: number, t: Tile): EngineContext {
-    const screenX = this.x + this.tx;
-    const screenY = this.y + this.ty;
+    const screenX = x + this.tx;
+    const screenY = y + this.ty;
     const clip = this.clip;
     const width = t.width;
     const height = t.height;
@@ -346,15 +346,7 @@ export class EngineContextImpl implements EngineContext {
       const ctx = Math.min(clip.x1 - screenX, width);
       const cty = Math.min(clip.y1 - screenY, height);
 
-      this.nativeContext.setTile(
-        t,
-        screenX,
-        screenY,
-        cfx,
-        cfy,
-        ctx,
-        cty,
-      );
+      this.nativeContext.setTile(t, screenX, screenY, cfx, cfy, ctx, cty);
     }
     return this;
   }
@@ -364,7 +356,7 @@ export class EngineContextImpl implements EngineContext {
     y: number,
     width: number,
     height: number,
-    t: Tile,
+    t: Tile
   ): EngineContext {
     const clip = this.clip;
     const tx = this.tx;
@@ -386,15 +378,7 @@ export class EngineContextImpl implements EngineContext {
         const ctx = Math.min(clip.x1 - screenX, t.width);
         const cty = Math.min(clip.y1 - screenY, t.height);
 
-        this.nativeContext.setTile(
-          t,
-          screenX,
-          screenY,
-          cfx,
-          cfy,
-          ctx,
-          cty,
-        );
+        this.nativeContext.setTile(t, screenX, screenY, cfx, cfy, ctx, cty);
       }
     }
     return this;

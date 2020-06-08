@@ -4,6 +4,7 @@ import {
   DrawContext,
   EngineContext,
   Font,
+  Widget,
 } from "../types.ts";
 import { BaseWidgetContainer } from "./widget-container.ts";
 
@@ -44,7 +45,7 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
     font: Font,
     foreColor = FixedColor.White,
     backColor = FixedColor.Black,
-    fillChar = " ",
+    fillChar = " "
   ) {
     super();
     this.font = font;
@@ -62,13 +63,8 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
   }
 
   drawSelf(context: DrawContext) {
-    context.textColor(this.foreColor, this.backColor).fillChar(
-      this.font,
-      0,
-      0,
-      this.width,
-      this.height,
-      this.fillChar,
-    );
+    context
+      .textColor(this.foreColor, this.backColor)
+      .fillChar(this.font, 0, 0, this.width, this.height, this.fillChar);
   }
 }

@@ -115,6 +115,8 @@ export interface WidgetContainer extends Widget {
   readonly innerHeight: number;
   childrenLayout: ChildrenLayout | null;
   setChildrenLayout(layout: ChildrenLayout | null): Widget;
+  onChildrenTransformChanged(child: Widget): void;
+  onChildrenAdded(child: Widget): void;
 }
 
 export interface Widget {
@@ -125,6 +127,8 @@ export interface Widget {
   height: number;
   pivotX: number;
   pivotY: number;
+  readonly visibleY: number;
+  readonly visibleX: number;
   parent: WidgetContainer | null;
   updateLayout(parentWidth: number, parentHeight: number): void;
   draw(context: EngineContext): void;
@@ -294,6 +298,7 @@ export type Tile = {
   height: number;
   pixels: Uint8ClampedArray;
   pixels32: Uint32Array;
+  hasAlpha: boolean;
 };
 
 export type Animation = {
@@ -322,6 +327,8 @@ export type Assets = {
 };
 
 export interface DrawContext {
+  isVisible(x: number, y: number, width: number, height: number): boolean;
+
   //Text API
   moveCursorTo(x: number, y: number): EngineContext;
 
@@ -366,8 +373,6 @@ export interface DrawContext {
 }
 
 export interface EngineContext extends DrawContext {
-  isVisible(x: number, y: number, width: number, height: number): boolean;
-
   pushTransform(x: number, y: number): void;
   popTransform(): void;
 

@@ -12,6 +12,6 @@ export class TileWidget extends BaseWidget {
   }
 
   protected drawSelf(context: DrawContext) {
-    context.tile(this.x, this.y, this.tile);
+    context.tile(0, 0, this.tile);
   }
 }
