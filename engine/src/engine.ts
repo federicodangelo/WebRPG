@@ -1,10 +1,4 @@
-import {
-  Engine,
-  Widget,
-  Size,
-  Rect,
-  Tilemap,
-} from "./types.ts";
+import { Engine, Widget, Size, Rect, Tilemap, KeyEvent } from "./types.ts";
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
 
@@ -31,7 +25,7 @@ class EngineImpl implements Engine {
     }
     this.screenSize.set(consoleSize.width, consoleSize.height);
     this.nativeContext.screen.onScreenSizeChanged(
-      this.onScreenSizeChanged.bind(this),
+      this.onScreenSizeChanged.bind(this)
     );
   }
 
@@ -39,7 +33,7 @@ class EngineImpl implements Engine {
     if (!size.equals(this.screenSize)) {
       this.screenSize.set(size.width, size.height);
       this.invalidateRect(
-        new Rect(0, 0, this.screenSize.width, this.screenSize.height),
+        new Rect(0, 0, this.screenSize.width, this.screenSize.height)
       );
     }
   }
@@ -101,7 +95,7 @@ class EngineImpl implements Engine {
     for (let i = 0; i < this.children.length; i++) {
       this.children[i].updateLayout(
         this.screenSize.width,
-        this.screenSize.height,
+        this.screenSize.height
       );
     }
   }
@@ -121,14 +115,15 @@ class EngineImpl implements Engine {
     this.invalidateRect(widget.getBoundingBox());
   }
 
-  public onInput(listener: (input: string) => void): void {
-    this.nativeContext.input.onInput(listener);
+  public onKeyEvent(listener: (e: KeyEvent) => void): void {
+    this.nativeContext.input.onKeyEvent(listener);
   }
 
   public invalidateRect(rect: Rect) {
-    let lastRect = this.invalidRects.length > 0
-      ? this.invalidRects[this.invalidRects.length - 1]
-      : null;
+    let lastRect =
+      this.invalidRects.length > 0
+        ? this.invalidRects[this.invalidRects.length - 1]
+        : null;
 
     if (lastRect !== null && lastRect.intersects(rect)) {
       lastRect.union(rect);

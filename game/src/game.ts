@@ -9,6 +9,7 @@ import {
   Assets,
   Widget,
   Font,
+  KeyEvent,
 } from "engine/types.ts";
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { ScrollableContainerWidget } from "engine/widgets/scrollable.ts";
@@ -32,9 +33,14 @@ const npcs: CharacterWidget[] = [];
 const characters: Widget[] = [];
 let playingBox: ScrollableContainerWidget;
 
+const keysDown = new Map<string, boolean>();
+
+function isKeyDown(key: string) {
+  return keysDown.get(key) || false;
+}
+
 let p1: AnimatedTileWidget;
-let p2: CharacterWidget;
-let pendingInput = "";
+let p2: AnimatedTileWidget;
 let assets: Assets;
 let font: Font;
 
@@ -70,17 +76,17 @@ export function initGame(engine: Engine, assets_: Assets) {
   mainUI.panel1.titleBackColor = rgb(
     Intensity.I20,
     Intensity.I0,
-    Intensity.I20,
+    Intensity.I20
   );
   mainUI.panel1.borderForeColor = rgb(
     Intensity.I60,
     Intensity.I0,
-    Intensity.I60,
+    Intensity.I60
   );
   mainUI.panel1.borderBackColor = rgb(
     Intensity.I20,
     Intensity.I0,
-    Intensity.I20,
+    Intensity.I20
   );
   mainUI.panel1.backColor = FixedColor.Black;
   mainUI.panel1.fillChar = "";
@@ -90,17 +96,17 @@ export function initGame(engine: Engine, assets_: Assets) {
   mainUI.panel2.titleBackColor = rgb(
     Intensity.I0,
     Intensity.I20,
-    Intensity.I40,
+    Intensity.I40
   );
   mainUI.panel2.borderForeColor = rgb(
     Intensity.I0,
     Intensity.I0,
-    Intensity.I60,
+    Intensity.I60
   );
   mainUI.panel2.borderBackColor = rgb(
     Intensity.I0,
     Intensity.I20,
-    Intensity.I40,
+    Intensity.I40
   );
   mainUI.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
   mainUI.panel2.childrenLayout = {
@@ -112,7 +118,7 @@ export function initGame(engine: Engine, assets_: Assets) {
     font,
     "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L\nQuit: Z",
     FixedColor.White,
-    mainUI.panel2.backColor,
+    mainUI.panel2.backColor
   ).parent = mainUI.panel2;
 
   function random<T>(arr: T[]): T {
@@ -121,17 +127,13 @@ export function initGame(engine: Engine, assets_: Assets) {
 
   p1 = new AnimatedTileWidget(assets.getAnimation("down"));
   p1.pivotX = -Math.floor(p1.width / 2);
-  p1.pivotY = -Math.floor(p1.height * 7 / 8);
-
+  p1.pivotY = -Math.floor((p1.height * 7) / 8);
   p1.x = 10 * font.tileWidth;
   p1.y = 10 * font.tileHeight;
 
-  p2 = new CharacterWidget(
-    font,
-    "@",
-    FixedColor.BrightBlue,
-    FixedColor.Transparent,
-  );
+  p2 = new AnimatedTileWidget(assets.getAnimation("down"));
+  p2.pivotX = -Math.floor(p1.width / 2);
+  p2.pivotY = -Math.floor((p1.height * 7) / 8);
   p2.x = 13 * font.tileWidth;
   p2.y = 3 * font.tileHeight;
 
@@ -147,16 +149,12 @@ export function initGame(engine: Engine, assets_: Assets) {
         font,
         "@",
         npcsColors[i % npcsColors.length],
-        FixedColor.Transparent,
-      ),
+        FixedColor.Transparent
+      )
     );
   }
 
-  characters.push(
-    ...npcs,
-    p1,
-    p2,
-  );
+  characters.push(...npcs, p1, p2);
 
   const obtacleChars: string[] = ["."];
   const obtacleColors: Color[] = [
@@ -181,7 +179,7 @@ export function initGame(engine: Engine, assets_: Assets) {
   for (let x = 0; x < 128; x++) {
     for (let y = 0; y < 128; y++) {
       const obstacle = new TileWidget(
-        assets.getTilemap("floor").tiles[(7 + 6) * 21 + 1],
+        assets.getTilemap("floor").tiles[(7 + 6) * 21 + 1]
       );
       obstacle.x = x * obstacle.tile.width;
       obstacle.y = y * obstacle.tile.height;
@@ -194,21 +192,27 @@ export function initGame(engine: Engine, assets_: Assets) {
       font,
       random(obtacleChars),
       random(obtacleColors),
-      FixedColor.Transparent,
+      FixedColor.Transparent
     );
     obstacle.x = Math.floor(Math.random() * MAP_SIZE) * font.tileWidth;
     obstacle.y = Math.floor(Math.random() * MAP_SIZE) * font.tileHeight;
     obstacle.parent = playingBox;
   }
 
-  characters.forEach((c) => c.parent = playingBox);
+  characters.forEach((c) => (c.parent = playingBox));
 
-  function onInput(input: string) {
-    pendingInput += input;
+  function onKeyEvent(e: KeyEvent) {
+    if (e.char) {
+      if (e.type === "down") {
+        keysDown.set(e.char, true);
+      } else if (e.type === "up") {
+        keysDown.set(e.char, false);
+      }
+    }
   }
 
   engine.addWidget(mainUI);
-  engine.onInput(onInput);
+  engine.onKeyEvent(onKeyEvent);
 }
 
 const WALK_SPEED = 4;
@@ -237,88 +241,71 @@ export function updateGame(engine: Engine): boolean {
   }
 
   let p1oldPos = { x: p1.x, y: p1.y };
+  let p2oldPos = { x: p2.x, y: p2.y };
 
-  if (pendingInput) {
-    const uniqueChars = pendingInput.split("").map((c) => c.toLowerCase());
-    uniqueChars.forEach((c) => {
-      switch (c) {
-        case "a":
-          p1.x -= WALK_SPEED;
-          p1.setAnimation(assets.getAnimation("left-walking"));
-          break;
-        case "d":
-          p1.x += WALK_SPEED;
-          p1.setAnimation(assets.getAnimation("right-walking"));
-          break;
-        case "w":
-          p1.y -= WALK_SPEED;
-          p1.setAnimation(assets.getAnimation("up-walking"));
-          break;
-        case "s":
-          p1.y += WALK_SPEED;
-          p1.setAnimation(assets.getAnimation("down-walking"));
-          break;
+  if (isKeyDown("a")) {
+    p1.x -= WALK_SPEED;
+    p1.setAnimation(assets.getAnimation("left-walking"));
+  }
+  if (isKeyDown("d")) {
+    p1.x += WALK_SPEED;
+    p1.setAnimation(assets.getAnimation("right-walking"));
+  }
+  if (isKeyDown("w")) {
+    p1.y -= WALK_SPEED;
+    p1.setAnimation(assets.getAnimation("up-walking"));
+  }
+  if (isKeyDown("s")) {
+    p1.y += WALK_SPEED;
+    p1.setAnimation(assets.getAnimation("down-walking"));
+  }
 
-        case "j":
-          p2.x -= WALK_SPEED;
-          break;
-        case "l":
-          p2.x += WALK_SPEED;
-          break;
-        case "i":
-          p2.y -= WALK_SPEED;
-          break;
-        case "k":
-          p2.y += WALK_SPEED;
-          break;
-
-        case String.fromCharCode(27): //Escape
-          running = false;
-          break;
-
-        case "z":
-          running = false;
-          break;
-
-        case "f":
-          if (cameraMode === CameraMode.FollowContinuous) {
-            cameraMode = CameraMode.FollowDiscrete;
-          } else {
-            cameraMode = CameraMode.FollowContinuous;
-          }
-          break;
-      }
-    });
-
-    pendingInput = "";
+  if (isKeyDown("j")) {
+    p2.x -= WALK_SPEED;
+    p2.setAnimation(assets.getAnimation("left-walking"));
+  }
+  if (isKeyDown("l")) {
+    p2.x += WALK_SPEED;
+    p2.setAnimation(assets.getAnimation("right-walking"));
+  }
+  if (isKeyDown("i")) {
+    p2.y -= WALK_SPEED;
+    p2.setAnimation(assets.getAnimation("up-walking"));
+  }
+  if (isKeyDown("k")) {
+    p2.y += WALK_SPEED;
+    p2.setAnimation(assets.getAnimation("down-walking"));
   }
 
   for (let i = 0; i < characters.length; i++) {
     const char = characters[i];
     char.x = Math.max(
       Math.min(char.x, MAP_SIZE * font.tileWidth - char.width * font.tileWidth),
-      0,
+      0
     );
     char.y = Math.max(
       Math.min(
         char.y,
-        MAP_SIZE * font.tileHeight - char.height * font.tileHeight,
+        MAP_SIZE * font.tileHeight - char.height * font.tileHeight
       ),
-      0,
+      0
     );
   }
 
   if (p1oldPos.x === p1.x && p1oldPos.y === p1.y) {
-    p1idleFrames++;
-    if (p1idleFrames > 2) {
-      if (p1.animation.id.endsWith("-walking")) {
-        p1.setAnimation(
-          assets.getAnimation(p1.animation.id.replace("-walking", "")),
-        );
-      }
+    if (p1.animation.id.endsWith("-walking")) {
+      p1.setAnimation(
+        assets.getAnimation(p1.animation.id.replace("-walking", ""))
+      );
     }
-  } else {
-    p1idleFrames = 0;
+  }
+
+  if (p2oldPos.x === p2.x && p2oldPos.y === p2.y) {
+    if (p2.animation.id.endsWith("-walking")) {
+      p2.setAnimation(
+        assets.getAnimation(p1.animation.id.replace("-walking", ""))
+      );
+    }
   }
 
   let newOffsetX = playingBox.offsetX;
@@ -342,14 +329,18 @@ export function updateGame(engine: Engine): boolean {
   }
 
   playingBox.setOffset(
-    Math.trunc(Math.max(
-      Math.min(newOffsetX, 0),
-      -(MAP_SIZE * font.tileWidth - playingBox.width),
-    )),
-    Math.trunc(Math.max(
-      Math.min(newOffsetY, 0),
-      -(MAP_SIZE * font.tileHeight - playingBox.height),
-    )),
+    Math.trunc(
+      Math.max(
+        Math.min(newOffsetX, 0),
+        -(MAP_SIZE * font.tileWidth - playingBox.width)
+      )
+    ),
+    Math.trunc(
+      Math.max(
+        Math.min(newOffsetY, 0),
+        -(MAP_SIZE * font.tileHeight - playingBox.height)
+      )
+    )
   );
 
   return running;

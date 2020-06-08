@@ -61,10 +61,10 @@ export class FixedColor {
 
 export const enum Intensity {
   I0 = 0,
-  I20 = (255 * 1 / 5) & 0xFF,
-  I40 = (255 * 2 / 5) & 0xFF,
-  I60 = (255 * 3 / 5) & 0xFF,
-  I80 = (255 * 4 / 5) & 0xFF,
+  I20 = ((255 * 1) / 5) & 0xff,
+  I40 = ((255 * 2) / 5) & 0xff,
+  I60 = ((255 * 3) / 5) & 0xff,
+  I80 = ((255 * 4) / 5) & 0xff,
   I100 = 255,
 }
 
@@ -93,12 +93,12 @@ export interface WidgetLayout {
   customSizeFn?: (
     widget: Widget,
     parentWidth: number,
-    parentHeight: number,
+    parentHeight: number
   ) => void;
   customPositionFn?: (
     widget: Widget,
     parentWidth: number,
-    parentHeight: number,
+    parentHeight: number
   ) => void;
 }
 
@@ -156,8 +156,7 @@ export class Point {
   }
 
   public equals(p: Point) {
-    return this.x === p.x &&
-      this.y === p.y;
+    return this.x === p.x && this.y === p.y;
   }
 
   public clone() {
@@ -187,8 +186,7 @@ export class Size {
   }
 
   public equals(size: Size) {
-    return this.width === size.width &&
-      this.height === size.height;
+    return this.width === size.width && this.height === size.height;
   }
 
   public clone() {
@@ -214,7 +212,7 @@ export class Rect {
     x: number = 0,
     y: number = 0,
     width: number = 0,
-    height: number = 0,
+    height: number = 0
   ) {
     this.x = x;
     this.y = y;
@@ -239,17 +237,21 @@ export class Rect {
   }
 
   public equals(rect: Rect) {
-    return this.x === rect.x &&
+    return (
+      this.x === rect.x &&
       this.y === rect.y &&
       this.width === rect.width &&
-      this.height === rect.height;
+      this.height === rect.height
+    );
   }
 
   public intersects(rect: Rect) {
-    return !(this.x1 < rect.x ||
+    return !(
+      this.x1 < rect.x ||
       this.y1 < rect.y ||
       this.x > rect.x1 ||
-      this.y > rect.y1);
+      this.y > rect.y1
+    );
   }
 
   public union(rect: Rect) {
@@ -332,18 +334,14 @@ export interface DrawContext {
   charTimes(font: Font, code: number, times: number): EngineContext;
 
   specialChar(font: Font, code: SpecialChar): EngineContext;
-  specialCharTimes(
-    font: Font,
-    code: SpecialChar,
-    times: number,
-  ): EngineContext;
+  specialCharTimes(font: Font, code: SpecialChar, times: number): EngineContext;
 
   textBorder(
     font: Font,
     x: number,
     y: number,
     width: number,
-    height: number,
+    height: number
   ): EngineContext;
 
   fillChar(
@@ -352,7 +350,7 @@ export interface DrawContext {
     y: number,
     width: number,
     height: number,
-    char: string,
+    char: string
   ): EngineContext;
 
   //Tile API
@@ -363,7 +361,7 @@ export interface DrawContext {
     y: number,
     width: number,
     height: number,
-    t: Tile,
+    t: Tile
   ): EngineContext;
 }
 
@@ -377,11 +375,25 @@ export interface EngineContext extends DrawContext {
   popClip(): void;
 }
 
+export const enum KeyCode {
+  None,
+  ArrowLeft,
+  ArrowRight,
+  ArrowTop,
+  ArrowBottom,
+}
+
+export type KeyEvent = {
+  type: "down" | "up" | "press";
+  char?: string;
+  code?: KeyCode;
+};
+
 export interface Engine {
   draw(): void;
   update(): void;
   addWidget(widget: Widget): void;
   removeWidget(widget: Widget): void;
   invalidateRect(rect: Rect): void;
-  onInput(listener: (input: string) => void): void;
+  onKeyEvent(listener: (e: KeyEvent) => void): void;
 }

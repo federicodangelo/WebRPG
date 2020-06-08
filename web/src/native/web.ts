@@ -1,21 +1,25 @@
 import { NativeContext } from "engine/native-types.ts";
-import { Size, Color, Tile } from "engine/types.ts";
+import { Size, Color, Tile, KeyEvent } from "engine/types.ts";
 
 const SCALE = 1;
 
 function updateCanvasSize(
   canvas: HTMLCanvasElement,
   width: number,
-  height: number,
+  height: number
 ) {
   canvas.width = Math.floor(width / SCALE);
   canvas.height = Math.floor(height / SCALE);
   if (SCALE !== 1) {
     canvas.setAttribute(
       "style",
-      "width: " + canvas.width * SCALE + "px;" +
-        "height: " + canvas.height * SCALE + "px;" +
-        "image-rendering: pixelated;",
+      "width: " +
+        canvas.width * SCALE +
+        "px;" +
+        "height: " +
+        canvas.height * SCALE +
+        "px;" +
+        "image-rendering: pixelated;"
     );
   }
 }
@@ -42,7 +46,11 @@ export function getWebNativeContext(): NativeContext {
   ctx.imageSmoothingEnabled = false;
 
   let screenSizeChangedListeners: ((size: Size) => void)[] = [];
-  let inputListeners: ((intut: string) => void)[] = [];
+  let inputListeners: ((e: KeyEvent) => void)[] = [];
+
+  const disptachKeyEvent = (e: KeyEvent) => {
+    inputListeners.forEach((l) => l(e));
+  };
 
   const updateScreenSize = () => {
     screenSize.set(canvas.width, canvas.height);
@@ -52,34 +60,45 @@ export function getWebNativeContext(): NativeContext {
     const key = e.key;
 
     if (key.length === 1) {
-      inputListeners.forEach((l) => l(key));
+      disptachKeyEvent({ type: "down", char: key });
+    }
+  };
+
+  const handleKeyUp = (e: KeyboardEvent) => {
+    const key = e.key;
+
+    if (key.length === 1) {
+      disptachKeyEvent({ type: "up", char: key });
+    }
+  };
+
+  const handleKeyPress = (e: KeyboardEvent) => {
+    const key = e.key;
+
+    if (key.length === 1) {
+      disptachKeyEvent({ type: "press", char: key });
     }
   };
 
   const handleMouseDown = (e: MouseEvent) => {
-    const dx = (e.clientX < window.innerWidth / 3)
-      ? -1
-      : (e.clientX > window.innerWidth * 2 / 3)
-      ? 1
-      : 0;
-    const dy = (e.clientY < window.innerHeight / 3)
-      ? -1
-      : (e.clientY > window.innerHeight * 2 / 3)
-      ? 1
-      : 0;
+    const dx =
+      e.clientX < window.innerWidth / 3
+        ? -1
+        : e.clientX > (window.innerWidth * 2) / 3
+        ? 1
+        : 0;
+    const dy =
+      e.clientY < window.innerHeight / 3
+        ? -1
+        : e.clientY > (window.innerHeight * 2) / 3
+        ? 1
+        : 0;
 
-    const key = dx === -1
-      ? "a"
-      : dx === 1
-      ? "d"
-      : dy === -1
-      ? "w"
-      : dy === 1
-      ? "s"
-      : "";
+    const key =
+      dx === -1 ? "a" : dx === 1 ? "d" : dy === -1 ? "w" : dy === 1 ? "s" : "";
 
     if (key.length === 1) {
-      inputListeners.forEach((l) => l(key));
+      disptachKeyEvent({ type: "press", char: key });
     }
   };
 
@@ -101,7 +120,7 @@ export function getWebNativeContext(): NativeContext {
     cfx: number,
     cfy: number,
     ctx: number,
-    cty: number,
+    cty: number
   ) => {
     dirty = true;
 
@@ -114,7 +133,7 @@ export function getWebNativeContext(): NativeContext {
     const tileWidth = t.width;
     const tileHeight = t.height;
 
-    const backTransparent = (backColor >> 24) == 0;
+    const backTransparent = backColor >> 24 == 0;
 
     let p = 0;
     let f = 0;
@@ -185,7 +204,7 @@ export function getWebNativeContext(): NativeContext {
     cfx: number,
     cfy: number,
     ctx: number,
-    cty: number,
+    cty: number
   ) => {
     dirty = true;
 
@@ -239,6 +258,8 @@ export function getWebNativeContext(): NativeContext {
   };
 
   window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener("keyup", handleKeyUp);
+  window.addEventListener("keypress", handleKeyPress);
   window.addEventListener("mousedown", handleMouseDown);
   window.addEventListener("resize", handleResize);
   updateScreenSize();
@@ -260,7 +281,7 @@ export function getWebNativeContext(): NativeContext {
       },
     },
     input: {
-      onInput: (listener) => {
+      onKeyEvent: (listener) => {
         inputListeners.push(listener);
       },
     },

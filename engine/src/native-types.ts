@@ -1,4 +1,4 @@
-import { Color, SpecialChar, Size, Tile } from "./types.ts";
+import { Color, Size, Tile, KeyEvent } from "./types.ts";
 
 export interface NativeContextScreen {
   getScreenSize(): Size | null;
@@ -15,7 +15,7 @@ export interface NativeContextScreen {
     cfx: number,
     cfy: number,
     ctx: number,
-    cty: number,
+    cty: number
   ): void;
 
   setTile(
@@ -25,14 +25,14 @@ export interface NativeContextScreen {
     cfx: number,
     cfy: number,
     ctx: number,
-    cty: number,
+    cty: number
   ): void;
 
   endDraw(): void;
 }
 
 export interface NativeContextInput {
-  onInput(listener: (input: string) => void): void;
+  onKeyEvent(listener: (e: KeyEvent) => void): void;
 }
 
 export interface NativeContext {

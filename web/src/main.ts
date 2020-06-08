@@ -13,15 +13,18 @@ let fpsLabel: LabelWidget;
 let totalRenderTime = 0;
 let frames = 0;
 let framesTime = performance.now();
-let nextUpdateTime: number = 0;
 
 function updateFps() {
   const now = performance.now();
   frames++;
   if (now - framesTime > 1000) {
     const fps = frames / ((now - framesTime) / 1000);
-    const stats = "FPS: " + fps.toFixed(2) + "\nRender: " +
-      (totalRenderTime / frames).toFixed(2) + "ms";
+    const stats =
+      "FPS: " +
+      fps.toFixed(2) +
+      "\nRender: " +
+      (totalRenderTime / frames).toFixed(2) +
+      "ms";
     fpsLabel.text = stats;
     framesTime = now;
     frames = 0;
@@ -46,7 +49,7 @@ async function init() {
     assets.defaultFont,
     "FPS: 0.00\nRender: 0.00ms",
     FixedColor.White,
-    mainUI.panel2.backColor,
+    mainUI.panel2.backColor
   );
 
   fpsLabel.parent = mainUI.panel2;
@@ -54,12 +57,19 @@ async function init() {
   return engine;
 }
 
-nextUpdateTime = performance.now() + 1000 / TARGET_FPS;
+let lastUpdateTime = performance.now();
+let timeToNextUpdate = 0;
 
 function update() {
-  const start = performance.now();
+  const updateTime = performance.now();
+  const delta = updateTime - lastUpdateTime;
+  lastUpdateTime = updateTime;
+  timeToNextUpdate -= delta;
+  if (timeToNextUpdate < -1000) timeToNextUpdate = -1000;
 
-  if (start < nextUpdateTime) return;
+  if (timeToNextUpdate > 0.1) return;
+
+  timeToNextUpdate += 1000 / TARGET_FPS;
 
   updateFps();
 
@@ -71,11 +81,9 @@ function update() {
 
   const end = performance.now();
 
-  const renderTime = end - start;
+  const renderTime = end - updateTime;
 
   totalRenderTime += renderTime;
-
-  nextUpdateTime = start + Math.max(10, 1000 / TARGET_FPS - (end - start));
 }
 
 async function run() {

@@ -164,8 +164,7 @@ System.register("engine/src/types", [], function (exports_1, context_1) {
           return this;
         }
         equals(p) {
-          return this.x === p.x &&
-            this.y === p.y;
+          return this.x === p.x && this.y === p.y;
         }
         clone() {
           return new Point(this.x, this.y);
@@ -188,8 +187,7 @@ System.register("engine/src/types", [], function (exports_1, context_1) {
           return this;
         }
         equals(size) {
-          return this.width === size.width &&
-            this.height === size.height;
+          return this.width === size.width && this.height === size.height;
         }
         clone() {
           return new Size(this.width, this.height);
@@ -224,10 +222,10 @@ System.register("engine/src/types", [], function (exports_1, context_1) {
           return this;
         }
         equals(rect) {
-          return this.x === rect.x &&
+          return (this.x === rect.x &&
             this.y === rect.y &&
             this.width === rect.width &&
-            this.height === rect.height;
+            this.height === rect.height);
         }
         intersects(rect) {
           return !(this.x1 < rect.x ||
@@ -754,8 +752,8 @@ System.register(
             }
             this.invalidateRect(widget.getBoundingBox());
           }
-          onInput(listener) {
-            this.nativeContext.input.onInput(listener);
+          onKeyEvent(listener) {
+            this.nativeContext.input.onKeyEvent(listener);
           }
           invalidateRect(rect) {
             let lastRect = this.invalidRects.length > 0
@@ -1590,14 +1588,17 @@ System.register(
       npcs,
       characters,
       playingBox,
+      keysDown,
       p1,
       p2,
-      pendingInput,
       assets,
       font,
       WALK_SPEED,
       p1idleFrames;
     var __moduleName = context_14 && context_14.id;
+    function isKeyDown(key) {
+      return keysDown.get(key) || false;
+    }
     function initGame(engine, assets_) {
       assets = assets_;
       font = assets.defaultFont;
@@ -1680,15 +1681,14 @@ System.register(
         assets.getAnimation("down"),
       );
       p1.pivotX = -Math.floor(p1.width / 2);
-      p1.pivotY = -Math.floor(p1.height * 7 / 8);
+      p1.pivotY = -Math.floor((p1.height * 7) / 8);
       p1.x = 10 * font.tileWidth;
       p1.y = 10 * font.tileHeight;
-      p2 = new character_ts_1.CharacterWidget(
-        font,
-        "@",
-        types_ts_6.FixedColor.BrightBlue,
-        types_ts_6.FixedColor.Transparent,
+      p2 = new animated_tile_ts_1.AnimatedTileWidget(
+        assets.getAnimation("down"),
       );
+      p2.pivotX = -Math.floor(p1.width / 2);
+      p2.pivotY = -Math.floor((p1.height * 7) / 8);
       p2.x = 13 * font.tileWidth;
       p2.y = 3 * font.tileHeight;
       const npcsColors = [
@@ -1746,12 +1746,18 @@ System.register(
         obstacle.y = Math.floor(Math.random() * MAP_SIZE) * font.tileHeight;
         obstacle.parent = playingBox;
       }
-      characters.forEach((c) => c.parent = playingBox);
-      function onInput(input) {
-        pendingInput += input;
+      characters.forEach((c) => (c.parent = playingBox));
+      function onKeyEvent(e) {
+        if (e.char) {
+          if (e.type === "down") {
+            keysDown.set(e.char, true);
+          } else if (e.type === "up") {
+            keysDown.set(e.char, false);
+          }
+        }
       }
       engine.addWidget(mainUI);
-      engine.onInput(onInput);
+      engine.onKeyEvent(onKeyEvent);
     }
     exports_14("initGame", initGame);
     function updateGame(engine) {
@@ -1774,54 +1780,38 @@ System.register(
         }
       }
       let p1oldPos = { x: p1.x, y: p1.y };
-      if (pendingInput) {
-        const uniqueChars = pendingInput.split("").map((c) => c.toLowerCase());
-        uniqueChars.forEach((c) => {
-          switch (c) {
-            case "a":
-              p1.x -= WALK_SPEED;
-              p1.setAnimation(assets.getAnimation("left-walking"));
-              break;
-            case "d":
-              p1.x += WALK_SPEED;
-              p1.setAnimation(assets.getAnimation("right-walking"));
-              break;
-            case "w":
-              p1.y -= WALK_SPEED;
-              p1.setAnimation(assets.getAnimation("up-walking"));
-              break;
-            case "s":
-              p1.y += WALK_SPEED;
-              p1.setAnimation(assets.getAnimation("down-walking"));
-              break;
-            case "j":
-              p2.x -= WALK_SPEED;
-              break;
-            case "l":
-              p2.x += WALK_SPEED;
-              break;
-            case "i":
-              p2.y -= WALK_SPEED;
-              break;
-            case "k":
-              p2.y += WALK_SPEED;
-              break;
-            case String.fromCharCode(27): //Escape
-              running = false;
-              break;
-            case "z":
-              running = false;
-              break;
-            case "f":
-              if (cameraMode === 0 /* FollowContinuous */) {
-                cameraMode = 1 /* FollowDiscrete */;
-              } else {
-                cameraMode = 0 /* FollowContinuous */;
-              }
-              break;
-          }
-        });
-        pendingInput = "";
+      let p2oldPos = { x: p2.x, y: p2.y };
+      if (isKeyDown("a")) {
+        p1.x -= WALK_SPEED;
+        p1.setAnimation(assets.getAnimation("left-walking"));
+      }
+      if (isKeyDown("d")) {
+        p1.x += WALK_SPEED;
+        p1.setAnimation(assets.getAnimation("right-walking"));
+      }
+      if (isKeyDown("w")) {
+        p1.y -= WALK_SPEED;
+        p1.setAnimation(assets.getAnimation("up-walking"));
+      }
+      if (isKeyDown("s")) {
+        p1.y += WALK_SPEED;
+        p1.setAnimation(assets.getAnimation("down-walking"));
+      }
+      if (isKeyDown("j")) {
+        p2.x -= WALK_SPEED;
+        p2.setAnimation(assets.getAnimation("left-walking"));
+      }
+      if (isKeyDown("l")) {
+        p2.x += WALK_SPEED;
+        p2.setAnimation(assets.getAnimation("right-walking"));
+      }
+      if (isKeyDown("i")) {
+        p2.y -= WALK_SPEED;
+        p2.setAnimation(assets.getAnimation("up-walking"));
+      }
+      if (isKeyDown("k")) {
+        p2.y += WALK_SPEED;
+        p2.setAnimation(assets.getAnimation("down-walking"));
       }
       for (let i = 0; i < characters.length; i++) {
         const char = characters[i];
@@ -1841,16 +1831,18 @@ System.register(
         );
       }
       if (p1oldPos.x === p1.x && p1oldPos.y === p1.y) {
-        p1idleFrames++;
-        if (p1idleFrames > 2) {
-          if (p1.animation.id.endsWith("-walking")) {
-            p1.setAnimation(
-              assets.getAnimation(p1.animation.id.replace("-walking", "")),
-            );
-          }
+        if (p1.animation.id.endsWith("-walking")) {
+          p1.setAnimation(
+            assets.getAnimation(p1.animation.id.replace("-walking", "")),
+          );
         }
-      } else {
-        p1idleFrames = 0;
+      }
+      if (p2oldPos.x === p2.x && p2oldPos.y === p2.y) {
+        if (p2.animation.id.endsWith("-walking")) {
+          p2.setAnimation(
+            assets.getAnimation(p1.animation.id.replace("-walking", "")),
+          );
+        }
       }
       let newOffsetX = playingBox.offsetX;
       let newOffsetY = playingBox.offsetY;
@@ -1917,7 +1909,7 @@ System.register(
         cameraMode = 0 /* FollowContinuous */;
         npcs = [];
         characters = [];
-        pendingInput = "";
+        keysDown = new Map();
         WALK_SPEED = 4;
         p1idleFrames = 0;
       },
@@ -1937,8 +1929,12 @@ System.register(
       if (SCALE !== 1) {
         canvas.setAttribute(
           "style",
-          "width: " + canvas.width * SCALE + "px;" +
-            "height: " + canvas.height * SCALE + "px;" +
+          "width: " +
+            canvas.width * SCALE +
+            "px;" +
+            "height: " +
+            canvas.height * SCALE +
+            "px;" +
             "image-rendering: pixelated;",
         );
       }
@@ -1961,23 +1957,38 @@ System.register(
       ctx.imageSmoothingEnabled = false;
       let screenSizeChangedListeners = [];
       let inputListeners = [];
+      const disptachKeyEvent = (e) => {
+        inputListeners.forEach((l) => l(e));
+      };
       const updateScreenSize = () => {
         screenSize.set(canvas.width, canvas.height);
       };
       const handleKeyDown = (e) => {
         const key = e.key;
         if (key.length === 1) {
-          inputListeners.forEach((l) => l(key));
+          disptachKeyEvent({ type: "down", char: key });
+        }
+      };
+      const handleKeyUp = (e) => {
+        const key = e.key;
+        if (key.length === 1) {
+          disptachKeyEvent({ type: "up", char: key });
+        }
+      };
+      const handleKeyPress = (e) => {
+        const key = e.key;
+        if (key.length === 1) {
+          disptachKeyEvent({ type: "press", char: key });
         }
       };
       const handleMouseDown = (e) => {
-        const dx = (e.clientX < window.innerWidth / 3) ? -1
-        : (e.clientX > window.innerWidth * 2 / 3)
+        const dx = e.clientX < window.innerWidth / 3 ? -1
+        : e.clientX > (window.innerWidth * 2) / 3
         ? 1
         : 0;
-        const dy = (e.clientY < window.innerHeight / 3)
+        const dy = e.clientY < window.innerHeight / 3
           ? -1
-          : (e.clientY > window.innerHeight * 2 / 3)
+          : e.clientY > (window.innerHeight * 2) / 3
           ? 1
           : 0;
         const key = dx === -1
@@ -1990,7 +2001,7 @@ System.register(
           ? "s"
           : "";
         if (key.length === 1) {
-          inputListeners.forEach((l) => l(key));
+          disptachKeyEvent({ type: "press", char: key });
         }
       };
       const handleResize = () => {
@@ -2011,7 +2022,7 @@ System.register(
         const tilePixels = t.pixels32;
         const tileWidth = t.width;
         const tileHeight = t.height;
-        const backTransparent = (backColor >> 24) == 0;
+        const backTransparent = backColor >> 24 == 0;
         let p = 0;
         let f = 0;
         if (cfx <= 0 && cfy <= 0 && ctx >= tileWidth && cty >= tileHeight) {
@@ -2121,6 +2132,8 @@ System.register(
         }
       };
       window.addEventListener("keydown", handleKeyDown);
+      window.addEventListener("keyup", handleKeyUp);
+      window.addEventListener("keypress", handleKeyPress);
       window.addEventListener("mousedown", handleMouseDown);
       window.addEventListener("resize", handleResize);
       updateScreenSize();
@@ -2141,7 +2154,7 @@ System.register(
           },
         },
         input: {
-          onInput: (listener) => {
+          onKeyEvent: (listener) => {
             inputListeners.push(listener);
           },
         },
@@ -2298,15 +2311,19 @@ System.register(
       totalRenderTime,
       frames,
       framesTime,
-      nextUpdateTime;
+      lastUpdateTime,
+      timeToNextUpdate;
     var __moduleName = context_17 && context_17.id;
     function updateFps() {
       const now = performance.now();
       frames++;
       if (now - framesTime > 1000) {
         const fps = frames / ((now - framesTime) / 1000);
-        const stats = "FPS: " + fps.toFixed(2) + "\nRender: " +
-          (totalRenderTime / frames).toFixed(2) + "ms";
+        const stats = "FPS: " +
+          fps.toFixed(2) +
+          "\nRender: " +
+          (totalRenderTime / frames).toFixed(2) +
+          "ms";
         fpsLabel.text = stats;
         framesTime = now;
         frames = 0;
@@ -2330,18 +2347,24 @@ System.register(
       return engine;
     }
     function update() {
-      const start = performance.now();
-      if (start < nextUpdateTime) {
+      const updateTime = performance.now();
+      const delta = updateTime - lastUpdateTime;
+      lastUpdateTime = updateTime;
+      timeToNextUpdate -= delta;
+      if (timeToNextUpdate < -1000) {
+        timeToNextUpdate = -1000;
+      }
+      if (timeToNextUpdate > 0.1) {
         return;
       }
+      timeToNextUpdate += 1000 / TARGET_FPS;
       updateFps();
       engine.update();
       game_ts_1.updateGame(engine);
       engine.draw();
       const end = performance.now();
-      const renderTime = end - start;
+      const renderTime = end - updateTime;
       totalRenderTime += renderTime;
-      nextUpdateTime = start + Math.max(10, 1000 / TARGET_FPS - (end - start));
     }
     async function run() {
       const engine = await init();
@@ -2378,8 +2401,8 @@ System.register(
         totalRenderTime = 0;
         frames = 0;
         framesTime = performance.now();
-        nextUpdateTime = 0;
-        nextUpdateTime = performance.now() + 1000 / TARGET_FPS;
+        lastUpdateTime = performance.now();
+        timeToNextUpdate = 0;
         run();
       },
     };
