@@ -292,6 +292,12 @@ export type Tilemap = {
   getTile(id: string): Tile;
 };
 
+export const enum AlphaType {
+  None = 0,
+  Solid = 1,
+  Alpha = 2,
+}
+
 export type Tile = {
   id: string;
   tilemap: Tilemap;
@@ -300,7 +306,7 @@ export type Tile = {
   height: number;
   pixels: Uint8ClampedArray;
   pixels32: Uint32Array;
-  hasAlpha: boolean;
+  alphaType: AlphaType;
 };
 
 export type Animation = {

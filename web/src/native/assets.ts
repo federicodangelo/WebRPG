@@ -6,6 +6,7 @@ import {
   Font,
   TileSetType,
   Tilemaps,
+  AlphaType,
 } from "../../../engine/src/types.ts";
 
 type TerrainJson = {
@@ -95,6 +96,9 @@ async function loadTilemap(
 
       const pixels32 = new Uint32Array(pixels.buffer);
       const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
+      const hasAlphaSolid = pixels32.every((x) =>
+        ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0
+      );
 
       if (type === "blackandwhite") {
         for (let i = 0; i < pixels32.length; i++) {
@@ -110,7 +114,9 @@ async function loadTilemap(
         pixels,
         pixels32,
         tilemap,
-        hasAlpha,
+        alphaType: hasAlpha
+          ? hasAlphaSolid ? AlphaType.Solid : AlphaType.Alpha
+          : AlphaType.None,
       };
 
       tiles.push(tile);

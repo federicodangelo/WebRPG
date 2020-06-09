@@ -1,12 +1,12 @@
 import { NativeContext } from "engine/native-types.ts";
-import { Size, Color, Tile, KeyEvent, Rect } from "engine/types.ts";
+import { Size, Color, Tile, KeyEvent, Rect, AlphaType } from "engine/types.ts";
 
 const SCALE = 1;
 
 function updateCanvasSize(
   canvas: HTMLCanvasElement,
   width: number,
-  height: number
+  height: number,
 ) {
   canvas.width = Math.floor(width / SCALE);
   canvas.height = Math.floor(height / SCALE);
@@ -19,7 +19,7 @@ function updateCanvasSize(
         "height: " +
         canvas.height * SCALE +
         "px;" +
-        "image-rendering: pixelated;"
+        "image-rendering: pixelated;",
     );
   }
 }
@@ -100,21 +100,26 @@ export function getWebNativeContext(): NativeContext {
   };
 
   const handleMouseDown = (e: MouseEvent) => {
-    const dx =
-      e.clientX < window.innerWidth / 3
-        ? -1
-        : e.clientX > (window.innerWidth * 2) / 3
-        ? 1
-        : 0;
-    const dy =
-      e.clientY < window.innerHeight / 3
-        ? -1
-        : e.clientY > (window.innerHeight * 2) / 3
-        ? 1
-        : 0;
+    const dx = e.clientX < window.innerWidth / 3
+      ? -1
+      : e.clientX > (window.innerWidth * 2) / 3
+      ? 1
+      : 0;
+    const dy = e.clientY < window.innerHeight / 3
+      ? -1
+      : e.clientY > (window.innerHeight * 2) / 3
+      ? 1
+      : 0;
 
-    const key =
-      dx === -1 ? "a" : dx === 1 ? "d" : dy === -1 ? "w" : dy === 1 ? "s" : "";
+    const key = dx === -1
+      ? "a"
+      : dx === 1
+      ? "d"
+      : dy === -1
+      ? "w"
+      : dy === 1
+      ? "s"
+      : "";
 
     if (key.length === 1) {
       disptachKeyEvent({ type: "press", char: key });
@@ -139,7 +144,7 @@ export function getWebNativeContext(): NativeContext {
     cfx: number,
     cfy: number,
     ctx: number,
-    cty: number
+    cty: number,
   ) => {
     setDirty(x, y, t.width, t.height);
 
@@ -221,7 +226,7 @@ export function getWebNativeContext(): NativeContext {
     cfx: number,
     cfy: number,
     ctx: number,
-    cty: number
+    cty: number,
   ) => {
     setDirty(x, y, t.width, t.height);
 
@@ -231,63 +236,111 @@ export function getWebNativeContext(): NativeContext {
     let p = 0;
     let f = 0;
     const tilePixels32 = t.pixels32;
+    const tilePixels8 = t.pixels;
 
-    if (t.hasAlpha) {
-      if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
-        for (let py = 0; py < tileHeight; py++) {
-          p = (y + py) * imageData.width + x;
-          f = py * tileWidth;
-          for (let px = 0; px < tileWidth; px++) {
-            const pixel = tilePixels32[f++];
-            if (pixel >> 24 !== 0) {
-              imageDataPixels32[p++] = pixel;
-            } else {
-              p++;
+    switch (t.alphaType) {
+      case AlphaType.None:
+        if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+          for (let py = 0; py < tileHeight; py++) {
+            p = (y + py) * imageData.width + x;
+            f = py * tileWidth;
+            for (let px = 0; px < tileWidth; px++) {
+              imageDataPixels32[p++] = tilePixels32[f++];
+            }
+          }
+        } else {
+          for (let py = 0; py < tileHeight; py++) {
+            p = (y + py) * imageData.width + x;
+            f = py * tileWidth;
+            for (let px = 0; px < tileWidth; px++) {
+              if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                imageDataPixels32[p++] = tilePixels32[f++];
+              } else {
+                p++;
+                f++;
+              }
             }
           }
         }
-      } else {
-        for (let py = 0; py < tileHeight; py++) {
-          p = (y + py) * imageData.width + x;
-          f = py * tileWidth;
-          for (let px = 0; px < tileWidth; px++) {
-            if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+        break;
+
+      case AlphaType.Solid:
+        if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+          for (let py = 0; py < tileHeight; py++) {
+            p = (y + py) * imageData.width + x;
+            f = py * tileWidth;
+            for (let px = 0; px < tileWidth; px++) {
               const pixel = tilePixels32[f++];
               if (pixel >> 24 !== 0) {
                 imageDataPixels32[p++] = pixel;
               } else {
                 p++;
               }
-            } else {
-              p++;
-              f++;
+            }
+          }
+        } else {
+          for (let py = 0; py < tileHeight; py++) {
+            p = (y + py) * imageData.width + x;
+            f = py * tileWidth;
+            for (let px = 0; px < tileWidth; px++) {
+              if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                const pixel = tilePixels32[f++];
+                if (pixel >> 24 !== 0) {
+                  imageDataPixels32[p++] = pixel;
+                } else {
+                  p++;
+                }
+              } else {
+                p++;
+                f++;
+              }
             }
           }
         }
-      }
-    } else {
-      if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
-        for (let py = 0; py < tileHeight; py++) {
-          p = (y + py) * imageData.width + x;
-          f = py * tileWidth;
-          for (let px = 0; px < tileWidth; px++) {
-            imageDataPixels32[p++] = tilePixels32[f++];
+        break;
+
+      case AlphaType.Alpha:
+        if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+          for (let py = 0; py < tileHeight; py++) {
+            p = ((y + py) * imageData.width + x) << 2;
+            f = (py * tileWidth) << 2;
+            for (let px = 0; px < tileWidth; px++) {
+              const r = tilePixels8[f++];
+              const g = tilePixels8[f++];
+              const b = tilePixels8[f++];
+              const a = tilePixels8[f++] / 255;
+              const invA = 1 - a;
+              imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
+              imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
+              imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
+              imageDataPixels[p + 3] = 255; //a
+              p += 4;
+            }
           }
-        }
-      } else {
-        for (let py = 0; py < tileHeight; py++) {
-          p = (y + py) * imageData.width + x;
-          f = py * tileWidth;
-          for (let px = 0; px < tileWidth; px++) {
-            if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-              imageDataPixels32[p++] = tilePixels32[f++];
-            } else {
-              p++;
-              f++;
+        } else {
+          for (let py = 0; py < tileHeight; py++) {
+            p = ((y + py) * imageData.width + x) << 2;
+            f = (py * tileWidth) << 2;
+            for (let px = 0; px < tileWidth; px++) {
+              if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                const r = tilePixels8[f++];
+                const g = tilePixels8[f++];
+                const b = tilePixels8[f++];
+                const a = tilePixels8[f++] / 255;
+                const invA = 1 - a;
+                imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA + r * a;
+                imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA + g * a;
+                imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA + b * a;
+                imageDataPixels[p + 3] = 255; //a
+                p += 4;
+              } else {
+                p += 4;
+                f += 4;
+              }
             }
           }
         }
-      }
+        break;
     }
   };
 
@@ -322,7 +375,7 @@ export function getWebNativeContext(): NativeContext {
             dirtyLeft,
             dirtyTop,
             dirtyRight - dirtyLeft,
-            dirtyBottom - dirtyTop
+            dirtyBottom - dirtyTop,
           );
           dirty = false;
         }

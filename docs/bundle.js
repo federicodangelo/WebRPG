@@ -2350,62 +2350,114 @@ System.register(
         let p = 0;
         let f = 0;
         const tilePixels32 = t.pixels32;
-        if (t.hasAlpha) {
-          if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
-            for (let py = 0; py < tileHeight; py++) {
-              p = (y + py) * imageData.width + x;
-              f = py * tileWidth;
-              for (let px = 0; px < tileWidth; px++) {
-                const pixel = tilePixels32[f++];
-                if (pixel >> 24 !== 0) {
-                  imageDataPixels32[p++] = pixel;
-                } else {
-                  p++;
+        const tilePixels8 = t.pixels;
+        switch (t.alphaType) {
+          case 0 /* None */:
+            if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+              for (let py = 0; py < tileHeight; py++) {
+                p = (y + py) * imageData.width + x;
+                f = py * tileWidth;
+                for (let px = 0; px < tileWidth; px++) {
+                  imageDataPixels32[p++] = tilePixels32[f++];
+                }
+              }
+            } else {
+              for (let py = 0; py < tileHeight; py++) {
+                p = (y + py) * imageData.width + x;
+                f = py * tileWidth;
+                for (let px = 0; px < tileWidth; px++) {
+                  if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                    imageDataPixels32[p++] = tilePixels32[f++];
+                  } else {
+                    p++;
+                    f++;
+                  }
                 }
               }
             }
-          } else {
-            for (let py = 0; py < tileHeight; py++) {
-              p = (y + py) * imageData.width + x;
-              f = py * tileWidth;
-              for (let px = 0; px < tileWidth; px++) {
-                if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+            break;
+          case 1 /* Solid */:
+            if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+              for (let py = 0; py < tileHeight; py++) {
+                p = (y + py) * imageData.width + x;
+                f = py * tileWidth;
+                for (let px = 0; px < tileWidth; px++) {
                   const pixel = tilePixels32[f++];
                   if (pixel >> 24 !== 0) {
                     imageDataPixels32[p++] = pixel;
                   } else {
                     p++;
                   }
-                } else {
-                  p++;
-                  f++;
+                }
+              }
+            } else {
+              for (let py = 0; py < tileHeight; py++) {
+                p = (y + py) * imageData.width + x;
+                f = py * tileWidth;
+                for (let px = 0; px < tileWidth; px++) {
+                  if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                    const pixel = tilePixels32[f++];
+                    if (pixel >> 24 !== 0) {
+                      imageDataPixels32[p++] = pixel;
+                    } else {
+                      p++;
+                    }
+                  } else {
+                    p++;
+                    f++;
+                  }
                 }
               }
             }
-          }
-        } else {
-          if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
-            for (let py = 0; py < tileHeight; py++) {
-              p = (y + py) * imageData.width + x;
-              f = py * tileWidth;
-              for (let px = 0; px < tileWidth; px++) {
-                imageDataPixels32[p++] = tilePixels32[f++];
+            break;
+          case 2 /* Alpha */:
+            if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+              for (let py = 0; py < tileHeight; py++) {
+                p = ((y + py) * imageData.width + x) << 2;
+                f = (py * tileWidth) << 2;
+                for (let px = 0; px < tileWidth; px++) {
+                  const r = tilePixels8[f++];
+                  const g = tilePixels8[f++];
+                  const b = tilePixels8[f++];
+                  const a = tilePixels8[f++] / 255;
+                  const invA = 1 - a;
+                  imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA +
+                    r * a;
+                  imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA +
+                    g * a;
+                  imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA +
+                    b * a;
+                  imageDataPixels[p + 3] = 255; //a
+                  p += 4;
+                }
               }
-            }
-          } else {
-            for (let py = 0; py < tileHeight; py++) {
-              p = (y + py) * imageData.width + x;
-              f = py * tileWidth;
-              for (let px = 0; px < tileWidth; px++) {
-                if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                  imageDataPixels32[p++] = tilePixels32[f++];
-                } else {
-                  p++;
-                  f++;
+            } else {
+              for (let py = 0; py < tileHeight; py++) {
+                p = ((y + py) * imageData.width + x) << 2;
+                f = (py * tileWidth) << 2;
+                for (let px = 0; px < tileWidth; px++) {
+                  if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                    const r = tilePixels8[f++];
+                    const g = tilePixels8[f++];
+                    const b = tilePixels8[f++];
+                    const a = tilePixels8[f++] / 255;
+                    const invA = 1 - a;
+                    imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA +
+                      r * a;
+                    imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA +
+                      g * a;
+                    imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA +
+                      b * a;
+                    imageDataPixels[p + 3] = 255; //a
+                    p += 4;
+                  } else {
+                    p += 4;
+                    f += 4;
+                  }
                 }
               }
             }
-          }
+            break;
         }
       };
       window.addEventListener("keydown", handleKeyDown);
@@ -2516,6 +2568,9 @@ System.register("web/src/native/assets", [], function (exports_19, context_19) {
             .data;
         const pixels32 = new Uint32Array(pixels.buffer);
         const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
+        const hasAlphaSolid = pixels32.every((x) =>
+          ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0
+        );
         if (type === "blackandwhite") {
           for (let i = 0; i < pixels32.length; i++) {
             pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 1;
@@ -2529,7 +2584,9 @@ System.register("web/src/native/assets", [], function (exports_19, context_19) {
           pixels,
           pixels32,
           tilemap,
-          hasAlpha,
+          alphaType: hasAlpha
+            ? hasAlphaSolid ? 1 /* Solid */ : 2 /* Alpha */
+            : 0, /* None */
         };
         tiles.push(tile);
         index++;
