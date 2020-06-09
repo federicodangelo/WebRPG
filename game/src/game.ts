@@ -10,21 +10,12 @@ import {
 } from "engine/types.ts";
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { ScrollableTilemapContainerWidget } from "../../engine/src/widgets/tilemap.ts";
-import { TileWidget } from "../../engine/src/widgets/tile.ts";
 import { Avatar } from "./avatar.ts";
+import { initMap, MAP_SIZE } from "./map.ts";
 
 const NPCS_COUNT = 2;
-const MAP_SIZE = 512;
-const DECOS_COUNT = 1024;
 
 export var mainUI: SplitPanelContainerWidget;
-
-const enum CameraMode {
-  FollowContinuous,
-  FollowDiscrete,
-}
-
-let cameraMode = CameraMode.FollowContinuous;
 
 const npcs: Avatar[] = [];
 const characters: Avatar[] = [];
@@ -118,10 +109,6 @@ export function initGame(engine: Engine, assets_: Assets) {
     mainUI.panel2.backColor,
   ).parent = mainUI.panel2;
 
-  function random<T>(arr: T[]): T {
-    return arr[Math.floor(Math.random() * arr.length)];
-  }
-
   p1 = new Avatar(assets);
   p1.x = 10 * font.tileWidth;
   p1.y = 10 * font.tileHeight;
@@ -136,39 +123,7 @@ export function initGame(engine: Engine, assets_: Assets) {
 
   characters.push(...npcs, p1, p2);
 
-  playingBox.floorTilemap = assets.getTilemap("terrain");
-  playingBox.floorTiles = [];
-
-  for (let y = 0; y < MAP_SIZE; y++) {
-    const row: number[] = [];
-    for (let x = 0; x < MAP_SIZE; x++) {
-      if (Math.random() > 0.1) {
-        row.push(playingBox.floorTilemap.getTile("grass-center").index);
-      } else if (Math.random() > 0.5) {
-        row.push(playingBox.floorTilemap.getTile("grass-center2").index);
-      } else {
-        row.push(playingBox.floorTilemap.getTile("grass-center3").index);
-      }
-    }
-    playingBox.floorTiles.push(row);
-  }
-
-  const decos: string[] = [
-    "terrain.grass-deco1",
-    "terrain.grass-deco2",
-    "terrain.dirt-deco1",
-    "terrain.dirt-deco2",
-  ];
-
-  for (let i = 0; i < DECOS_COUNT; i++) {
-    const obstacle = new TileWidget(
-      assets.getTile(random(decos)),
-    );
-    obstacle.layer = -1;
-    obstacle.x = Math.floor(Math.random() * MAP_SIZE) * obstacle.tile.width;
-    obstacle.y = Math.floor(Math.random() * MAP_SIZE) * obstacle.tile.height;
-    obstacle.parent = playingBox;
-  }
+  initMap(playingBox, assets);
 
   characters.forEach((c) => (c.parent = playingBox));
 
@@ -186,68 +141,35 @@ export function initGame(engine: Engine, assets_: Assets) {
   engine.onKeyEvent(onKeyEvent);
 }
 
-const WALK_SPEED = 4;
-
-let p1idleFrames = 0;
-
 export function updateGame(engine: Engine): boolean {
   let running = true;
 
   for (let i = 0; i < npcs.length; i++) {
     const npc = npcs[i];
-    switch (Math.floor(Math.random() * 4)) {
-      case 0:
-        npc.x -= WALK_SPEED;
-        break;
-      case 1:
-        npc.x += WALK_SPEED;
-        break;
-      case 2:
-        npc.y -= WALK_SPEED;
-        break;
-      case 3:
-        npc.y += WALK_SPEED;
-        break;
-    }
+    npc.move(
+      Math.round(Math.random() * 2 - 1),
+      Math.round(Math.random() * 2 - 1),
+    );
   }
 
-  if (isKeyDown("a")) {
-    p1.x -= WALK_SPEED;
-  }
-  if (isKeyDown("d")) {
-    p1.x += WALK_SPEED;
-  }
-  if (isKeyDown("w")) {
-    p1.y -= WALK_SPEED;
-  }
-  if (isKeyDown("s")) {
-    p1.y += WALK_SPEED;
-  }
+  if (isKeyDown("a")) p1.move(-1, 0);
+  if (isKeyDown("d")) p1.move(1, 0);
+  if (isKeyDown("w")) p1.move(0, -1);
+  if (isKeyDown("s")) p1.move(0, 1);
 
-  if (isKeyDown("j")) {
-    p2.x -= WALK_SPEED;
-  }
-  if (isKeyDown("l")) {
-    p2.x += WALK_SPEED;
-  }
-  if (isKeyDown("i")) {
-    p2.y -= WALK_SPEED;
-  }
-  if (isKeyDown("k")) {
-    p2.y += WALK_SPEED;
-  }
+  if (isKeyDown("j")) p2.move(-1, 0);
+  if (isKeyDown("l")) p2.move(1, 0);
+  if (isKeyDown("i")) p2.move(0, -1);
+  if (isKeyDown("k")) p2.move(0, 1);
 
   for (let i = 0; i < characters.length; i++) {
     const char = characters[i];
     char.x = Math.max(
-      Math.min(char.x, MAP_SIZE * font.tileWidth - char.width * font.tileWidth),
+      Math.min(char.x, playingBox.floorWidth),
       0,
     );
     char.y = Math.max(
-      Math.min(
-        char.y,
-        MAP_SIZE * font.tileHeight - char.height * font.tileHeight,
-      ),
+      Math.min(char.y, playingBox.floorHeight),
       0,
     );
 
@@ -257,34 +179,20 @@ export function updateGame(engine: Engine): boolean {
   let newOffsetX = playingBox.offsetX;
   let newOffsetY = playingBox.offsetY;
 
-  if (cameraMode === CameraMode.FollowContinuous) {
-    newOffsetX = -p1.x + Math.floor(playingBox.width * 0.5);
-    newOffsetY = -p1.y + Math.floor(playingBox.height * 0.5);
-  } else {
-    if (p1.x > -playingBox.offsetX + playingBox.width * 0.85) {
-      newOffsetX = playingBox.offsetX - Math.ceil(playingBox.width * 0.35);
-    } else if (p1.x < -playingBox.offsetX + playingBox.width * 0.15) {
-      newOffsetX = playingBox.offsetX + Math.ceil(playingBox.width * 0.35);
-    }
-
-    if (p1.y > -playingBox.offsetY + playingBox.height * 0.85) {
-      newOffsetY = playingBox.offsetY - Math.ceil(playingBox.height * 0.35);
-    } else if (p1.y < -playingBox.offsetY + playingBox.height * 0.15) {
-      newOffsetY = playingBox.offsetY + Math.ceil(playingBox.height * 0.35);
-    }
-  }
+  newOffsetX = -p1.x + Math.floor(playingBox.width * 0.5);
+  newOffsetY = -p1.y + Math.floor(playingBox.height * 0.5);
 
   playingBox.setOffset(
     Math.trunc(
       Math.max(
         Math.min(newOffsetX, 0),
-        -(MAP_SIZE * font.tileWidth - playingBox.width),
+        -(playingBox.floorWidth - playingBox.width),
       ),
     ),
     Math.trunc(
       Math.max(
         Math.min(newOffsetY, 0),
-        -(MAP_SIZE * font.tileHeight - playingBox.height),
+        -(playingBox.floorHeight - playingBox.height),
       ),
     ),
   );

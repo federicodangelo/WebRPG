@@ -11,6 +11,16 @@ export class ScrollableTilemapContainerWidget
   public floorTilemap: Tilemap | null = null;
   public floorTiles: number[][] | null = null;
 
+  public get floorWidth() {
+    return (this.floorTilemap?.tileWidth || 0) *
+      (this.floorTiles?.length ? this.floorTiles[0].length : 0);
+  }
+
+  public get floorHeight() {
+    return (this.floorTilemap?.tileHeight || 0) *
+      (this.floorTiles ? this.floorTiles.length : 0);
+  }
+
   public onChildrenAdded(child: Widget) {
     super.onChildrenAdded(child);
     this.updateChildrenIndex(child);

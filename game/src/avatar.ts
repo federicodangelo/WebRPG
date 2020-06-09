@@ -3,6 +3,8 @@ import { Assets, Animation } from "../../engine/src/types.ts";
 import { TileWidget } from "../../engine/src/widgets/tile.ts";
 import { AnimatedTileWidget } from "../../engine/src/widgets/animated-tile.ts";
 
+const WALK_SPEED = 4;
+
 export class Avatar extends GroupContainerWidget {
   private animations: AnimatedTileWidget;
 
@@ -55,5 +57,10 @@ export class Avatar extends GroupContainerWidget {
 
     this.lastX = this.x;
     this.lastY = this.y;
+  }
+
+  public move(dx: number, dy: number) {
+    this.x += dx * WALK_SPEED;
+    this.y += dy * WALK_SPEED;
   }
 }

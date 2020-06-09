@@ -271,8 +271,12 @@ export class Rect {
     this.height = y1 - y0;
   }
 
-  public minDistanceTo(rect: Rect) {
-    return Math.min();
+  public expand(amount: number) {
+    this.x -= amount;
+    this.y -= amount;
+    this.width += amount * 2;
+    this.height += amount * 2;
+    return this;
   }
 
   public clone() {

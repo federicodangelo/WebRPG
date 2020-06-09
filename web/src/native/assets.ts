@@ -140,7 +140,7 @@ async function loadTilemap(
     // |           |          /|\          |
     // +-----------+-----------+-----------+
     // |           |          \|/          |
-    // |   deco2   |  hole-tr  |  hole-tp  |
+    // |   deco2   |  hole-tr  |  hole-tl  |
     // |           |           |           |
     // +-----------+-----------+-----------+
     // |           |           |           |
@@ -173,12 +173,12 @@ async function loadTilemap(
       const hole_br = index + 1;
       const hole_bl = index + 2;
       const hole_tr = hole_br + imageWidthInTiles;
-      const hole_tp = hole_bl + imageWidthInTiles;
+      const hole_tl = hole_bl + imageWidthInTiles;
 
       setTileId(hole_br, terrainId + "-hole-br");
       setTileId(hole_bl, terrainId + "-hole-bl");
       setTileId(hole_tr, terrainId + "-hole-tr");
-      setTileId(hole_tp, terrainId + "-hole-tp");
+      setTileId(hole_tl, terrainId + "-hole-tl");
 
       const topLeft = index + imageWidthInTiles * 2;
       const top = topLeft + 1;
