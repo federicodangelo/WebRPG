@@ -1,20 +1,17 @@
-import { CharacterWidget } from "engine/widgets/character.ts";
 import { LabelWidget } from "engine/widgets/label.ts";
 import {
   FixedColor,
   Engine,
-  Color,
   rgb,
   Intensity,
   Assets,
-  Widget,
   Font,
   KeyEvent,
 } from "engine/types.ts";
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { ScrollableTilemapContainerWidget } from "../../engine/src/widgets/tilemap.ts";
 import { TileWidget } from "../../engine/src/widgets/tile.ts";
-import { Princess } from "../../web/src/princess.ts";
+import { Avatar } from "./avatar.ts";
 
 const NPCS_COUNT = 2;
 const MAP_SIZE = 512;
@@ -29,8 +26,8 @@ const enum CameraMode {
 
 let cameraMode = CameraMode.FollowContinuous;
 
-const npcs: Princess[] = [];
-const characters: Princess[] = [];
+const npcs: Avatar[] = [];
+const characters: Avatar[] = [];
 let playingBox: ScrollableTilemapContainerWidget;
 
 const keysDown = new Map<string, boolean>();
@@ -39,8 +36,8 @@ function isKeyDown(key: string) {
   return keysDown.get(key) || false;
 }
 
-let p1: Princess;
-let p2: Princess;
+let p1: Avatar;
+let p2: Avatar;
 let assets: Assets;
 let font: Font;
 
@@ -125,16 +122,16 @@ export function initGame(engine: Engine, assets_: Assets) {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  p1 = new Princess(assets);
+  p1 = new Avatar(assets);
   p1.x = 10 * font.tileWidth;
   p1.y = 10 * font.tileHeight;
 
-  p2 = new Princess(assets);
+  p2 = new Avatar(assets);
   p2.x = 13 * font.tileWidth;
   p2.y = 3 * font.tileHeight;
 
   for (let i = 0; i < NPCS_COUNT; i++) {
-    npcs.push(new Princess(assets));
+    npcs.push(new Avatar(assets));
   }
 
   characters.push(...npcs, p1, p2);

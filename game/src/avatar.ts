@@ -3,7 +3,7 @@ import { Assets, Animation } from "../../engine/src/types.ts";
 import { TileWidget } from "../../engine/src/widgets/tile.ts";
 import { AnimatedTileWidget } from "../../engine/src/widgets/animated-tile.ts";
 
-export class Princess extends GroupContainerWidget {
+export class Avatar extends GroupContainerWidget {
   private animations: AnimatedTileWidget;
 
   private lastX: number = 0;

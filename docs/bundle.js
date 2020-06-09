@@ -1107,11 +1107,11 @@ System.register(
   },
 );
 System.register(
-  "engine/src/widgets/character",
+  "engine/src/widgets/widget-container",
   ["engine/src/widgets/widget"],
   function (exports_7, context_7) {
     "use strict";
-    var widget_ts_2, CharacterWidget;
+    var widget_ts_2, BaseWidgetContainer;
     var __moduleName = context_7 && context_7.id;
     return {
       setters: [
@@ -1120,44 +1120,8 @@ System.register(
         },
       ],
       execute: function () {
-        CharacterWidget = class CharacterWidget extends widget_ts_2.BaseWidget {
-          constructor(font, char, foreColor, backColor) {
-            super();
-            this.font = font;
-            this.char = char;
-            this.foreColor = foreColor;
-            this.backColor = backColor;
-            this.width = font.tileWidth;
-            this.height = font.tileHeight;
-          }
-          drawSelf(context) {
-            context.textColor(this.foreColor, this.backColor).text(
-              this.font,
-              this.char,
-            );
-          }
-        };
-        exports_7("CharacterWidget", CharacterWidget);
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/widget-container",
-  ["engine/src/widgets/widget"],
-  function (exports_8, context_8) {
-    "use strict";
-    var widget_ts_3, BaseWidgetContainer;
-    var __moduleName = context_8 && context_8.id;
-    return {
-      setters: [
-        function (widget_ts_3_1) {
-          widget_ts_3 = widget_ts_3_1;
-        },
-      ],
-      execute: function () {
         BaseWidgetContainer = class BaseWidgetContainer
-          extends widget_ts_3.BaseWidget {
+          extends widget_ts_2.BaseWidget {
           constructor() {
             super(...arguments);
             this._children = [];
@@ -1260,7 +1224,7 @@ System.register(
           onChildrenTransformChanged(child) {}
           onChildrenAdded(child) {}
         };
-        exports_8("BaseWidgetContainer", BaseWidgetContainer);
+        exports_7("BaseWidgetContainer", BaseWidgetContainer);
       },
     };
   },
@@ -1268,10 +1232,10 @@ System.register(
 System.register(
   "engine/src/widgets/box",
   ["engine/src/types", "engine/src/widgets/widget-container"],
-  function (exports_9, context_9) {
+  function (exports_8, context_8) {
     "use strict";
     var types_ts_4, widget_container_ts_1, BoxContainerWidget;
-    var __moduleName = context_9 && context_9.id;
+    var __moduleName = context_8 && context_8.id;
     return {
       setters: [
         function (types_ts_4_1) {
@@ -1364,7 +1328,7 @@ System.register(
             }
           }
         };
-        exports_9("BoxContainerWidget", BoxContainerWidget);
+        exports_8("BoxContainerWidget", BoxContainerWidget);
       },
     };
   },
@@ -1372,10 +1336,10 @@ System.register(
 System.register(
   "engine/src/widgets/split-panel",
   ["engine/src/widgets/widget-container", "engine/src/widgets/box"],
-  function (exports_10, context_10) {
+  function (exports_9, context_9) {
     "use strict";
     var widget_container_ts_2, box_ts_1, SplitPanelContainerWidget;
-    var __moduleName = context_10 && context_10.id;
+    var __moduleName = context_9 && context_9.id;
     return {
       setters: [
         function (widget_container_ts_2_1) {
@@ -1456,7 +1420,7 @@ System.register(
           drawSelf() {
           }
         };
-        exports_10("SplitPanelContainerWidget", SplitPanelContainerWidget);
+        exports_9("SplitPanelContainerWidget", SplitPanelContainerWidget);
       },
     };
   },
@@ -1464,10 +1428,10 @@ System.register(
 System.register(
   "engine/src/widgets/scrollable",
   ["engine/src/types", "engine/src/widgets/widget-container"],
-  function (exports_11, context_11) {
+  function (exports_10, context_10) {
     "use strict";
     var types_ts_5, widget_container_ts_3, ScrollableContainerWidget;
-    var __moduleName = context_11 && context_11.id;
+    var __moduleName = context_10 && context_10.id;
     return {
       setters: [
         function (types_ts_5_1) {
@@ -1532,7 +1496,7 @@ System.register(
               );
           }
         };
-        exports_11("ScrollableContainerWidget", ScrollableContainerWidget);
+        exports_10("ScrollableContainerWidget", ScrollableContainerWidget);
       },
     };
   },
@@ -1540,10 +1504,10 @@ System.register(
 System.register(
   "engine/src/widgets/tilemap",
   ["engine/src/widgets/scrollable"],
-  function (exports_12, context_12) {
+  function (exports_11, context_11) {
     "use strict";
     var scrollable_ts_1, ScrollableTilemapContainerWidget;
-    var __moduleName = context_12 && context_12.id;
+    var __moduleName = context_11 && context_11.id;
     function compareChildren(c1, c2) {
       if (c1.layer === c2.layer) {
         return c1.visibleY - c2.visibleY;
@@ -1646,7 +1610,7 @@ System.register(
               }
             }
           };
-        exports_12(
+        exports_11(
           "ScrollableTilemapContainerWidget",
           ScrollableTilemapContainerWidget,
         );
@@ -1657,18 +1621,18 @@ System.register(
 System.register(
   "engine/src/widgets/tile",
   ["engine/src/widgets/widget"],
-  function (exports_13, context_13) {
+  function (exports_12, context_12) {
     "use strict";
-    var widget_ts_4, TileWidget;
-    var __moduleName = context_13 && context_13.id;
+    var widget_ts_3, TileWidget;
+    var __moduleName = context_12 && context_12.id;
     return {
       setters: [
-        function (widget_ts_4_1) {
-          widget_ts_4 = widget_ts_4_1;
+        function (widget_ts_3_1) {
+          widget_ts_3 = widget_ts_3_1;
         },
       ],
       execute: function () {
-        TileWidget = class TileWidget extends widget_ts_4.BaseWidget {
+        TileWidget = class TileWidget extends widget_ts_3.BaseWidget {
           constructor(tile) {
             super();
             this.tile = tile;
@@ -1679,7 +1643,7 @@ System.register(
             context.tile(0, 0, this.tile);
           }
         };
-        exports_13("TileWidget", TileWidget);
+        exports_12("TileWidget", TileWidget);
       },
     };
   },
@@ -1687,10 +1651,10 @@ System.register(
 System.register(
   "engine/src/widgets/group",
   ["engine/src/widgets/widget-container"],
-  function (exports_14, context_14) {
+  function (exports_13, context_13) {
     "use strict";
     var widget_container_ts_4, GroupContainerWidget;
-    var __moduleName = context_14 && context_14.id;
+    var __moduleName = context_13 && context_13.id;
     return {
       setters: [
         function (widget_container_ts_4_1) {
@@ -1702,7 +1666,7 @@ System.register(
           extends widget_container_ts_4.BaseWidgetContainer {
           drawSelf() {}
         };
-        exports_14("GroupContainerWidget", GroupContainerWidget);
+        exports_13("GroupContainerWidget", GroupContainerWidget);
       },
     };
   },
@@ -1710,10 +1674,10 @@ System.register(
 System.register(
   "engine/src/widgets/animated-tile",
   ["engine/src/widgets/widget"],
-  function (exports_15, context_15) {
+  function (exports_14, context_14) {
     "use strict";
-    var widget_ts_5, AnimatedTileWidget;
-    var __moduleName = context_15 && context_15.id;
+    var widget_ts_4, AnimatedTileWidget;
+    var __moduleName = context_14 && context_14.id;
     function buildDefaultSequence(len) {
       const seq = [];
       for (let i = 0; i < len; i++) {
@@ -1723,13 +1687,13 @@ System.register(
     }
     return {
       setters: [
-        function (widget_ts_5_1) {
-          widget_ts_5 = widget_ts_5_1;
+        function (widget_ts_4_1) {
+          widget_ts_4 = widget_ts_4_1;
         },
       ],
       execute: function () {
         AnimatedTileWidget = class AnimatedTileWidget
-          extends widget_ts_5.BaseWidget {
+          extends widget_ts_4.BaseWidget {
           constructor(animation) {
             super();
             this.tile = null;
@@ -1779,22 +1743,22 @@ System.register(
             }
           }
         };
-        exports_15("AnimatedTileWidget", AnimatedTileWidget);
+        exports_14("AnimatedTileWidget", AnimatedTileWidget);
       },
     };
   },
 );
 System.register(
-  "web/src/princess",
+  "game/src/avatar",
   [
     "engine/src/widgets/group",
     "engine/src/widgets/tile",
     "engine/src/widgets/animated-tile",
   ],
-  function (exports_16, context_16) {
+  function (exports_15, context_15) {
     "use strict";
-    var group_ts_1, tile_ts_1, animated_tile_ts_1, Princess;
-    var __moduleName = context_16 && context_16.id;
+    var group_ts_1, tile_ts_1, animated_tile_ts_1, Avatar;
+    var __moduleName = context_15 && context_15.id;
     return {
       setters: [
         function (group_ts_1_1) {
@@ -1808,7 +1772,7 @@ System.register(
         },
       ],
       execute: function () {
-        Princess = class Princess extends group_ts_1.GroupContainerWidget {
+        Avatar = class Avatar extends group_ts_1.GroupContainerWidget {
           constructor(assets) {
             super();
             this.lastX = 0;
@@ -1856,7 +1820,7 @@ System.register(
             this.lastY = this.y;
           }
         };
-        exports_16("Princess", Princess);
+        exports_15("Avatar", Avatar);
       },
     };
   },
@@ -1869,16 +1833,16 @@ System.register(
     "engine/src/widgets/split-panel",
     "engine/src/widgets/tilemap",
     "engine/src/widgets/tile",
-    "web/src/princess",
+    "game/src/avatar",
   ],
-  function (exports_17, context_17) {
+  function (exports_16, context_16) {
     "use strict";
     var label_ts_1,
       types_ts_6,
       split_panel_ts_1,
       tilemap_ts_1,
       tile_ts_2,
-      princess_ts_1,
+      avatar_ts_1,
       NPCS_COUNT,
       MAP_SIZE,
       DECOS_COUNT,
@@ -1894,14 +1858,14 @@ System.register(
       font,
       WALK_SPEED,
       p1idleFrames;
-    var __moduleName = context_17 && context_17.id;
+    var __moduleName = context_16 && context_16.id;
     function isKeyDown(key) {
       return keysDown.get(key) || false;
     }
     function initGame(engine, assets_) {
       assets = assets_;
       font = assets.defaultFont;
-      exports_17(
+      exports_16(
         "mainUI",
         mainUI = new split_panel_ts_1.SplitPanelContainerWidget(font),
       );
@@ -1976,14 +1940,14 @@ System.register(
       function random(arr) {
         return arr[Math.floor(Math.random() * arr.length)];
       }
-      p1 = new princess_ts_1.Princess(assets);
+      p1 = new avatar_ts_1.Avatar(assets);
       p1.x = 10 * font.tileWidth;
       p1.y = 10 * font.tileHeight;
-      p2 = new princess_ts_1.Princess(assets);
+      p2 = new avatar_ts_1.Avatar(assets);
       p2.x = 13 * font.tileWidth;
       p2.y = 3 * font.tileHeight;
       for (let i = 0; i < NPCS_COUNT; i++) {
-        npcs.push(new princess_ts_1.Princess(assets));
+        npcs.push(new avatar_ts_1.Avatar(assets));
       }
       characters.push(...npcs, p1, p2);
       playingBox.floorTilemap = assets.getTilemap("terrain");
@@ -2030,7 +1994,7 @@ System.register(
       engine.addWidget(mainUI);
       engine.onKeyEvent(onKeyEvent);
     }
-    exports_17("initGame", initGame);
+    exports_16("initGame", initGame);
     function updateGame(engine) {
       let running = true;
       for (let i = 0; i < npcs.length; i++) {
@@ -2125,7 +2089,7 @@ System.register(
       );
       return running;
     }
-    exports_17("updateGame", updateGame);
+    exports_16("updateGame", updateGame);
     return {
       setters: [
         function (label_ts_1_1) {
@@ -2143,8 +2107,8 @@ System.register(
         function (tile_ts_2_1) {
           tile_ts_2 = tile_ts_2_1;
         },
-        function (princess_ts_1_1) {
-          princess_ts_1 = princess_ts_1_1;
+        function (avatar_ts_1_1) {
+          avatar_ts_1 = avatar_ts_1_1;
         },
       ],
       execute: function () {
@@ -2164,10 +2128,10 @@ System.register(
 System.register(
   "web/src/native/web",
   ["engine/src/types"],
-  function (exports_18, context_18) {
+  function (exports_17, context_17) {
     "use strict";
     var types_ts_7, SCALE;
-    var __moduleName = context_18 && context_18.id;
+    var __moduleName = context_17 && context_17.id;
     function updateCanvasSize(canvas, width, height) {
       canvas.width = Math.floor(width / SCALE);
       canvas.height = Math.floor(height / SCALE);
@@ -2510,7 +2474,7 @@ System.register(
         destroy: () => {},
       };
     }
-    exports_18("getWebNativeContext", getWebNativeContext);
+    exports_17("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
         function (types_ts_7_1) {
@@ -2523,9 +2487,9 @@ System.register(
     };
   },
 );
-System.register("web/src/native/assets", [], function (exports_19, context_19) {
+System.register("web/src/native/assets", [], function (exports_18, context_18) {
   "use strict";
-  var __moduleName = context_19 && context_19.id;
+  var __moduleName = context_18 && context_18.id;
   async function loadImage(src) {
     return new Promise((resolve, reject) => {
       const image = new Image();
@@ -2719,7 +2683,7 @@ System.register("web/src/native/assets", [], function (exports_19, context_19) {
     };
     return assets;
   }
-  exports_19("initAssets", initAssets);
+  exports_18("initAssets", initAssets);
   return {
     setters: [],
     execute: function () {
@@ -2736,7 +2700,7 @@ System.register(
     "web/src/native/web",
     "web/src/native/assets",
   ],
-  function (exports_20, context_20) {
+  function (exports_19, context_19) {
     "use strict";
     var types_ts_8,
       engine_ts_1,
@@ -2752,7 +2716,7 @@ System.register(
       framesTime,
       lastUpdateTime,
       timeToNextUpdate;
-    var __moduleName = context_20 && context_20.id;
+    var __moduleName = context_19 && context_19.id;
     function updateFps() {
       const now = performance.now();
       frames++;
