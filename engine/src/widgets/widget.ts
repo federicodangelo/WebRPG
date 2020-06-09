@@ -15,6 +15,7 @@ export abstract class BaseWidget implements Widget {
   private _height: number = 0;
   private _pivotX: number = 0;
   private _pivotY: number = 0;
+  private _layer: number = 0;
   private _parent: WidgetContainer | null = null;
   private _engine: Engine | null = null;
   private _boundingBox: Rect = new Rect();
@@ -122,6 +123,18 @@ export abstract class BaseWidget implements Widget {
     return this._y + this._pivotY;
   }
 
+  public get layer() {
+    return this._layer;
+  }
+
+  public set layer(v: number) {
+    if (v !== this._layer) {
+      this._layer = v;
+      this.invalidate();
+      this._parent?.onChildrenTransformChanged(this);
+    }
+  }
+
   public get parent() {
     return this._parent;
   }
@@ -161,12 +174,12 @@ export abstract class BaseWidget implements Widget {
 
       if (layout.horizontalSpacingPercent !== undefined) {
         this.x = Math.floor(
-          ((parentWidth - this.width) * layout.horizontalSpacingPercent) / 100
+          ((parentWidth - this.width) * layout.horizontalSpacingPercent) / 100,
         );
       }
       if (layout.verticalSpacingPercent !== undefined) {
         this.y = Math.floor(
-          ((parentHeight - this.height) * layout.verticalSpacingPercent) / 100
+          ((parentHeight - this.height) * layout.verticalSpacingPercent) / 100,
         );
       }
 
@@ -197,7 +210,7 @@ export abstract class BaseWidget implements Widget {
       this.visibleX,
       this.visibleY,
       this.width,
-      this.height
+      this.height,
     );
     let p = this._parent;
     while (p !== null) {

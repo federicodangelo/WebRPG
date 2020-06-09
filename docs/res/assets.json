@@ -15,9 +15,37 @@
       "filename": "princess.png",
       "size": "64x64"
     },
-    "floor": {
-      "filename": "floor.png",
-      "size": "16x16"
+    "shadows": {
+      "filename": "shadows.png",
+      "size": "64x64"
+    },
+    "terrain": {
+      "filename": "terrain.png",
+      "size": "32x32",
+      "terrains": {
+        "dirt": { "index": 0 },
+        "dirt2": { "index": 3 },
+        "dirt3": { "index": 6 },
+        "dirt4": { "index": 9 },
+        "dirt5": { "index": 12 },
+        "lava": { "index": 15 },
+        "hole": { "index": 18 },
+        "hole2": { "index": 21 },
+        "hole3": { "index": 24 },
+        "water": { "index": 27 },
+        "grass": { "index": 192 },
+        "grass2": { "index": 195 },
+        "grass3": { "index": 198 },
+        "sand": {
+          "index": 210,
+          "specialTransitions": { "water": { "index": 210 } }
+        },
+        "snow": { "index": 402 },
+        "frozen-water": {
+          "index": 399,
+          "specialTransitions": { "snow": { "index": 405 } }
+        }
+      }
     }
   },
   "animations": {

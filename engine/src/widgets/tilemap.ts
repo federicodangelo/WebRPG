@@ -1,6 +1,11 @@
 import { Widget, Tilemap, DrawContext } from "../types.ts";
 import { ScrollableContainerWidget } from "./scrollable.ts";
 
+function compareChildren(c1: Widget, c2: Widget) {
+  if (c1.layer === c2.layer) return c1.visibleY - c2.visibleY;
+  return c1.layer - c2.layer;
+}
+
 export class ScrollableTilemapContainerWidget
   extends ScrollableContainerWidget {
   public floorTilemap: Tilemap | null = null;
@@ -70,12 +75,12 @@ export class ScrollableTilemapContainerWidget
     let idx = children.indexOf(child);
 
     if (idx >= 0) {
-      const prevOk = idx == 0 || children[idx - 1].visibleY <= child.visibleY;
+      const prevOk = idx == 0 || compareChildren(children[idx - 1], child) <= 0;
       const nextOk = idx == children.length - 1 ||
-        children[idx + 1].visibleY >= child.visibleY;
+        compareChildren(children[idx + 1], child) >= 0;
 
       if (!prevOk) {
-        while (idx > 0 && children[idx - 1].visibleY > child.visibleY) {
+        while (idx > 0 && compareChildren(children[idx - 1], child) > 0) {
           const tmp = children[idx - 1];
           children[idx - 1] = children[idx];
           children[idx] = tmp;
@@ -84,7 +89,7 @@ export class ScrollableTilemapContainerWidget
       } else if (!nextOk) {
         while (
           idx < children.length - 1 &&
-          children[idx + 1].visibleY < child.visibleY
+          compareChildren(children[idx + 1], child) < 0
         ) {
           const tmp = children[idx + 1];
           children[idx + 1] = children[idx];

@@ -129,6 +129,7 @@ export interface Widget {
   pivotY: number;
   readonly visibleY: number;
   readonly visibleX: number;
+  layer: number;
   parent: WidgetContainer | null;
   updateLayout(parentWidth: number, parentHeight: number): void;
   draw(context: EngineContext): void;
@@ -288,6 +289,7 @@ export type Tilemap = {
   type: TileSetType;
   tileWidth: number;
   tileHeight: number;
+  getTile(id: string): Tile;
 };
 
 export type Tile = {
@@ -321,6 +323,7 @@ export type Assets = {
   tilemaps: Tilemaps;
   animations: Animations;
   defaultFont: Font;
+  getTile(tilemapDotId: string): Tile;
   getTilemap(id: string): Tilemap;
   getFont(id: string): Font;
   getAnimation(id: string): Animation;

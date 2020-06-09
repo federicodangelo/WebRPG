@@ -850,6 +850,7 @@ System.register(
             this._height = 0;
             this._pivotX = 0;
             this._pivotY = 0;
+            this._layer = 0;
             this._parent = null;
             this._engine = null;
             this._boundingBox = new types_ts_3.Rect();
@@ -938,6 +939,16 @@ System.register(
           }
           get visibleY() {
             return this._y + this._pivotY;
+          }
+          get layer() {
+            return this._layer;
+          }
+          set layer(v) {
+            if (v !== this._layer) {
+              this._layer = v;
+              this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
+            }
           }
           get parent() {
             return this._parent;
@@ -1451,89 +1462,12 @@ System.register(
   },
 );
 System.register(
-  "engine/src/widgets/animated-tile",
-  ["engine/src/widgets/widget"],
-  function (exports_11, context_11) {
-    "use strict";
-    var widget_ts_4, AnimatedTileWidget;
-    var __moduleName = context_11 && context_11.id;
-    function buildDefaultSequence(len) {
-      const seq = [];
-      for (let i = 0; i < len; i++) {
-        seq.push(i);
-      }
-      return seq;
-    }
-    return {
-      setters: [
-        function (widget_ts_4_1) {
-          widget_ts_4 = widget_ts_4_1;
-        },
-      ],
-      execute: function () {
-        AnimatedTileWidget = class AnimatedTileWidget
-          extends widget_ts_4.BaseWidget {
-          constructor(animation) {
-            super();
-            this.tile = null;
-            this.frame = 0;
-            this.lastTimeoutCB = -1;
-            this.animation = animation;
-            this.updateCurrentTile();
-          }
-          setAnimation(animation) {
-            if (animation !== this.animation) {
-              this.animation = animation;
-              this.frame = 0;
-              this.updateCurrentTile();
-            }
-          }
-          updateCurrentTile() {
-            const animation = this.animation;
-            if (animation === null) {
-              return;
-            }
-            const newTile =
-              animation
-                .tiles[
-                animation.sequence[this.frame % animation.sequence.length]
-              ];
-            if (newTile !== this.tile) {
-              this.tile = newTile;
-              this.width = newTile.width;
-              this.height = newTile.height;
-              this.invalidate();
-            }
-            this.frame++;
-            if (this.lastTimeoutCB >= 0) {
-              clearTimeout(this.lastTimeoutCB);
-              this.lastTimeoutCB = -1;
-            }
-            if (animation.delay > 0) {
-              this.lastTimeoutCB = setTimeout(() => {
-                this.lastTimeoutCB = -1;
-                this.updateCurrentTile();
-              }, animation.delay);
-            }
-          }
-          drawSelf(context) {
-            if (this.tile !== null) {
-              context.tile(0, 0, this.tile);
-            }
-          }
-        };
-        exports_11("AnimatedTileWidget", AnimatedTileWidget);
-      },
-    };
-  },
-);
-System.register(
   "engine/src/widgets/scrollable",
   ["engine/src/types", "engine/src/widgets/widget-container"],
-  function (exports_12, context_12) {
+  function (exports_11, context_11) {
     "use strict";
     var types_ts_5, widget_container_ts_3, ScrollableContainerWidget;
-    var __moduleName = context_12 && context_12.id;
+    var __moduleName = context_11 && context_11.id;
     return {
       setters: [
         function (types_ts_5_1) {
@@ -1598,7 +1532,7 @@ System.register(
               );
           }
         };
-        exports_12("ScrollableContainerWidget", ScrollableContainerWidget);
+        exports_11("ScrollableContainerWidget", ScrollableContainerWidget);
       },
     };
   },
@@ -1606,10 +1540,16 @@ System.register(
 System.register(
   "engine/src/widgets/tilemap",
   ["engine/src/widgets/scrollable"],
-  function (exports_13, context_13) {
+  function (exports_12, context_12) {
     "use strict";
     var scrollable_ts_1, ScrollableTilemapContainerWidget;
-    var __moduleName = context_13 && context_13.id;
+    var __moduleName = context_12 && context_12.id;
+    function compareChildren(c1, c2) {
+      if (c1.layer === c2.layer) {
+        return c1.visibleY - c2.visibleY;
+      }
+      return c1.layer - c2.layer;
+    }
     return {
       setters: [
         function (scrollable_ts_1_1) {
@@ -1680,12 +1620,12 @@ System.register(
               let idx = children.indexOf(child);
               if (idx >= 0) {
                 const prevOk = idx == 0 ||
-                  children[idx - 1].visibleY <= child.visibleY;
+                  compareChildren(children[idx - 1], child) <= 0;
                 const nextOk = idx == children.length - 1 ||
-                  children[idx + 1].visibleY >= child.visibleY;
+                  compareChildren(children[idx + 1], child) >= 0;
                 if (!prevOk) {
                   while (
-                    idx > 0 && children[idx - 1].visibleY > child.visibleY
+                    idx > 0 && compareChildren(children[idx - 1], child) > 0
                   ) {
                     const tmp = children[idx - 1];
                     children[idx - 1] = children[idx];
@@ -1695,7 +1635,7 @@ System.register(
                 } else if (!nextOk) {
                   while (
                     idx < children.length - 1 &&
-                    children[idx + 1].visibleY < child.visibleY
+                    compareChildren(children[idx + 1], child) < 0
                   ) {
                     const tmp = children[idx + 1];
                     children[idx + 1] = children[idx];
@@ -1706,7 +1646,7 @@ System.register(
               }
             }
           };
-        exports_13(
+        exports_12(
           "ScrollableTilemapContainerWidget",
           ScrollableTilemapContainerWidget,
         );
@@ -1715,26 +1655,233 @@ System.register(
   },
 );
 System.register(
+  "engine/src/widgets/tile",
+  ["engine/src/widgets/widget"],
+  function (exports_13, context_13) {
+    "use strict";
+    var widget_ts_4, TileWidget;
+    var __moduleName = context_13 && context_13.id;
+    return {
+      setters: [
+        function (widget_ts_4_1) {
+          widget_ts_4 = widget_ts_4_1;
+        },
+      ],
+      execute: function () {
+        TileWidget = class TileWidget extends widget_ts_4.BaseWidget {
+          constructor(tile) {
+            super();
+            this.tile = tile;
+            this.width = tile.width;
+            this.height = tile.height;
+          }
+          drawSelf(context) {
+            context.tile(0, 0, this.tile);
+          }
+        };
+        exports_13("TileWidget", TileWidget);
+      },
+    };
+  },
+);
+System.register(
+  "engine/src/widgets/group",
+  ["engine/src/widgets/widget-container"],
+  function (exports_14, context_14) {
+    "use strict";
+    var widget_container_ts_4, GroupContainerWidget;
+    var __moduleName = context_14 && context_14.id;
+    return {
+      setters: [
+        function (widget_container_ts_4_1) {
+          widget_container_ts_4 = widget_container_ts_4_1;
+        },
+      ],
+      execute: function () {
+        GroupContainerWidget = class GroupContainerWidget
+          extends widget_container_ts_4.BaseWidgetContainer {
+          drawSelf() {}
+        };
+        exports_14("GroupContainerWidget", GroupContainerWidget);
+      },
+    };
+  },
+);
+System.register(
+  "engine/src/widgets/animated-tile",
+  ["engine/src/widgets/widget"],
+  function (exports_15, context_15) {
+    "use strict";
+    var widget_ts_5, AnimatedTileWidget;
+    var __moduleName = context_15 && context_15.id;
+    function buildDefaultSequence(len) {
+      const seq = [];
+      for (let i = 0; i < len; i++) {
+        seq.push(i);
+      }
+      return seq;
+    }
+    return {
+      setters: [
+        function (widget_ts_5_1) {
+          widget_ts_5 = widget_ts_5_1;
+        },
+      ],
+      execute: function () {
+        AnimatedTileWidget = class AnimatedTileWidget
+          extends widget_ts_5.BaseWidget {
+          constructor(animation) {
+            super();
+            this.tile = null;
+            this.frame = 0;
+            this.lastTimeoutCB = -1;
+            this.animation = animation;
+            this.updateCurrentTile();
+          }
+          setAnimation(animation) {
+            if (animation !== this.animation) {
+              this.animation = animation;
+              this.frame = 0;
+              this.updateCurrentTile();
+            }
+          }
+          updateCurrentTile() {
+            const animation = this.animation;
+            if (animation === null) {
+              return;
+            }
+            const newTile =
+              animation
+                .tiles[
+                animation.sequence[this.frame % animation.sequence.length]
+              ];
+            if (newTile !== this.tile) {
+              this.tile = newTile;
+              this.width = newTile.width;
+              this.height = newTile.height;
+              this.invalidate();
+            }
+            this.frame++;
+            if (this.lastTimeoutCB >= 0) {
+              clearTimeout(this.lastTimeoutCB);
+              this.lastTimeoutCB = -1;
+            }
+            if (animation.delay > 0) {
+              this.lastTimeoutCB = setTimeout(() => {
+                this.lastTimeoutCB = -1;
+                this.updateCurrentTile();
+              }, animation.delay);
+            }
+          }
+          drawSelf(context) {
+            if (this.tile !== null) {
+              context.tile(0, 0, this.tile);
+            }
+          }
+        };
+        exports_15("AnimatedTileWidget", AnimatedTileWidget);
+      },
+    };
+  },
+);
+System.register(
+  "web/src/princess",
+  [
+    "engine/src/widgets/group",
+    "engine/src/widgets/tile",
+    "engine/src/widgets/animated-tile",
+  ],
+  function (exports_16, context_16) {
+    "use strict";
+    var group_ts_1, tile_ts_1, animated_tile_ts_1, Princess;
+    var __moduleName = context_16 && context_16.id;
+    return {
+      setters: [
+        function (group_ts_1_1) {
+          group_ts_1 = group_ts_1_1;
+        },
+        function (tile_ts_1_1) {
+          tile_ts_1 = tile_ts_1_1;
+        },
+        function (animated_tile_ts_1_1) {
+          animated_tile_ts_1 = animated_tile_ts_1_1;
+        },
+      ],
+      execute: function () {
+        Princess = class Princess extends group_ts_1.GroupContainerWidget {
+          constructor(assets) {
+            super();
+            this.lastX = 0;
+            this.lastY = 0;
+            this.assets = assets;
+            this.animations = new animated_tile_ts_1.AnimatedTileWidget(
+              assets.getAnimation("down"),
+            );
+            const shadow = new tile_ts_1.TileWidget(
+              assets.getTilemap("shadows").tiles[0],
+            );
+            shadow.parent = this;
+            shadow.y = 4;
+            this.animations.parent = this;
+            this.pivotX = -Math.floor(this.animations.width / 2);
+            this.pivotY = -Math.floor((this.animations.height * 7) / 8);
+            this.width = this.animations.width;
+            this.height = this.animations.height + 4;
+          }
+          get animation() {
+            return this.animations.animation;
+          }
+          setAnimation(animation) {
+            this.animations.setAnimation(animation);
+          }
+          updateAnimations() {
+            const dx = this.x - this.lastX;
+            const dy = this.y - this.lastY;
+            if (dx < 0) {
+              this.setAnimation(this.assets.getAnimation("left-walking"));
+            } else if (dx > 0) {
+              this.setAnimation(this.assets.getAnimation("right-walking"));
+            } else if (dy < 0) {
+              this.setAnimation(this.assets.getAnimation("up-walking"));
+            } else if (dy > 0) {
+              this.setAnimation(this.assets.getAnimation("down-walking"));
+            } else if (this.animation.id.endsWith("-walking")) {
+              this.setAnimation(
+                this.assets.getAnimation(
+                  this.animation.id.replace("-walking", ""),
+                ),
+              );
+            }
+            this.lastX = this.x;
+            this.lastY = this.y;
+          }
+        };
+        exports_16("Princess", Princess);
+      },
+    };
+  },
+);
+System.register(
   "game/src/game",
   [
-    "engine/src/widgets/character",
     "engine/src/widgets/label",
     "engine/src/types",
     "engine/src/widgets/split-panel",
-    "engine/src/widgets/animated-tile",
     "engine/src/widgets/tilemap",
+    "engine/src/widgets/tile",
+    "web/src/princess",
   ],
-  function (exports_14, context_14) {
+  function (exports_17, context_17) {
     "use strict";
-    var character_ts_1,
-      label_ts_1,
+    var label_ts_1,
       types_ts_6,
       split_panel_ts_1,
-      animated_tile_ts_1,
       tilemap_ts_1,
+      tile_ts_2,
+      princess_ts_1,
       NPCS_COUNT,
       MAP_SIZE,
-      OBSTACLES_COUNT,
+      DECOS_COUNT,
       mainUI,
       cameraMode,
       npcs,
@@ -1747,14 +1894,14 @@ System.register(
       font,
       WALK_SPEED,
       p1idleFrames;
-    var __moduleName = context_14 && context_14.id;
+    var __moduleName = context_17 && context_17.id;
     function isKeyDown(key) {
       return keysDown.get(key) || false;
     }
     function initGame(engine, assets_) {
       assets = assets_;
       font = assets.defaultFont;
-      exports_14(
+      exports_17(
         "mainUI",
         mainUI = new split_panel_ts_1.SplitPanelContainerWidget(font),
       );
@@ -1829,67 +1976,45 @@ System.register(
       function random(arr) {
         return arr[Math.floor(Math.random() * arr.length)];
       }
-      p1 = new animated_tile_ts_1.AnimatedTileWidget(
-        assets.getAnimation("down"),
-      );
-      p1.pivotX = -Math.floor(p1.width / 2);
-      p1.pivotY = -Math.floor((p1.height * 7) / 8);
+      p1 = new princess_ts_1.Princess(assets);
       p1.x = 10 * font.tileWidth;
       p1.y = 10 * font.tileHeight;
-      p2 = new animated_tile_ts_1.AnimatedTileWidget(
-        assets.getAnimation("down"),
-      );
-      p2.pivotX = -Math.floor(p1.width / 2);
-      p2.pivotY = -Math.floor((p1.height * 7) / 8);
+      p2 = new princess_ts_1.Princess(assets);
       p2.x = 13 * font.tileWidth;
       p2.y = 3 * font.tileHeight;
-      const npcsColors = [
-        types_ts_6.FixedColor.Green,
-        types_ts_6.FixedColor.Yellow,
-        types_ts_6.FixedColor.Cyan,
-      ];
       for (let i = 0; i < NPCS_COUNT; i++) {
-        npcs.push(
-          new character_ts_1.CharacterWidget(
-            font,
-            "@",
-            npcsColors[i % npcsColors.length],
-            types_ts_6.FixedColor.Transparent,
-          ),
-        );
+        npcs.push(new princess_ts_1.Princess(assets));
       }
       characters.push(...npcs, p1, p2);
-      const obtacleChars = ["."];
-      const obtacleColors = [
-        types_ts_6.rgb(0, /* I0 */ 51, /* I20 */ 0 /* I0 */),
-        types_ts_6.rgb(0, /* I0 */ 102, /* I40 */ 0 /* I0 */),
-        types_ts_6.rgb(0, /* I0 */ 153, /* I60 */ 0 /* I0 */),
-        types_ts_6.rgb(0, /* I0 */ 204, /* I80 */ 0 /* I0 */),
-      ];
-      playingBox.floorTilemap = assets.getTilemap("floor");
+      playingBox.floorTilemap = assets.getTilemap("terrain");
       playingBox.floorTiles = [];
-      for (let y = 0; y < 128; y++) {
+      for (let y = 0; y < MAP_SIZE; y++) {
         const row = [];
-        for (let x = 0; x < 128; x++) {
-          if (Math.random() > 0.5) {
-            row.push((7 + 6) * 21 + 1);
+        for (let x = 0; x < MAP_SIZE; x++) {
+          if (Math.random() > 0.1) {
+            row.push(playingBox.floorTilemap.getTile("grass-center").index);
           } else if (Math.random() > 0.5) {
-            row.push((7 + 3) * 21 + 1);
+            row.push(playingBox.floorTilemap.getTile("grass-center2").index);
           } else {
-            row.push((7 + 0) * 21 + 1);
+            row.push(playingBox.floorTilemap.getTile("grass-center3").index);
           }
         }
         playingBox.floorTiles.push(row);
       }
-      for (let i = 0; i < OBSTACLES_COUNT; i++) {
-        const obstacle = new character_ts_1.CharacterWidget(
-          font,
-          random(obtacleChars),
-          random(obtacleColors),
-          types_ts_6.FixedColor.Transparent,
+      const decos = [
+        "terrain.grass-deco1",
+        "terrain.grass-deco2",
+        "terrain.dirt-deco1",
+        "terrain.dirt-deco2",
+      ];
+      for (let i = 0; i < DECOS_COUNT; i++) {
+        const obstacle = new tile_ts_2.TileWidget(
+          assets.getTile(random(decos)),
         );
-        obstacle.x = Math.floor(Math.random() * MAP_SIZE) * font.tileWidth;
-        obstacle.y = Math.floor(Math.random() * MAP_SIZE) * font.tileHeight;
+        obstacle.layer = -1;
+        obstacle.x = Math.floor(Math.random() * MAP_SIZE) * obstacle.tile.width;
+        obstacle.y = Math.floor(Math.random() * MAP_SIZE) *
+          obstacle.tile.height;
         obstacle.parent = playingBox;
       }
       characters.forEach((c) => (c.parent = playingBox));
@@ -1905,7 +2030,7 @@ System.register(
       engine.addWidget(mainUI);
       engine.onKeyEvent(onKeyEvent);
     }
-    exports_14("initGame", initGame);
+    exports_17("initGame", initGame);
     function updateGame(engine) {
       let running = true;
       for (let i = 0; i < npcs.length; i++) {
@@ -1925,39 +2050,29 @@ System.register(
             break;
         }
       }
-      let p1oldPos = { x: p1.x, y: p1.y };
-      let p2oldPos = { x: p2.x, y: p2.y };
       if (isKeyDown("a")) {
         p1.x -= WALK_SPEED;
-        p1.setAnimation(assets.getAnimation("left-walking"));
       }
       if (isKeyDown("d")) {
         p1.x += WALK_SPEED;
-        p1.setAnimation(assets.getAnimation("right-walking"));
       }
       if (isKeyDown("w")) {
         p1.y -= WALK_SPEED;
-        p1.setAnimation(assets.getAnimation("up-walking"));
       }
       if (isKeyDown("s")) {
         p1.y += WALK_SPEED;
-        p1.setAnimation(assets.getAnimation("down-walking"));
       }
       if (isKeyDown("j")) {
         p2.x -= WALK_SPEED;
-        p2.setAnimation(assets.getAnimation("left-walking"));
       }
       if (isKeyDown("l")) {
         p2.x += WALK_SPEED;
-        p2.setAnimation(assets.getAnimation("right-walking"));
       }
       if (isKeyDown("i")) {
         p2.y -= WALK_SPEED;
-        p2.setAnimation(assets.getAnimation("up-walking"));
       }
       if (isKeyDown("k")) {
         p2.y += WALK_SPEED;
-        p2.setAnimation(assets.getAnimation("down-walking"));
       }
       for (let i = 0; i < characters.length; i++) {
         const char = characters[i];
@@ -1975,20 +2090,7 @@ System.register(
           ),
           0,
         );
-      }
-      if (p1oldPos.x === p1.x && p1oldPos.y === p1.y) {
-        if (p1.animation.id.endsWith("-walking")) {
-          p1.setAnimation(
-            assets.getAnimation(p1.animation.id.replace("-walking", "")),
-          );
-        }
-      }
-      if (p2oldPos.x === p2.x && p2oldPos.y === p2.y) {
-        if (p2.animation.id.endsWith("-walking")) {
-          p2.setAnimation(
-            assets.getAnimation(p1.animation.id.replace("-walking", "")),
-          );
-        }
+        characters[i].updateAnimations();
       }
       let newOffsetX = playingBox.offsetX;
       let newOffsetY = playingBox.offsetY;
@@ -2023,12 +2125,9 @@ System.register(
       );
       return running;
     }
-    exports_14("updateGame", updateGame);
+    exports_17("updateGame", updateGame);
     return {
       setters: [
-        function (character_ts_1_1) {
-          character_ts_1 = character_ts_1_1;
-        },
         function (label_ts_1_1) {
           label_ts_1 = label_ts_1_1;
         },
@@ -2038,17 +2137,20 @@ System.register(
         function (split_panel_ts_1_1) {
           split_panel_ts_1 = split_panel_ts_1_1;
         },
-        function (animated_tile_ts_1_1) {
-          animated_tile_ts_1 = animated_tile_ts_1_1;
-        },
         function (tilemap_ts_1_1) {
           tilemap_ts_1 = tilemap_ts_1_1;
+        },
+        function (tile_ts_2_1) {
+          tile_ts_2 = tile_ts_2_1;
+        },
+        function (princess_ts_1_1) {
+          princess_ts_1 = princess_ts_1_1;
         },
       ],
       execute: function () {
         NPCS_COUNT = 2;
         MAP_SIZE = 512;
-        OBSTACLES_COUNT = 512;
+        DECOS_COUNT = 1024;
         cameraMode = 0 /* FollowContinuous */;
         npcs = [];
         characters = [];
@@ -2062,10 +2164,10 @@ System.register(
 System.register(
   "web/src/native/web",
   ["engine/src/types"],
-  function (exports_15, context_15) {
+  function (exports_18, context_18) {
     "use strict";
     var types_ts_7, SCALE;
-    var __moduleName = context_15 && context_15.id;
+    var __moduleName = context_18 && context_18.id;
     function updateCanvasSize(canvas, width, height) {
       canvas.width = Math.floor(width / SCALE);
       canvas.height = Math.floor(height / SCALE);
@@ -2356,7 +2458,7 @@ System.register(
         destroy: () => {},
       };
     }
-    exports_15("getWebNativeContext", getWebNativeContext);
+    exports_18("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
         function (types_ts_7_1) {
@@ -2369,9 +2471,9 @@ System.register(
     };
   },
 );
-System.register("web/src/native/assets", [], function (exports_16, context_16) {
+System.register("web/src/native/assets", [], function (exports_19, context_19) {
   "use strict";
-  var __moduleName = context_16 && context_16.id;
+  var __moduleName = context_19 && context_19.id;
   async function loadImage(src) {
     return new Promise((resolve, reject) => {
       const image = new Image();
@@ -2384,6 +2486,8 @@ System.register("web/src/native/assets", [], function (exports_16, context_16) {
     const image = await loadImage(json.filename);
     const tileWidth = parseInt(json.size.split("x")[0]);
     const tileHeight = parseInt(json.size.split("x")[1]);
+    const imageWidthInTiles = image.width / tileWidth;
+    const imageHeightInTiles = image.height / tileHeight;
     const canvas = document.createElement("canvas");
     canvas.width = image.width;
     canvas.height = image.height;
@@ -2398,10 +2502,15 @@ System.register("web/src/native/assets", [], function (exports_16, context_16) {
       tiles,
       tilesById,
       type,
+      getTile: (id) => tilesById.get(id),
+    };
+    const setTileId = (index, id) => {
+      tiles[index].id = id;
+      tilesById.set(id, tiles[index]);
     };
     let index = 0;
-    for (let y = 0; y < image.height / tileHeight; y++) {
-      for (let x = 0; x < image.width / tileWidth; x++) {
+    for (let y = 0; y < imageHeightInTiles; y++) {
+      for (let x = 0; x < imageWidthInTiles; x++) {
         const pixels =
           ctx.getImageData(x * tileWidth, y * tileHeight, tileWidth, tileHeight)
             .data;
@@ -2424,6 +2533,81 @@ System.register("web/src/native/assets", [], function (exports_16, context_16) {
         };
         tiles.push(tile);
         index++;
+      }
+    }
+    if (json.tiles) {
+      for (const tileId in json.tiles) {
+        const tileJson = json.tiles[tileId];
+        setTileId(tileJson.index, tileId);
+      }
+    }
+    if (json.terrains) {
+      // Each terrain has this shape:
+      //
+      // +-----------+-----------+-----------+
+      // |           |           |           |
+      // |   deco1   |  hole-br  |  hole-bl  |
+      // |           |          /|\          |
+      // +-----------+-----------+-----------+
+      // |           |          \|/          |
+      // |   deco2   |  hole-tr  |  hole-tp  |
+      // |           |           |           |
+      // +-----------+-----------+-----------+
+      // |           |           |           |
+      // |  top-left |    top    | top-right |
+      // |         /-|-----------|-\         |
+      // +-----------+-----------+-----------+
+      // |         | |           | |         |
+      // |   left  | |  center   | |  right  |
+      // |         | |           | |         |
+      // +-----------+-----------+-----------+
+      // |         \-|-----------|-/         |
+      // |  bottom-  |   bottom  |  bottom-  |
+      // |   left    |           |   right   |
+      // +-----------+-----------+-----------+
+      // |           |           |           |
+      // |  center2  |  center3  |  center4  |
+      // |           |           |           |
+      // +-----------+-----------+-----------+
+      for (const terrainId in json.terrains) {
+        const terrainJson = json.terrains[terrainId];
+        const index = terrainJson.index;
+        const deco1 = index;
+        const deco2 = deco1 + imageWidthInTiles;
+        setTileId(deco1, terrainId + "-deco1");
+        setTileId(deco2, terrainId + "-deco2");
+        const hole_br = index + 1;
+        const hole_bl = index + 2;
+        const hole_tr = hole_br + imageWidthInTiles;
+        const hole_tp = hole_bl + imageWidthInTiles;
+        setTileId(hole_br, terrainId + "-hole-br");
+        setTileId(hole_bl, terrainId + "-hole-bl");
+        setTileId(hole_tr, terrainId + "-hole-tr");
+        setTileId(hole_tp, terrainId + "-hole-tp");
+        const topLeft = index + imageWidthInTiles * 2;
+        const top = topLeft + 1;
+        const topRight = topLeft + 2;
+        const left = index + imageWidthInTiles * 3;
+        const center = left + 1;
+        const right = center + 1;
+        const bottomLeft = index + imageWidthInTiles * 4;
+        const bottom = bottomLeft + 1;
+        const bottomRight = bottom + 1;
+        setTileId(topLeft, terrainId + "-top-left");
+        setTileId(top, terrainId + "-top");
+        setTileId(topRight, terrainId + "-top-right");
+        setTileId(left, terrainId + "-left");
+        setTileId(center, terrainId + "-center");
+        setTileId(right, terrainId + "-right");
+        setTileId(bottomLeft, terrainId + "-bottom-left");
+        setTileId(bottom, terrainId + "-bottom");
+        setTileId(bottomRight, terrainId + "-bottom-left");
+        const center2 = index + imageWidthInTiles * 5;
+        const center3 = center2 + 1;
+        const center4 = center3 + 1;
+        setTileId(center2, terrainId + "-center2");
+        setTileId(center3, terrainId + "-center3");
+        setTileId(center4, terrainId + "-center4");
       }
     }
     return tilemap;
@@ -2471,10 +2655,14 @@ System.register("web/src/native/assets", [], function (exports_16, context_16) {
       getAnimation: (id) => animations.get(id),
       getFont: (id) => fonts.get(id),
       getTilemap: (id) => tilemaps.get(id),
+      getTile: (tilemapDotTile) =>
+        tilemaps.get(tilemapDotTile.split(".")[0]).getTile(
+          tilemapDotTile.split(".")[1],
+        ),
     };
     return assets;
   }
-  exports_16("initAssets", initAssets);
+  exports_19("initAssets", initAssets);
   return {
     setters: [],
     execute: function () {
@@ -2491,7 +2679,7 @@ System.register(
     "web/src/native/web",
     "web/src/native/assets",
   ],
-  function (exports_17, context_17) {
+  function (exports_20, context_20) {
     "use strict";
     var types_ts_8,
       engine_ts_1,
@@ -2507,7 +2695,7 @@ System.register(
       framesTime,
       lastUpdateTime,
       timeToNextUpdate;
-    var __moduleName = context_17 && context_17.id;
+    var __moduleName = context_20 && context_20.id;
     function updateFps() {
       const now = performance.now();
       frames++;

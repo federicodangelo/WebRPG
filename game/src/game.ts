@@ -12,12 +12,13 @@ import {
   KeyEvent,
 } from "engine/types.ts";
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
-import { AnimatedTileWidget } from "../../engine/src/widgets/animated-tile.ts";
 import { ScrollableTilemapContainerWidget } from "../../engine/src/widgets/tilemap.ts";
+import { TileWidget } from "../../engine/src/widgets/tile.ts";
+import { Princess } from "../../web/src/princess.ts";
 
 const NPCS_COUNT = 2;
 const MAP_SIZE = 512;
-const OBSTACLES_COUNT = 512;
+const DECOS_COUNT = 1024;
 
 export var mainUI: SplitPanelContainerWidget;
 
@@ -28,8 +29,8 @@ const enum CameraMode {
 
 let cameraMode = CameraMode.FollowContinuous;
 
-const npcs: CharacterWidget[] = [];
-const characters: Widget[] = [];
+const npcs: Princess[] = [];
+const characters: Princess[] = [];
 let playingBox: ScrollableTilemapContainerWidget;
 
 const keysDown = new Map<string, boolean>();
@@ -38,8 +39,8 @@ function isKeyDown(key: string) {
   return keysDown.get(key) || false;
 }
 
-let p1: AnimatedTileWidget;
-let p2: AnimatedTileWidget;
+let p1: Princess;
+let p2: Princess;
 let assets: Assets;
 let font: Font;
 
@@ -124,67 +125,51 @@ export function initGame(engine: Engine, assets_: Assets) {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  p1 = new AnimatedTileWidget(assets.getAnimation("down"));
-  p1.pivotX = -Math.floor(p1.width / 2);
-  p1.pivotY = -Math.floor((p1.height * 7) / 8);
+  p1 = new Princess(assets);
   p1.x = 10 * font.tileWidth;
   p1.y = 10 * font.tileHeight;
 
-  p2 = new AnimatedTileWidget(assets.getAnimation("down"));
-  p2.pivotX = -Math.floor(p1.width / 2);
-  p2.pivotY = -Math.floor((p1.height * 7) / 8);
+  p2 = new Princess(assets);
   p2.x = 13 * font.tileWidth;
   p2.y = 3 * font.tileHeight;
 
-  const npcsColors: Color[] = [
-    FixedColor.Green,
-    FixedColor.Yellow,
-    FixedColor.Cyan,
-  ];
-
   for (let i = 0; i < NPCS_COUNT; i++) {
-    npcs.push(
-      new CharacterWidget(
-        font,
-        "@",
-        npcsColors[i % npcsColors.length],
-        FixedColor.Transparent,
-      ),
-    );
+    npcs.push(new Princess(assets));
   }
 
   characters.push(...npcs, p1, p2);
 
-  const obtacleChars: string[] = ["."];
-  const obtacleColors: Color[] = [
-    rgb(Intensity.I0, Intensity.I20, Intensity.I0),
-    rgb(Intensity.I0, Intensity.I40, Intensity.I0),
-    rgb(Intensity.I0, Intensity.I60, Intensity.I0),
-    rgb(Intensity.I0, Intensity.I80, Intensity.I0),
-  ];
-
-  playingBox.floorTilemap = assets.getTilemap("floor");
+  playingBox.floorTilemap = assets.getTilemap("terrain");
   playingBox.floorTiles = [];
 
-  for (let y = 0; y < 128; y++) {
+  for (let y = 0; y < MAP_SIZE; y++) {
     const row: number[] = [];
-    for (let x = 0; x < 128; x++) {
-      if (Math.random() > 0.5) row.push((7 + 6) * 21 + 1);
-      else if (Math.random() > 0.5) row.push((7 + 3) * 21 + 1);
-      else row.push((7 + 0) * 21 + 1);
+    for (let x = 0; x < MAP_SIZE; x++) {
+      if (Math.random() > 0.1) {
+        row.push(playingBox.floorTilemap.getTile("grass-center").index);
+      } else if (Math.random() > 0.5) {
+        row.push(playingBox.floorTilemap.getTile("grass-center2").index);
+      } else {
+        row.push(playingBox.floorTilemap.getTile("grass-center3").index);
+      }
     }
     playingBox.floorTiles.push(row);
   }
 
-  for (let i = 0; i < OBSTACLES_COUNT; i++) {
-    const obstacle = new CharacterWidget(
-      font,
-      random(obtacleChars),
-      random(obtacleColors),
-      FixedColor.Transparent,
+  const decos: string[] = [
+    "terrain.grass-deco1",
+    "terrain.grass-deco2",
+    "terrain.dirt-deco1",
+    "terrain.dirt-deco2",
+  ];
+
+  for (let i = 0; i < DECOS_COUNT; i++) {
+    const obstacle = new TileWidget(
+      assets.getTile(random(decos)),
     );
-    obstacle.x = Math.floor(Math.random() * MAP_SIZE) * font.tileWidth;
-    obstacle.y = Math.floor(Math.random() * MAP_SIZE) * font.tileHeight;
+    obstacle.layer = -1;
+    obstacle.x = Math.floor(Math.random() * MAP_SIZE) * obstacle.tile.width;
+    obstacle.y = Math.floor(Math.random() * MAP_SIZE) * obstacle.tile.height;
     obstacle.parent = playingBox;
   }
 
@@ -229,41 +214,30 @@ export function updateGame(engine: Engine): boolean {
     }
   }
 
-  let p1oldPos = { x: p1.x, y: p1.y };
-  let p2oldPos = { x: p2.x, y: p2.y };
-
   if (isKeyDown("a")) {
     p1.x -= WALK_SPEED;
-    p1.setAnimation(assets.getAnimation("left-walking"));
   }
   if (isKeyDown("d")) {
     p1.x += WALK_SPEED;
-    p1.setAnimation(assets.getAnimation("right-walking"));
   }
   if (isKeyDown("w")) {
     p1.y -= WALK_SPEED;
-    p1.setAnimation(assets.getAnimation("up-walking"));
   }
   if (isKeyDown("s")) {
     p1.y += WALK_SPEED;
-    p1.setAnimation(assets.getAnimation("down-walking"));
   }
 
   if (isKeyDown("j")) {
     p2.x -= WALK_SPEED;
-    p2.setAnimation(assets.getAnimation("left-walking"));
   }
   if (isKeyDown("l")) {
     p2.x += WALK_SPEED;
-    p2.setAnimation(assets.getAnimation("right-walking"));
   }
   if (isKeyDown("i")) {
     p2.y -= WALK_SPEED;
-    p2.setAnimation(assets.getAnimation("up-walking"));
   }
   if (isKeyDown("k")) {
     p2.y += WALK_SPEED;
-    p2.setAnimation(assets.getAnimation("down-walking"));
   }
 
   for (let i = 0; i < characters.length; i++) {
@@ -279,22 +253,8 @@ export function updateGame(engine: Engine): boolean {
       ),
       0,
     );
-  }
 
-  if (p1oldPos.x === p1.x && p1oldPos.y === p1.y) {
-    if (p1.animation.id.endsWith("-walking")) {
-      p1.setAnimation(
-        assets.getAnimation(p1.animation.id.replace("-walking", "")),
-      );
-    }
-  }
-
-  if (p2oldPos.x === p2.x && p2oldPos.y === p2.y) {
-    if (p2.animation.id.endsWith("-walking")) {
-      p2.setAnimation(
-        assets.getAnimation(p1.animation.id.replace("-walking", "")),
-      );
-    }
+    characters[i].updateAnimations();
   }
 
   let newOffsetX = playingBox.offsetX;
