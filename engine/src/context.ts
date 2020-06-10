@@ -377,22 +377,25 @@ export class EngineContextImpl implements EngineContext {
       const row = indexes[tileY];
       let tileX = Math.trunc((x0 - x - tx) / tileWidth);
 
-      for (let screenX = x0; screenX < x1; screenX += tileWidth) {
-        const cfx = Math.max(clip.x - screenX, 0);
-        const cfy = Math.max(clip.y - screenY, 0);
-        const ctx = Math.min(clip.x1 - screenX, tileWidth);
-        const cty = Math.min(clip.y1 - screenY, tileHeight);
+      for (let screenX = x0; screenX < x1; screenX += tileWidth, tileX++) {
+        const tileIndex = row[tileX];
 
-        this.nativeContext.setTile(
-          tiles[row[tileX]],
-          screenX,
-          screenY,
-          cfx,
-          cfy,
-          ctx,
-          cty,
-        );
-        tileX++;
+        if (tileIndex >= 0) {
+          const cfx = Math.max(clip.x - screenX, 0);
+          const cfy = Math.max(clip.y - screenY, 0);
+          const ctx = Math.min(clip.x1 - screenX, tileWidth);
+          const cty = Math.min(clip.y1 - screenY, tileHeight);
+
+          this.nativeContext.setTile(
+            tiles[tileIndex],
+            screenX,
+            screenY,
+            cfx,
+            cfy,
+            ctx,
+            cty,
+          );
+        }
       }
     }
     return this;
@@ -421,36 +424,28 @@ export class EngineContextImpl implements EngineContext {
     return this;
   }
 
-  fillTile(
+  fillRect(
     x: number,
     y: number,
     width: number,
     height: number,
-    t: Tile,
+    color: Color,
   ): EngineContext {
     const clip = this.clip;
     const tx = this.tx;
     const ty = this.ty;
 
-    const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, t.width));
-    const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, t.height));
-    const x1 = Math.min(tx + x + width, ceilToMultipleOf(clip.x1, t.width));
-    const y1 = Math.min(ty + y + height, ceilToMultipleOf(clip.y1, t.height));
+    const x0 = Math.max(tx + x, clip.x);
+    const y0 = Math.max(ty + y, clip.y);
+    const x1 = Math.min(tx + x + width, clip.x1);
+    const y1 = Math.min(ty + y + height, clip.y1);
 
     if (x1 <= x0 || y1 <= y0) {
       return this;
     }
 
-    for (let screenY = y0; screenY < y1; screenY += t.height) {
-      for (let screenX = x0; screenX < x1; screenX += t.width) {
-        const cfx = Math.max(clip.x - screenX, 0);
-        const cfy = Math.max(clip.y - screenY, 0);
-        const ctx = Math.min(clip.x1 - screenX, t.width);
-        const cty = Math.min(clip.y1 - screenY, t.height);
+    this.nativeContext.fillRect(color, x0, y0, x1 - x0, y1 - y0);
 
-        this.nativeContext.setTile(t, screenX, screenY, cfx, cfy, ctx, cty);
-      }
-    }
     return this;
   }
 }

@@ -592,21 +592,25 @@ System.register(
               const tileY = Math.trunc((screenY - y - ty) / tileHeight);
               const row = indexes[tileY];
               let tileX = Math.trunc((x0 - x - tx) / tileWidth);
-              for (let screenX = x0; screenX < x1; screenX += tileWidth) {
-                const cfx = Math.max(clip.x - screenX, 0);
-                const cfy = Math.max(clip.y - screenY, 0);
-                const ctx = Math.min(clip.x1 - screenX, tileWidth);
-                const cty = Math.min(clip.y1 - screenY, tileHeight);
-                this.nativeContext.setTile(
-                  tiles[row[tileX]],
-                  screenX,
-                  screenY,
-                  cfx,
-                  cfy,
-                  ctx,
-                  cty,
-                );
-                tileX++;
+              for (
+                let screenX = x0; screenX < x1; screenX += tileWidth, tileX++
+              ) {
+                const tileIndex = row[tileX];
+                if (tileIndex >= 0) {
+                  const cfx = Math.max(clip.x - screenX, 0);
+                  const cfy = Math.max(clip.y - screenY, 0);
+                  const ctx = Math.min(clip.x1 - screenX, tileWidth);
+                  const cty = Math.min(clip.y1 - screenY, tileHeight);
+                  this.nativeContext.setTile(
+                    tiles[tileIndex],
+                    screenX,
+                    screenY,
+                    cfx,
+                    cfy,
+                    ctx,
+                    cty,
+                  );
+                }
               }
             }
             return this;
@@ -639,40 +643,18 @@ System.register(
             }
             return this;
           }
-          fillTile(x, y, width, height, t) {
+          fillRect(x, y, width, height, color) {
             const clip = this.clip;
             const tx = this.tx;
             const ty = this.ty;
-            const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, t.width));
-            const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, t.height));
-            const x1 = Math.min(
-              tx + x + width,
-              ceilToMultipleOf(clip.x1, t.width),
-            );
-            const y1 = Math.min(
-              ty + y + height,
-              ceilToMultipleOf(clip.y1, t.height),
-            );
+            const x0 = Math.max(tx + x, clip.x);
+            const y0 = Math.max(ty + y, clip.y);
+            const x1 = Math.min(tx + x + width, clip.x1);
+            const y1 = Math.min(ty + y + height, clip.y1);
             if (x1 <= x0 || y1 <= y0) {
               return this;
             }
-            for (let screenY = y0; screenY < y1; screenY += t.height) {
-              for (let screenX = x0; screenX < x1; screenX += t.width) {
-                const cfx = Math.max(clip.x - screenX, 0);
-                const cfy = Math.max(clip.y - screenY, 0);
-                const ctx = Math.min(clip.x1 - screenX, t.width);
-                const cty = Math.min(clip.y1 - screenY, t.height);
-                this.nativeContext.setTile(
-                  t,
-                  screenX,
-                  screenY,
-                  cfx,
-                  cfy,
-                  ctx,
-                  cty,
-                );
-              }
-            }
+            this.nativeContext.fillRect(color, x0, y0, x1 - x0, y1 - y0);
             return this;
           }
         };
@@ -1430,225 +1412,24 @@ System.register(
   },
 );
 System.register(
-  "engine/src/widgets/scrollable",
-  ["engine/src/types", "engine/src/widgets/widget-container"],
+  "engine/src/widgets/group",
+  ["engine/src/widgets/widget-container"],
   function (exports_10, context_10) {
     "use strict";
-    var types_ts_5, widget_container_ts_3, ScrollableContainerWidget;
+    var widget_container_ts_3, GroupContainerWidget;
     var __moduleName = context_10 && context_10.id;
     return {
       setters: [
-        function (types_ts_5_1) {
-          types_ts_5 = types_ts_5_1;
-        },
         function (widget_container_ts_3_1) {
           widget_container_ts_3 = widget_container_ts_3_1;
         },
       ],
       execute: function () {
-        ScrollableContainerWidget = class ScrollableContainerWidget
-          extends widget_container_ts_3.BaseWidgetContainer {
-          constructor(
-            font,
-            foreColor = types_ts_5.FixedColor.White,
-            backColor = types_ts_5.FixedColor.Black,
-            fillChar = " ",
-          ) {
-            super();
-            this._offsetX = 0;
-            this._offsetY = 0;
-            this.font = font;
-            this.foreColor = foreColor;
-            this.backColor = backColor;
-            this.fillChar = fillChar;
-          }
-          get offsetX() {
-            return this._offsetX;
-          }
-          get offsetY() {
-            return this._offsetY;
-          }
-          get innerX() {
-            return this._offsetX;
-          }
-          get innerY() {
-            return this._offsetY;
-          }
-          setOffset(offsetX, offsetY) {
-            if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
-              this._offsetX = offsetX;
-              this._offsetY = offsetY;
-              this.invalidate();
-            }
-          }
-          preDrawChildren(context) {
-            context.pushTransform(this.innerX, this.innerY);
-          }
-          postDrawChildren(context) {
-            context.popTransform();
-          }
-          drawSelf(context) {
-            context
-              .textColor(this.foreColor, this.backColor)
-              .fillChar(
-                this.font,
-                0,
-                0,
-                this.width,
-                this.height,
-                this.fillChar,
-              );
-          }
-        };
-        exports_10("ScrollableContainerWidget", ScrollableContainerWidget);
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/tilemap",
-  ["engine/src/widgets/scrollable"],
-  function (exports_11, context_11) {
-    "use strict";
-    var scrollable_ts_1, ScrollableTilemapContainerWidget;
-    var __moduleName = context_11 && context_11.id;
-    function compareChildren(c1, c2) {
-      if (c1.layer === c2.layer) {
-        return c1.visibleY - c2.visibleY;
-      }
-      return c1.layer - c2.layer;
-    }
-    return {
-      setters: [
-        function (scrollable_ts_1_1) {
-          scrollable_ts_1 = scrollable_ts_1_1;
-        },
-      ],
-      execute: function () {
-        ScrollableTilemapContainerWidget =
-          class ScrollableTilemapContainerWidget
-            extends scrollable_ts_1.ScrollableContainerWidget {
-            constructor() {
-              super(...arguments);
-              this.floorTilemap = null;
-              this.floorTiles = null;
-            }
-            get floorWidth() {
-              return (this.floorTilemap?.tileWidth || 0) *
-                (this.floorTiles?.length ? this.floorTiles[0].length : 0);
-            }
-            get floorHeight() {
-              return (this.floorTilemap?.tileHeight || 0) *
-                (this.floorTiles ? this.floorTiles.length : 0);
-            }
-            onChildrenAdded(child) {
-              super.onChildrenAdded(child);
-              this.updateChildrenIndex(child);
-            }
-            onChildrenTransformChanged(child) {
-              super.onChildrenTransformChanged(child);
-              this.updateChildrenIndex(child);
-            }
-            drawSelf(context) {
-              const tilemap = this.floorTilemap;
-              const tiles = this.floorTiles;
-              if (tilemap !== null && tiles !== null) {
-                //Draw tilemap
-                context.tilemap(this.innerX, this.innerY, tilemap, tiles);
-                //Draw "outside" tilemap
-                const tilemapHeight = tiles.length * tilemap.tileHeight;
-                const tilemapWidth = tiles.length > 0
-                  ? tiles[0].length * tilemap.tileWidth : 0;
-                context.textColor(this.foreColor, this.backColor);
-                //Left
-                context.fillChar(
-                  this.font,
-                  this.innerX + tilemapWidth,
-                  this.innerY + 0,
-                  9999999,
-                  tilemapHeight,
-                  this.fillChar,
-                );
-                //Bottom
-                context.fillChar(
-                  this.font,
-                  this.innerX + 0,
-                  this.innerY + tilemapHeight,
-                  tilemapWidth,
-                  9999999,
-                  this.fillChar,
-                );
-                //Bottom right
-                context.fillChar(
-                  this.font,
-                  this.innerX + tilemapWidth,
-                  this.innerY + tilemapHeight,
-                  9999999,
-                  9999999,
-                  this.fillChar,
-                );
-              } else {
-                super.drawSelf(context);
-              }
-            }
-            updateChildrenIndex(child) {
-              const children = this._children;
-              let idx = children.indexOf(child);
-              if (idx >= 0) {
-                const prevOk = idx == 0 ||
-                  compareChildren(children[idx - 1], child) <= 0;
-                const nextOk = idx == children.length - 1 ||
-                  compareChildren(children[idx + 1], child) >= 0;
-                if (!prevOk) {
-                  while (
-                    idx > 0 && compareChildren(children[idx - 1], child) > 0
-                  ) {
-                    const tmp = children[idx - 1];
-                    children[idx - 1] = children[idx];
-                    children[idx] = tmp;
-                    idx--;
-                  }
-                } else if (!nextOk) {
-                  while (
-                    idx < children.length - 1 &&
-                    compareChildren(children[idx + 1], child) < 0
-                  ) {
-                    const tmp = children[idx + 1];
-                    children[idx + 1] = children[idx];
-                    children[idx] = tmp;
-                    idx++;
-                  }
-                }
-              }
-            }
-          };
-        exports_11(
-          "ScrollableTilemapContainerWidget",
-          ScrollableTilemapContainerWidget,
-        );
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/group",
-  ["engine/src/widgets/widget-container"],
-  function (exports_12, context_12) {
-    "use strict";
-    var widget_container_ts_4, GroupContainerWidget;
-    var __moduleName = context_12 && context_12.id;
-    return {
-      setters: [
-        function (widget_container_ts_4_1) {
-          widget_container_ts_4 = widget_container_ts_4_1;
-        },
-      ],
-      execute: function () {
         GroupContainerWidget = class GroupContainerWidget
-          extends widget_container_ts_4.BaseWidgetContainer {
+          extends widget_container_ts_3.BaseWidgetContainer {
           drawSelf() {}
         };
-        exports_12("GroupContainerWidget", GroupContainerWidget);
+        exports_10("GroupContainerWidget", GroupContainerWidget);
       },
     };
   },
@@ -1656,17 +1437,10 @@ System.register(
 System.register(
   "engine/src/widgets/animated-tile",
   ["engine/src/widgets/widget"],
-  function (exports_13, context_13) {
+  function (exports_11, context_11) {
     "use strict";
     var widget_ts_3, AnimatedTileWidget;
-    var __moduleName = context_13 && context_13.id;
-    function buildDefaultSequence(len) {
-      const seq = [];
-      for (let i = 0; i < len; i++) {
-        seq.push(i);
-      }
-      return seq;
-    }
+    var __moduleName = context_11 && context_11.id;
     return {
       setters: [
         function (widget_ts_3_1) {
@@ -1697,18 +1471,16 @@ System.register(
             if (animation === null) {
               return;
             }
-            const newTile = animation.tiles[
-              this.animation.loops
-                ? animation.sequence[this.frame % animation.sequence.length]
-                : animation.sequence[
-                  this.frame < animation.sequence.length
-                    ? this.frame
-                    : animation.sequence.length - 1
-                ]
-            ];
+            const newTile = this.animation.loops
+              ? animation.tiles[this.frame % animation.tiles.length]
+              : animation.tiles[
+                this.frame < animation.tiles.length
+                  ? this.frame
+                  : animation.tiles.length - 1
+              ];
             if (
               !this.animation.loops &&
-              this.frame === animation.sequence.length &&
+              this.frame === animation.tiles.length &&
               this.animationFinishedCb !== null
             ) {
               this.animationFinishedCb();
@@ -1737,7 +1509,7 @@ System.register(
             }
           }
         };
-        exports_13("AnimatedTileWidget", AnimatedTileWidget);
+        exports_11("AnimatedTileWidget", AnimatedTileWidget);
       },
     };
   },
@@ -1745,10 +1517,10 @@ System.register(
 System.register(
   "game/src/avatar",
   ["engine/src/widgets/group", "engine/src/widgets/animated-tile"],
-  function (exports_14, context_14) {
+  function (exports_12, context_12) {
     "use strict";
     var group_ts_1, animated_tile_ts_1, WALK_SPEED, Avatar;
-    var __moduleName = context_14 && context_14.id;
+    var __moduleName = context_12 && context_12.id;
     return {
       setters: [
         function (group_ts_1_1) {
@@ -1867,7 +1639,7 @@ System.register(
             }
           }
         };
-        exports_14("Avatar", Avatar);
+        exports_12("Avatar", Avatar);
       },
     };
   },
@@ -1875,10 +1647,10 @@ System.register(
 System.register(
   "engine/src/widgets/tile",
   ["engine/src/widgets/widget"],
-  function (exports_15, context_15) {
+  function (exports_13, context_13) {
     "use strict";
     var widget_ts_4, TileWidget;
-    var __moduleName = context_15 && context_15.id;
+    var __moduleName = context_13 && context_13.id;
     return {
       setters: [
         function (widget_ts_4_1) {
@@ -1897,18 +1669,249 @@ System.register(
             context.tile(0, 0, this.tile);
           }
         };
-        exports_15("TileWidget", TileWidget);
+        exports_13("TileWidget", TileWidget);
+      },
+    };
+  },
+);
+System.register(
+  "engine/src/widgets/tilemap",
+  ["engine/src/widgets/widget"],
+  function (exports_14, context_14) {
+    "use strict";
+    var widget_ts_5, TilemapWidget;
+    var __moduleName = context_14 && context_14.id;
+    return {
+      setters: [
+        function (widget_ts_5_1) {
+          widget_ts_5 = widget_ts_5_1;
+        },
+      ],
+      execute: function () {
+        TilemapWidget = class TilemapWidget extends widget_ts_5.BaseWidget {
+          constructor(tilemap, tilesWidth, tilesHeight, defaultTileIndex = 0) {
+            super();
+            this.tilemap = tilemap;
+            this.tilesWidth = tilesWidth;
+            this.tilesHeight = tilesHeight;
+            this.tiles = [];
+            for (let y = 0; y < tilesHeight; y++) {
+              const row = [];
+              for (let x = 0; x < tilesWidth; x++) {
+                row.push(defaultTileIndex);
+              }
+              this.tiles.push(row);
+            }
+            this.width = tilemap.tileWidth * tilesWidth;
+            this.height = tilemap.tileHeight * tilesHeight;
+          }
+          drawSelf(context) {
+            const tilemap = this.tilemap;
+            const tiles = this.tiles;
+            //Draw tilemap
+            context.tilemap(0, 0, tilemap, tiles);
+          }
+        };
+        exports_14("TilemapWidget", TilemapWidget);
+      },
+    };
+  },
+);
+System.register(
+  "engine/src/widgets/scrollable",
+  ["engine/src/types", "engine/src/widgets/widget-container"],
+  function (exports_15, context_15) {
+    "use strict";
+    var types_ts_5, widget_container_ts_4, ScrollableContainerWidget;
+    var __moduleName = context_15 && context_15.id;
+    return {
+      setters: [
+        function (types_ts_5_1) {
+          types_ts_5 = types_ts_5_1;
+        },
+        function (widget_container_ts_4_1) {
+          widget_container_ts_4 = widget_container_ts_4_1;
+        },
+      ],
+      execute: function () {
+        ScrollableContainerWidget = class ScrollableContainerWidget
+          extends widget_container_ts_4.BaseWidgetContainer {
+          constructor() {
+            super(...arguments);
+            this.backColor = types_ts_5.FixedColor.Black;
+            this._offsetX = 0;
+            this._offsetY = 0;
+          }
+          get offsetX() {
+            return this._offsetX;
+          }
+          get offsetY() {
+            return this._offsetY;
+          }
+          get innerX() {
+            return this._offsetX;
+          }
+          get innerY() {
+            return this._offsetY;
+          }
+          setOffset(offsetX, offsetY) {
+            if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
+              this._offsetX = offsetX;
+              this._offsetY = offsetY;
+              this.invalidate();
+            }
+          }
+          preDrawChildren(context) {
+            context.pushTransform(this.innerX, this.innerY);
+          }
+          postDrawChildren(context) {
+            context.popTransform();
+          }
+          drawSelf(context) {
+            context.fillRect(0, 0, this.width, this.height, this.backColor);
+          }
+        };
+        exports_15("ScrollableContainerWidget", ScrollableContainerWidget);
+      },
+    };
+  },
+);
+System.register(
+  "engine/src/widgets/tiles-container",
+  ["engine/src/types", "engine/src/widgets/scrollable"],
+  function (exports_16, context_16) {
+    "use strict";
+    var types_ts_6, scrollable_ts_1, ScrollableTilesContainerWidget;
+    var __moduleName = context_16 && context_16.id;
+    function compareChildren(c1, c2) {
+      if (c1.layer === c2.layer) {
+        return c1.visibleY - c2.visibleY;
+      }
+      return c1.layer - c2.layer;
+    }
+    return {
+      setters: [
+        function (types_ts_6_1) {
+          types_ts_6 = types_ts_6_1;
+        },
+        function (scrollable_ts_1_1) {
+          scrollable_ts_1 = scrollable_ts_1_1;
+        },
+      ],
+      execute: function () {
+        ScrollableTilesContainerWidget = class ScrollableTilesContainerWidget
+          extends scrollable_ts_1.ScrollableContainerWidget {
+          constructor() {
+            super(...arguments);
+            this.tilemaps = [];
+            this.tilemapsBounds = new types_ts_6.Rect();
+          }
+          addTilemap(tilemap) {
+            tilemap.parent = this;
+            this.tilemaps.push(tilemap);
+            this.tilemapsBounds.union(
+              new types_ts_6.Rect(0, 0, tilemap.width, tilemap.height),
+            );
+          }
+          onChildrenAdded(child) {
+            super.onChildrenAdded(child);
+            this.updateChildrenIndex(child);
+          }
+          onChildrenTransformChanged(child) {
+            super.onChildrenTransformChanged(child);
+            this.updateChildrenIndex(child);
+          }
+          updateChildrenIndex(child) {
+            const children = this._children;
+            let idx = children.indexOf(child);
+            if (idx >= 0) {
+              const prevOk = idx == 0 ||
+                compareChildren(children[idx - 1], child) <= 0;
+              const nextOk = idx == children.length - 1 ||
+                compareChildren(children[idx + 1], child) >= 0;
+              if (!prevOk) {
+                while (
+                  idx > 0 && compareChildren(children[idx - 1], child) > 0
+                ) {
+                  const tmp = children[idx - 1];
+                  children[idx - 1] = children[idx];
+                  children[idx] = tmp;
+                  idx--;
+                }
+              } else if (!nextOk) {
+                while (
+                  idx < children.length - 1 &&
+                  compareChildren(children[idx + 1], child) < 0
+                ) {
+                  const tmp = children[idx + 1];
+                  children[idx + 1] = children[idx];
+                  children[idx] = tmp;
+                  idx++;
+                }
+              }
+            }
+          }
+          drawSelf(context) {
+            //Clear background "outside" tilemap
+            if (
+              this.tilemapsBounds.width > 0 && this.tilemapsBounds.height > 0
+            ) {
+              const tilemapHeight = this.tilemapsBounds.height;
+              const tilemapWidth = this.tilemapsBounds.width;
+              const FAR_FAR_AWAY = 9999999;
+              //Top
+              context.fillRect(
+                this.innerX - FAR_FAR_AWAY,
+                this.innerY - FAR_FAR_AWAY,
+                FAR_FAR_AWAY + tilemapWidth + FAR_FAR_AWAY,
+                FAR_FAR_AWAY,
+                this.backColor,
+              );
+              //Bottom
+              context.fillRect(
+                this.innerX - FAR_FAR_AWAY,
+                this.innerY + tilemapHeight,
+                FAR_FAR_AWAY + tilemapWidth + FAR_FAR_AWAY,
+                FAR_FAR_AWAY,
+                this.backColor,
+              );
+              //Left
+              context.fillRect(
+                this.innerX - FAR_FAR_AWAY,
+                this.innerY,
+                FAR_FAR_AWAY,
+                tilemapHeight,
+                this.backColor,
+              );
+              //Right
+              context.fillRect(
+                this.innerX + tilemapWidth,
+                this.innerY,
+                FAR_FAR_AWAY,
+                tilemapHeight,
+                this.backColor,
+              );
+            } else {
+              super.drawSelf(context);
+            }
+          }
+        };
+        exports_16(
+          "ScrollableTilesContainerWidget",
+          ScrollableTilesContainerWidget,
+        );
       },
     };
   },
 );
 System.register(
   "game/src/map",
-  ["engine/src/types", "engine/src/widgets/tile"],
-  function (exports_16, context_16) {
+  ["engine/src/types", "engine/src/widgets/tile", "engine/src/widgets/tilemap"],
+  function (exports_17, context_17) {
     "use strict";
-    var types_ts_6,
+    var types_ts_7,
       tile_ts_1,
+      tilemap_ts_1,
       MAP_SIZE,
       DECOS_COUNT,
       ALT_TERRAINS_COUNT,
@@ -1916,7 +1919,7 @@ System.register(
       ALT_TERRAINS_MAX_SIZE,
       mainTerrain,
       altTerrains;
-    var __moduleName = context_16 && context_16.id;
+    var __moduleName = context_17 && context_17.id;
     function random(arr) {
       return arr[Math.floor(Math.random() * arr.length)];
     }
@@ -1938,30 +1941,43 @@ System.register(
       }
       return terrainId + "-center3";
     }
-    function initMap(mapContainer, assets) {
+    function initMap(tilesContainer, assets) {
+      const floorTilemap = assets.getTilemap("terrain");
+      const floor = new tilemap_ts_1.TilemapWidget(
+        floorTilemap,
+        MAP_SIZE,
+        MAP_SIZE,
+        0,
+      );
+      const floor2 = new tilemap_ts_1.TilemapWidget(
+        floorTilemap,
+        MAP_SIZE,
+        MAP_SIZE,
+        -1,
+      );
+      floor.layer = -3;
+      floor2.layer = -2;
+      const floorTiles = floor.tiles;
+      tilesContainer.addTilemap(floor);
+      tilesContainer.addTilemap(floor2);
+      const setFloor2Tile = (x, y, id) => {
+        floor2.tiles[y][x] = floor2.tilemap.getTile(id).index;
+      };
       const addTile = (x, y, id) => {
         const t = new tile_ts_1.TileWidget(assets.getTile(id));
         t.layer = -1;
         t.x = x * t.tile.width;
         t.y = y * t.tile.height;
-        t.parent = mapContainer;
+        t.parent = tilesContainer;
       };
-      const floorTilemap = assets.getTilemap("terrain");
-      const floorTiles = [];
-      mapContainer.floorTilemap = floorTilemap;
-      mapContainer.floorTiles = floorTiles;
       const getTerrainId = (x, y) => {
         return floorTilemap.tiles[floorTiles[y][x]].id.split("-")[0];
       };
       for (let y = 0; y < MAP_SIZE; y++) {
-        const row = [];
+        const row = floorTiles[y];
         for (let x = 0; x < MAP_SIZE; x++) {
-          row.push(
-            mapContainer.floorTilemap.getTile(randomCenterTile(mainTerrain))
-              .index,
-          );
+          row[x] = floorTilemap.getTile(randomCenterTile(mainTerrain)).index;
         }
-        mapContainer.floorTiles.push(row);
       }
       const addAltTerrain = (terrainId, fx, fy, w, h) => {
         const tx = fx + w;
@@ -1975,20 +1991,20 @@ System.register(
         //Transition tiles
         for (let y = fy + 1; y < ty - 1; y++) {
           //Left
-          addTile(fx, y, "terrain." + getTerrainId(fx - 1, y) + "-right");
+          setFloor2Tile(fx, y, getTerrainId(fx - 1, y) + "-right");
           //Right
-          addTile(tx - 1, y, "terrain." + getTerrainId(tx, y) + "-left");
+          setFloor2Tile(tx - 1, y, getTerrainId(tx, y) + "-left");
         }
         for (let x = fx + 1; x < tx - 1; x++) {
           //Top
-          addTile(x, fy, "terrain." + getTerrainId(x, fy - 1) + "-bottom");
+          setFloor2Tile(x, fy, getTerrainId(x, fy - 1) + "-bottom");
           //Bottom
-          addTile(x, ty - 1, "terrain." + getTerrainId(x, ty) + "-top");
+          setFloor2Tile(x, ty - 1, getTerrainId(x, ty) + "-top");
         }
-        addTile(fx, fy, "terrain." + getTerrainId(fx - 1, fy - 1) + "-hole-br");
-        addTile(tx - 1, fy, "terrain." + getTerrainId(tx, fy - 1) + "-hole-bl");
-        addTile(fx, ty - 1, "terrain." + getTerrainId(fx - 1, ty) + "-hole-tr");
-        addTile(tx - 1, ty - 1, "terrain." + getTerrainId(tx, ty) + "-hole-tl");
+        setFloor2Tile(fx, fy, getTerrainId(fx - 1, fy - 1) + "-hole-br");
+        setFloor2Tile(tx - 1, fy, getTerrainId(tx, fy - 1) + "-hole-bl");
+        setFloor2Tile(fx, ty - 1, getTerrainId(fx - 1, ty) + "-hole-tr");
+        setFloor2Tile(tx - 1, ty - 1, getTerrainId(tx, ty) + "-hole-tl");
       };
       const altTerrainsRects = [];
       const altTerrainsRectsOverflow = [];
@@ -2004,7 +2020,7 @@ System.register(
         const terrainId = random(altTerrains);
         const fx = randomIntervalInt(1, MAP_SIZE - w - 1);
         const fy = randomIntervalInt(1, MAP_SIZE - h - 1);
-        const r = new types_ts_6.Rect(fx, fy, w, h);
+        const r = new types_ts_7.Rect(fx, fy, w, h);
         if (altTerrainsRectsOverflow.some((a) => a.intersects(r))) {
           continue;
         }
@@ -2031,14 +2047,17 @@ System.register(
         addTile(x, y, "terrain." + randomDecoTile(getTerrainId(x, y)));
       }
     }
-    exports_16("default", initMap);
+    exports_17("default", initMap);
     return {
       setters: [
-        function (types_ts_6_1) {
-          types_ts_6 = types_ts_6_1;
+        function (types_ts_7_1) {
+          types_ts_7 = types_ts_7_1;
         },
         function (tile_ts_1_1) {
           tile_ts_1 = tile_ts_1_1;
+        },
+        function (tilemap_ts_1_1) {
+          tilemap_ts_1 = tilemap_ts_1_1;
         },
       ],
       execute: function () {
@@ -2069,18 +2088,18 @@ System.register(
     "engine/src/widgets/label",
     "engine/src/types",
     "engine/src/widgets/split-panel",
-    "engine/src/widgets/tilemap",
     "game/src/avatar",
     "game/src/map",
+    "engine/src/widgets/tiles-container",
   ],
-  function (exports_17, context_17) {
+  function (exports_18, context_18) {
     "use strict";
     var label_ts_1,
-      types_ts_7,
+      types_ts_8,
       split_panel_ts_1,
-      tilemap_ts_1,
       avatar_ts_1,
       map_ts_1,
+      tiles_container_ts_1,
       NPCS_COUNT,
       mainUI,
       npcs,
@@ -2091,14 +2110,14 @@ System.register(
       p2,
       assets,
       font;
-    var __moduleName = context_17 && context_17.id;
+    var __moduleName = context_18 && context_18.id;
     function isKeyDown(key) {
       return keysDown.get(key) || false;
     }
     function initGame(engine, assets_) {
       assets = assets_;
       font = assets.defaultFont;
-      exports_17(
+      exports_18(
         "mainUI",
         mainUI = new split_panel_ts_1.SplitPanelContainerWidget(font),
       );
@@ -2114,48 +2133,48 @@ System.register(
         },
       };
       mainUI.panel2.border = 2;
-      mainUI.panel2.backColor = types_ts_7.FixedColor.BrightBlack;
-      playingBox = new tilemap_ts_1.ScrollableTilemapContainerWidget(font);
+      mainUI.panel2.backColor = types_ts_8.FixedColor.BrightBlack;
+      playingBox = new tiles_container_ts_1.ScrollableTilesContainerWidget();
       playingBox.setLayout({ heightPercent: 100, widthPercent: 100 });
       playingBox.setChildrenLayout({ type: "none" });
       playingBox.parent = mainUI.panel1;
       mainUI.panel1.title = " Map ";
-      mainUI.panel1.titleForeColor = types_ts_7.FixedColor.BrightWhite;
-      mainUI.panel1.titleBackColor = types_ts_7.rgb(
+      mainUI.panel1.titleForeColor = types_ts_8.FixedColor.BrightWhite;
+      mainUI.panel1.titleBackColor = types_ts_8.rgb(
         51, /* I20 */
         0, /* I0 */
         51, /* I20 */
       );
-      mainUI.panel1.borderForeColor = types_ts_7.rgb(
+      mainUI.panel1.borderForeColor = types_ts_8.rgb(
         153, /* I60 */
         0, /* I0 */
         153, /* I60 */
       );
-      mainUI.panel1.borderBackColor = types_ts_7.rgb(
+      mainUI.panel1.borderBackColor = types_ts_8.rgb(
         51, /* I20 */
         0, /* I0 */
         51, /* I20 */
       );
-      mainUI.panel1.backColor = types_ts_7.FixedColor.Black;
+      mainUI.panel1.backColor = types_ts_8.FixedColor.Black;
       mainUI.panel1.fillChar = "";
       mainUI.panel2.title = " Stats ";
-      mainUI.panel2.titleForeColor = types_ts_7.FixedColor.BrightWhite;
-      mainUI.panel2.titleBackColor = types_ts_7.rgb(
+      mainUI.panel2.titleForeColor = types_ts_8.FixedColor.BrightWhite;
+      mainUI.panel2.titleBackColor = types_ts_8.rgb(
         0, /* I0 */
         51, /* I20 */
         102, /* I40 */
       );
-      mainUI.panel2.borderForeColor = types_ts_7.rgb(
+      mainUI.panel2.borderForeColor = types_ts_8.rgb(
         0, /* I0 */
         0, /* I0 */
         153, /* I60 */
       );
-      mainUI.panel2.borderBackColor = types_ts_7.rgb(
+      mainUI.panel2.borderBackColor = types_ts_8.rgb(
         0, /* I0 */
         51, /* I20 */
         102, /* I40 */
       );
-      mainUI.panel2.backColor = types_ts_7.rgb(
+      mainUI.panel2.backColor = types_ts_8.rgb(
         0, /* I0 */
         51, /* I20 */
         102, /* I40 */
@@ -2167,7 +2186,7 @@ System.register(
       new label_ts_1.LabelWidget(
         font,
         "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L\nQuit: Z",
-        types_ts_7.FixedColor.White,
+        types_ts_8.FixedColor.White,
         mainUI.panel2.backColor,
       ).parent = mainUI.panel2;
       p1 = new avatar_ts_1.Avatar("female1", assets);
@@ -2194,7 +2213,7 @@ System.register(
       engine.addWidget(mainUI);
       engine.onKeyEvent(onKeyEvent);
     }
-    exports_17("initGame", initGame);
+    exports_18("initGame", initGame);
     function updateGame(engine) {
       let running = true;
       for (let i = 0; i < npcs.length; i++) {
@@ -2242,8 +2261,11 @@ System.register(
       }
       for (let i = 0; i < characters.length; i++) {
         const char = characters[i];
-        char.x = Math.max(Math.min(char.x, playingBox.floorWidth), 0);
-        char.y = Math.max(Math.min(char.y, playingBox.floorHeight), 0);
+        char.x = Math.max(Math.min(char.x, playingBox.tilemapsBounds.width), 0);
+        char.y = Math.max(
+          Math.min(char.y, playingBox.tilemapsBounds.height),
+          0,
+        );
         characters[i].updateAnimations();
       }
       let newOffsetX = playingBox.offsetX;
@@ -2254,38 +2276,38 @@ System.register(
         Math.trunc(
           Math.max(
             Math.min(newOffsetX, 0),
-            -(playingBox.floorWidth - playingBox.width),
+            -(playingBox.tilemapsBounds.width - playingBox.width),
           ),
         ),
         Math.trunc(
           Math.max(
             Math.min(newOffsetY, 0),
-            -(playingBox.floorHeight - playingBox.height),
+            -(playingBox.tilemapsBounds.height - playingBox.height),
           ),
         ),
       );
       return running;
     }
-    exports_17("updateGame", updateGame);
+    exports_18("updateGame", updateGame);
     return {
       setters: [
         function (label_ts_1_1) {
           label_ts_1 = label_ts_1_1;
         },
-        function (types_ts_7_1) {
-          types_ts_7 = types_ts_7_1;
+        function (types_ts_8_1) {
+          types_ts_8 = types_ts_8_1;
         },
         function (split_panel_ts_1_1) {
           split_panel_ts_1 = split_panel_ts_1_1;
-        },
-        function (tilemap_ts_1_1) {
-          tilemap_ts_1 = tilemap_ts_1_1;
         },
         function (avatar_ts_1_1) {
           avatar_ts_1 = avatar_ts_1_1;
         },
         function (map_ts_1_1) {
           map_ts_1 = map_ts_1_1;
+        },
+        function (tiles_container_ts_1_1) {
+          tiles_container_ts_1 = tiles_container_ts_1_1;
         },
       ],
       execute: function () {
@@ -2300,10 +2322,10 @@ System.register(
 System.register(
   "web/src/native/web",
   ["engine/src/types"],
-  function (exports_18, context_18) {
+  function (exports_19, context_19) {
     "use strict";
-    var types_ts_8, SCALE;
-    var __moduleName = context_18 && context_18.id;
+    var types_ts_9, SCALE;
+    var __moduleName = context_19 && context_19.id;
     function updateCanvasSize(canvas, width, height) {
       canvas.width = Math.floor(width / SCALE);
       canvas.height = Math.floor(height / SCALE);
@@ -2329,7 +2351,7 @@ System.register(
     function getWebNativeContext() {
       const canvas = createFullScreenCanvas();
       const ctx = canvas.getContext("2d");
-      const screenSize = new types_ts_8.Size(256, 256);
+      const screenSize = new types_ts_9.Size(256, 256);
       let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       let imageDataPixels = imageData.data;
       let imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
@@ -2596,6 +2618,17 @@ System.register(
             break;
         }
       };
+      const fillRect = (color, x, y, width, height) => {
+        setDirty(x, y, width, height);
+        let p = 0;
+        let f = 0;
+        for (let py = 0; py < height; py++) {
+          p = (y + py) * imageData.width + x;
+          for (let px = 0; px < width; px++) {
+            imageDataPixels32[p++] = color;
+          }
+        }
+      };
       window.addEventListener("keydown", handleKeyDown);
       window.addEventListener("keyup", handleKeyUp);
       window.addEventListener("keypress", handleKeyPress);
@@ -2610,6 +2643,7 @@ System.register(
           },
           tintTile,
           setTile,
+          fillRect,
           beginDraw: () => {
             dirty = false;
           },
@@ -2646,11 +2680,11 @@ System.register(
         destroy: () => {},
       };
     }
-    exports_18("getWebNativeContext", getWebNativeContext);
+    exports_19("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
-        function (types_ts_8_1) {
-          types_ts_8 = types_ts_8_1;
+        function (types_ts_9_1) {
+          types_ts_9 = types_ts_9_1;
         },
       ],
       execute: function () {
@@ -2659,292 +2693,310 @@ System.register(
     };
   },
 );
-System.register("web/src/native/assets", [], function (exports_19, context_19) {
-  "use strict";
-  var __moduleName = context_19 && context_19.id;
-  async function loadImage(src) {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = reject;
-      image.src = "res/" + src;
-    });
-  }
-  async function loadTilemap(id, json, type) {
-    const image = await loadImage(json.filename);
-    const tileWidth = parseInt(json.size.split("x")[0]);
-    const tileHeight = parseInt(json.size.split("x")[1]);
-    const imageWidthInTiles = image.width / tileWidth;
-    const imageHeightInTiles = image.height / tileHeight;
-    const canvas = document.createElement("canvas");
-    canvas.width = image.width;
-    canvas.height = image.height;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(image, 0, 0);
-    const tiles = [];
-    const tilesById = new Map();
-    const tilemap = {
-      id,
-      tileWidth,
-      tileHeight,
-      tiles,
-      tilesById,
-      type,
-      widthInTiles: imageWidthInTiles,
-      heightInTiles: imageHeightInTiles,
-      getTile: (id) => tilesById.get(id),
-      getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
-    };
-    const setTileId = (index, id) => {
-      tiles[index].id = id;
-      tilesById.set(id, tiles[index]);
-    };
-    let index = 0;
-    for (let y = 0; y < imageHeightInTiles; y++) {
-      for (let x = 0; x < imageWidthInTiles; x++) {
-        const pixels =
-          ctx.getImageData(x * tileWidth, y * tileHeight, tileWidth, tileHeight)
-            .data;
-        const pixels32 = new Uint32Array(pixels.buffer);
-        const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
-        const hasAlphaSolid = pixels32.every((x) =>
-          ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0
-        );
-        if (type === "blackandwhite") {
-          for (let i = 0; i < pixels32.length; i++) {
-            pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 1;
-          }
-        }
-        const tile = {
-          id: "",
-          height: tileHeight,
-          width: tileWidth,
-          index,
-          pixels,
-          pixels32,
-          tilemap,
-          alphaType: hasAlpha
-            ? hasAlphaSolid ? 1 /* Solid */ : 2 /* Alpha */
-            : 0, /* None */
-        };
-        tiles.push(tile);
-        index++;
-      }
+System.register(
+  "web/src/native/assets",
+  ["engine/src/types"],
+  function (exports_20, context_20) {
+    "use strict";
+    var types_ts_10;
+    var __moduleName = context_20 && context_20.id;
+    async function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = "res/" + src;
+      });
     }
-    if (json.tiles) {
-      for (const tileId in json.tiles) {
-        const tileJson = json.tiles[tileId];
-        setTileId(tileJson.index, tileId);
-      }
-    }
-    return tilemap;
-  }
-  function loadTerrain(terrainId, terrainJson, tilemap) {
-    const tiles = tilemap.tiles;
-    const tilesById = tilemap.tilesById;
-    const setTileId = (index, id) => {
-      tiles[index].id = id;
-      tilesById.set(id, tiles[index]);
-    };
-    const imageWidthInTiles = tilemap.widthInTiles;
-    const imageHeightInTiles = tilemap.heightInTiles;
-    // Each terrain has this shape:
-    //
-    // +-----------+-----------+-----------+
-    // |           |           |           |
-    // |   deco1   |  hole-br  |  hole-bl  |
-    // |           |          /|\          |
-    // +-----------+-----------+-----------+
-    // |           |          \|/          |
-    // |   deco2   |  hole-tr  |  hole-tl  |
-    // |           |           |           |
-    // +-----------+-----------+-----------+
-    // |           |           |           |
-    // |  top-left |    top    | top-right |
-    // |         /-|-----------|-\         |
-    // +-----------+-----------+-----------+
-    // |         | |           | |         |
-    // |   left  | |  center   | |  right  |
-    // |         | |           | |         |
-    // +-----------+-----------+-----------+
-    // |         \-|-----------|-/         |
-    // |  bottom-  |   bottom  |  bottom-  |
-    // |   left    |           |   right   |
-    // +-----------+-----------+-----------+
-    // |           |           |           |
-    // |  center2  |  center3  |  center4  |
-    // |           |           |           |
-    // +-----------+-----------+-----------+
-    const index = terrainJson.index;
-    const deco1 = index;
-    const deco2 = deco1 + imageWidthInTiles;
-    setTileId(deco1, terrainId + "-deco1");
-    setTileId(deco2, terrainId + "-deco2");
-    const hole_br = index + 1;
-    const hole_bl = index + 2;
-    const hole_tr = hole_br + imageWidthInTiles;
-    const hole_tl = hole_bl + imageWidthInTiles;
-    setTileId(hole_br, terrainId + "-hole-br");
-    setTileId(hole_bl, terrainId + "-hole-bl");
-    setTileId(hole_tr, terrainId + "-hole-tr");
-    setTileId(hole_tl, terrainId + "-hole-tl");
-    const topLeft = index + imageWidthInTiles * 2;
-    const top = topLeft + 1;
-    const topRight = topLeft + 2;
-    const left = index + imageWidthInTiles * 3;
-    const center = left + 1;
-    const right = center + 1;
-    const bottomLeft = index + imageWidthInTiles * 4;
-    const bottom = bottomLeft + 1;
-    const bottomRight = bottom + 1;
-    setTileId(topLeft, terrainId + "-top-left");
-    setTileId(top, terrainId + "-top");
-    setTileId(topRight, terrainId + "-top-right");
-    setTileId(left, terrainId + "-left");
-    setTileId(center, terrainId + "-center");
-    setTileId(right, terrainId + "-right");
-    setTileId(bottomLeft, terrainId + "-bottom-left");
-    setTileId(bottom, terrainId + "-bottom");
-    setTileId(bottomRight, terrainId + "-bottom-left");
-    const center2 = index + imageWidthInTiles * 5;
-    const center3 = center2 + 1;
-    const center4 = center3 + 1;
-    setTileId(center2, terrainId + "-center2");
-    setTileId(center3, terrainId + "-center3");
-    setTileId(center4, terrainId + "-center4");
-  }
-  function loadAvatar(avatarId, avatarJson, tilemap, animations) {
-    const addAnimation = (id, y, fromX, toX, loops = true, delay = 100) => {
+    async function loadTilemap(id, json, type) {
+      const image = await loadImage(json.filename);
+      const tileWidth = parseInt(json.size.split("x")[0]);
+      const tileHeight = parseInt(json.size.split("x")[1]);
+      const imageWidthInTiles = image.width / tileWidth;
+      const imageHeightInTiles = image.height / tileHeight;
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(image, 0, 0);
       const tiles = [];
-      const sequence = [];
-      for (let i = fromX; i <= toX; i++) {
-        tiles.push(tilemap.getTileByXY(i, y));
-        sequence.push(i - fromX);
-      }
-      const animation = {
+      const tilesById = new Map();
+      const tilemap = {
         id,
+        tileWidth,
+        tileHeight,
         tiles,
-        sequence,
-        delay,
-        loops,
+        tilesById,
+        type,
+        widthInTiles: imageWidthInTiles,
+        heightInTiles: imageHeightInTiles,
+        getTile: (id) => tilesById.get(id),
+        getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
+        getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
+        getTileXYByIndex: (index) =>
+          new types_ts_10.Point(
+            index % imageWidthInTiles,
+            Math.trunc(index / imageWidthInTiles),
+          ),
       };
-      animations.set(id, animation);
-    };
-    addAnimation(avatarId + "-up", 8, 0, 0);
-    addAnimation(avatarId + "-left", 9, 0, 0);
-    addAnimation(avatarId + "-down", 10, 0, 0);
-    addAnimation(avatarId + "-right", 11, 0, 0);
-    addAnimation(avatarId + "-up-walking", 8, 1, 8);
-    addAnimation(avatarId + "-left-walking", 9, 1, 8);
-    addAnimation(avatarId + "-down-walking", 10, 1, 8);
-    addAnimation(avatarId + "-right-walking", 11, 1, 8);
-    addAnimation(avatarId + "-up-cast", 0, 0, 6, false);
-    addAnimation(avatarId + "-left-cast", 1, 0, 6, false);
-    addAnimation(avatarId + "-down-cast", 2, 0, 6, false);
-    addAnimation(avatarId + "-right-cast", 3, 0, 6, false);
-    addAnimation(avatarId + "-up-thrust", 4, 0, 7, false);
-    addAnimation(avatarId + "-left-thrust", 5, 0, 7, false);
-    addAnimation(avatarId + "-down-thrust", 6, 0, 7, false);
-    addAnimation(avatarId + "-right-thrust", 7, 0, 7, false);
-    addAnimation(avatarId + "-up-slash", 12, 0, 5, false);
-    addAnimation(avatarId + "-left-slash", 13, 0, 5, false);
-    addAnimation(avatarId + "-down-slash", 14, 0, 5, false);
-    addAnimation(avatarId + "-right-slash", 15, 0, 5, false);
-    addAnimation(avatarId + "-up-shoot", 16, 0, 12, false, 75);
-    addAnimation(avatarId + "-left-shoot", 17, 0, 12, false, 75);
-    addAnimation(avatarId + "-down-shoot", 18, 0, 12, false, 75);
-    addAnimation(avatarId + "-right-shoot", 19, 0, 12, false, 75);
-    addAnimation(avatarId + "-up-hurt", 20, 0, 5, false);
-    addAnimation(avatarId + "-left-hurt", 20, 0, 5, false);
-    addAnimation(avatarId + "-down-hurt", 20, 0, 5, false);
-    addAnimation(avatarId + "-right-hurt", 20, 0, 5, false);
-  }
-  function loadAnimation(id, json, tilemaps) {
-    const delay = json.fps > 0 ? 1000 / json.fps : 0;
-    const tiles = [];
-    if (json.frames) {
-      tiles.push(
-        ...json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]),
-      );
-    }
-    if (json.framesRange) {
-      const from = json.framesRange[0];
-      const to = json.framesRange[1];
-      for (let i = from; i <= to; i++) {
-        tiles.push(tilemaps.get(json.tilemap).tiles[i]);
+      const setTileId = (index, id) => {
+        tiles[index].id = id;
+        tilesById.set(id, tiles[index]);
+      };
+      let index = 0;
+      for (let y = 0; y < imageHeightInTiles; y++) {
+        for (let x = 0; x < imageWidthInTiles; x++) {
+          const pixels =
+            ctx.getImageData(
+              x * tileWidth,
+              y * tileHeight,
+              tileWidth,
+              tileHeight,
+            ).data;
+          const pixels32 = new Uint32Array(pixels.buffer);
+          const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
+          const hasAlphaSolid = pixels32.every((x) =>
+            ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0
+          );
+          if (type === "blackandwhite") {
+            for (let i = 0; i < pixels32.length; i++) {
+              pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 1;
+            }
+          }
+          const tile = {
+            id: "",
+            height: tileHeight,
+            width: tileWidth,
+            index,
+            pixels,
+            pixels32,
+            tilemap,
+            alphaType: hasAlpha ? hasAlphaSolid ? 1 /* Solid */ : 2 /* Alpha */
+            : 0, /* None */
+          };
+          tiles.push(tile);
+          index++;
+        }
       }
+      if (json.tiles) {
+        for (const tileId in json.tiles) {
+          const tileJson = json.tiles[tileId];
+          const index = tileJson.index !== undefined
+            ? tileJson.index
+            : tilemap.getTileIndexByXY(tileJson.x || 0, tileJson.y || 0);
+          setTileId(index, tileId);
+        }
+      }
+      return tilemap;
     }
-    const sequence = [];
-    for (let i = 0; i < tiles.length; i++) {
-      sequence.push(i);
+    function loadTerrain(terrainId, terrainJson, tilemap) {
+      const tiles = tilemap.tiles;
+      const tilesById = tilemap.tilesById;
+      const setTileId = (index, id) => {
+        tiles[index].id = id;
+        tilesById.set(id, tiles[index]);
+      };
+      const imageWidthInTiles = tilemap.widthInTiles;
+      // Each terrain has this shape:
+      //
+      // +-----------+-----------+-----------+
+      // |           |           |           |
+      // |   deco1   |  hole-br  |  hole-bl  |
+      // |           |          /|\          |
+      // +-----------+-----------+-----------+
+      // |           |          \|/          |
+      // |   deco2   |  hole-tr  |  hole-tl  |
+      // |           |           |           |
+      // +-----------+-----------+-----------+
+      // |           |           |           |
+      // |  top-left |    top    | top-right |
+      // |         /-|-----------|-\         |
+      // +-----------+-----------+-----------+
+      // |         | |           | |         |
+      // |   left  | |  center   | |  right  |
+      // |         | |           | |         |
+      // +-----------+-----------+-----------+
+      // |         \-|-----------|-/         |
+      // |  bottom-  |   bottom  |  bottom-  |
+      // |   left    |           |   right   |
+      // +-----------+-----------+-----------+
+      // |           |           |           |
+      // |  center2  |  center3  |  center4  |
+      // |           |           |           |
+      // +-----------+-----------+-----------+
+      const index = terrainJson.index !== undefined
+        ? terrainJson.index
+        : tilemap.getTileIndexByXY(terrainJson.x || 0, terrainJson.y || 0);
+      const { x, y } = tilemap.getTileXYByIndex(index);
+      const getTileIndex = (dx, dy) => {
+        return tilemap.getTileIndexByXY(x + dx, y + dy);
+      };
+      const deco1 = getTileIndex(0, 0);
+      const deco2 = getTileIndex(0, 1);
+      setTileId(deco1, terrainId + "-deco1");
+      setTileId(deco2, terrainId + "-deco2");
+      const hole_br = getTileIndex(1, 0);
+      const hole_bl = getTileIndex(2, 0);
+      const hole_tr = getTileIndex(1, 1);
+      const hole_tl = getTileIndex(2, 1);
+      setTileId(hole_br, terrainId + "-hole-br");
+      setTileId(hole_bl, terrainId + "-hole-bl");
+      setTileId(hole_tr, terrainId + "-hole-tr");
+      setTileId(hole_tl, terrainId + "-hole-tl");
+      const topLeft = getTileIndex(0, 2);
+      const top = getTileIndex(1, 2);
+      const topRight = getTileIndex(2, 2);
+      const left = getTileIndex(0, 3);
+      const center = getTileIndex(1, 3);
+      const right = getTileIndex(2, 3);
+      const bottomLeft = getTileIndex(0, 4);
+      const bottom = getTileIndex(1, 4);
+      const bottomRight = getTileIndex(2, 4);
+      setTileId(topLeft, terrainId + "-top-left");
+      setTileId(top, terrainId + "-top");
+      setTileId(topRight, terrainId + "-top-right");
+      setTileId(left, terrainId + "-left");
+      setTileId(center, terrainId + "-center");
+      setTileId(right, terrainId + "-right");
+      setTileId(bottomLeft, terrainId + "-bottom-left");
+      setTileId(bottom, terrainId + "-bottom");
+      setTileId(bottomRight, terrainId + "-bottom-left");
+      const center2 = getTileIndex(0, 5);
+      const center3 = getTileIndex(1, 5);
+      const center4 = getTileIndex(2, 5);
+      setTileId(center2, terrainId + "-center2");
+      setTileId(center3, terrainId + "-center3");
+      setTileId(center4, terrainId + "-center4");
     }
+    function loadAvatar(avatarId, avatarJson, tilemap, animations) {
+      const addAnimation = (id, y, fromX, toX, loops = true, delay = 100) => {
+        const tiles = [];
+        for (let x = fromX; x <= toX; x++) {
+          tiles.push(tilemap.getTileByXY(x, y));
+        }
+        const animation = {
+          id,
+          tiles,
+          delay,
+          loops,
+        };
+        animations.set(id, animation);
+      };
+      addAnimation(avatarId + "-up", 8, 0, 0);
+      addAnimation(avatarId + "-left", 9, 0, 0);
+      addAnimation(avatarId + "-down", 10, 0, 0);
+      addAnimation(avatarId + "-right", 11, 0, 0);
+      addAnimation(avatarId + "-up-walking", 8, 1, 8);
+      addAnimation(avatarId + "-left-walking", 9, 1, 8);
+      addAnimation(avatarId + "-down-walking", 10, 1, 8);
+      addAnimation(avatarId + "-right-walking", 11, 1, 8);
+      addAnimation(avatarId + "-up-cast", 0, 0, 6, false);
+      addAnimation(avatarId + "-left-cast", 1, 0, 6, false);
+      addAnimation(avatarId + "-down-cast", 2, 0, 6, false);
+      addAnimation(avatarId + "-right-cast", 3, 0, 6, false);
+      addAnimation(avatarId + "-up-thrust", 4, 0, 7, false);
+      addAnimation(avatarId + "-left-thrust", 5, 0, 7, false);
+      addAnimation(avatarId + "-down-thrust", 6, 0, 7, false);
+      addAnimation(avatarId + "-right-thrust", 7, 0, 7, false);
+      addAnimation(avatarId + "-up-slash", 12, 0, 5, false);
+      addAnimation(avatarId + "-left-slash", 13, 0, 5, false);
+      addAnimation(avatarId + "-down-slash", 14, 0, 5, false);
+      addAnimation(avatarId + "-right-slash", 15, 0, 5, false);
+      addAnimation(avatarId + "-up-shoot", 16, 0, 12, false, 75);
+      addAnimation(avatarId + "-left-shoot", 17, 0, 12, false, 75);
+      addAnimation(avatarId + "-down-shoot", 18, 0, 12, false, 75);
+      addAnimation(avatarId + "-right-shoot", 19, 0, 12, false, 75);
+      addAnimation(avatarId + "-up-hurt", 20, 0, 5, false);
+      addAnimation(avatarId + "-left-hurt", 20, 0, 5, false);
+      addAnimation(avatarId + "-down-hurt", 20, 0, 5, false);
+      addAnimation(avatarId + "-right-hurt", 20, 0, 5, false);
+    }
+    function loadAnimation(id, json, tilemaps) {
+      const delay = json.fps > 0 ? 1000 / json.fps : 0;
+      const tiles = [];
+      if (json.frames) {
+        tiles.push(
+          ...json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]),
+        );
+      }
+      if (json.framesRange) {
+        const from = json.framesRange[0];
+        const to = json.framesRange[1];
+        for (let i = from; i <= to; i++) {
+          tiles.push(tilemaps.get(json.tilemap).tiles[i]);
+        }
+      }
+      return {
+        id,
+        delay,
+        tiles,
+        loops: !!json.loops,
+      };
+    }
+    async function initAssets() {
+      const fonts = new Map();
+      const animations = new Map();
+      const tilemaps = new Map();
+      const assetsJsonTxt = await (await fetch("res/assets.json")).text();
+      const assetsJson = JSON.parse(assetsJsonTxt);
+      for (const tilemapId in assetsJson.tilemaps) {
+        const tilemapJson = assetsJson.tilemaps[tilemapId];
+        const tilemap = await loadTilemap(tilemapId, tilemapJson, "color");
+        tilemaps.set(tilemapId, tilemap);
+      }
+      for (const fontId in assetsJson.fonts) {
+        const tilemapJson = assetsJson.fonts[fontId];
+        const font = await loadTilemap(fontId, tilemapJson, "blackandwhite");
+        fonts.set(fontId, font);
+      }
+      for (const animationId in assetsJson.animations) {
+        const animationJson = assetsJson.animations[animationId];
+        const animation = loadAnimation(animationId, animationJson, tilemaps);
+        animations.set(animationId, animation);
+      }
+      const terrainTilemap = await loadTilemap(
+        "terrain",
+        assetsJson.terrains,
+        "color",
+      );
+      tilemaps.set("terrain", terrainTilemap);
+      for (const terrainId in assetsJson.terrains.terrains) {
+        const terrainJson = assetsJson.terrains.terrains[terrainId];
+        loadTerrain(terrainId, terrainJson, terrainTilemap);
+      }
+      for (const avatarId in assetsJson.avatars) {
+        const avatarJson = assetsJson.avatars[avatarId];
+        const tilemap = await loadTilemap(avatarId, avatarJson, "color");
+        tilemaps.set(avatarId, tilemap);
+        loadAvatar(avatarId, avatarJson, tilemap, animations);
+      }
+      const assets = {
+        fonts,
+        animations,
+        tilemaps,
+        defaultFont: fonts.get(assetsJson.defaultFont),
+        getAnimation: (id) => animations.get(id),
+        getFont: (id) => fonts.get(id),
+        getTilemap: (id) => tilemaps.get(id),
+        getTile: (tilemapDotTile) =>
+          tilemaps.get(tilemapDotTile.split(".")[0]).getTile(
+            tilemapDotTile.split(".")[1],
+          ),
+      };
+      return assets;
+    }
+    exports_20("initAssets", initAssets);
     return {
-      id,
-      delay,
-      tiles,
-      sequence,
-      loops: !!json.loops,
+      setters: [
+        function (types_ts_10_1) {
+          types_ts_10 = types_ts_10_1;
+        },
+      ],
+      execute: function () {
+      },
     };
-  }
-  async function initAssets() {
-    const fonts = new Map();
-    const animations = new Map();
-    const tilemaps = new Map();
-    const assetsJsonTxt = await (await fetch("res/assets.json")).text();
-    const assetsJson = JSON.parse(assetsJsonTxt);
-    for (const tilemapId in assetsJson.tilemaps) {
-      const tilemapJson = assetsJson.tilemaps[tilemapId];
-      const tilemap = await loadTilemap(tilemapId, tilemapJson, "color");
-      tilemaps.set(tilemapId, tilemap);
-    }
-    for (const fontId in assetsJson.fonts) {
-      const tilemapJson = assetsJson.fonts[fontId];
-      const font = await loadTilemap(fontId, tilemapJson, "blackandwhite");
-      fonts.set(fontId, font);
-    }
-    for (const animationId in assetsJson.animations) {
-      const animationJson = assetsJson.animations[animationId];
-      const animation = loadAnimation(animationId, animationJson, tilemaps);
-      animations.set(animationId, animation);
-    }
-    const terrainTilemap = await loadTilemap(
-      "terrain",
-      assetsJson.terrains,
-      "color",
-    );
-    tilemaps.set("terrain", terrainTilemap);
-    for (const terrainId in assetsJson.terrains.terrains) {
-      const terrainJson = assetsJson.terrains.terrains[terrainId];
-      loadTerrain(terrainId, terrainJson, terrainTilemap);
-    }
-    for (const avatarId in assetsJson.avatars) {
-      const avatarJson = assetsJson.avatars[avatarId];
-      const tilemap = await loadTilemap(avatarId, avatarJson, "color");
-      tilemaps.set(avatarId, tilemap);
-      loadAvatar(avatarId, avatarJson, tilemap, animations);
-    }
-    const assets = {
-      fonts,
-      animations,
-      tilemaps,
-      defaultFont: fonts.get(assetsJson.defaultFont),
-      getAnimation: (id) => animations.get(id),
-      getFont: (id) => fonts.get(id),
-      getTilemap: (id) => tilemaps.get(id),
-      getTile: (tilemapDotTile) =>
-        tilemaps.get(tilemapDotTile.split(".")[0]).getTile(
-          tilemapDotTile.split(".")[1],
-        ),
-    };
-    return assets;
-  }
-  exports_19("initAssets", initAssets);
-  return {
-    setters: [],
-    execute: function () {
-    },
-  };
-});
+  },
+);
 System.register(
   "web/src/main",
   [
@@ -2955,9 +3007,9 @@ System.register(
     "web/src/native/web",
     "web/src/native/assets",
   ],
-  function (exports_20, context_20) {
+  function (exports_21, context_21) {
     "use strict";
-    var types_ts_9,
+    var types_ts_11,
       engine_ts_1,
       label_ts_2,
       game_ts_1,
@@ -2971,7 +3023,7 @@ System.register(
       framesTime,
       lastUpdateTime,
       timeToNextUpdate;
-    var __moduleName = context_20 && context_20.id;
+    var __moduleName = context_21 && context_21.id;
     function updateFps() {
       const now = performance.now();
       frames++;
@@ -2998,7 +3050,7 @@ System.register(
       fpsLabel = new label_ts_2.LabelWidget(
         assets.defaultFont,
         "FPS: 0.00\nRender: 0.00ms",
-        types_ts_9.FixedColor.White,
+        types_ts_11.FixedColor.White,
         game_ts_1.mainUI.panel2.backColor,
       );
       fpsLabel.parent = game_ts_1.mainUI.panel2;
@@ -3035,8 +3087,8 @@ System.register(
     }
     return {
       setters: [
-        function (types_ts_9_1) {
-          types_ts_9 = types_ts_9_1;
+        function (types_ts_11_1) {
+          types_ts_11 = types_ts_11_1;
         },
         function (engine_ts_1_1) {
           engine_ts_1 = engine_ts_1_1;

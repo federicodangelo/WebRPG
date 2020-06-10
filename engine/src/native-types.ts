@@ -15,7 +15,7 @@ export interface NativeContextScreen {
     cfx: number,
     cfy: number,
     ctx: number,
-    cty: number
+    cty: number,
   ): void;
 
   setTile(
@@ -25,7 +25,15 @@ export interface NativeContextScreen {
     cfx: number,
     cfy: number,
     ctx: number,
-    cty: number
+    cty: number,
+  ): void;
+
+  fillRect(
+    color: Color,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
   ): void;
 
   endDraw(): void;

@@ -297,6 +297,8 @@ export type Tilemap = {
   heightInTiles: number;
   getTile(id: string): Tile;
   getTileByXY(x: number, y: number): Tile;
+  getTileIndexByXY(x: number, y: number): number;
+  getTileXYByIndex(index: number): Point;
 };
 
 export const enum AlphaType {
@@ -319,7 +321,6 @@ export type Tile = {
 export type Animation = {
   id: string;
   tiles: Tile[];
-  sequence: number[];
   delay: number;
   loops: boolean;
 };
@@ -387,12 +388,13 @@ export interface DrawContext {
 
   tile(x: number, y: number, t: Tile): EngineContext;
 
-  fillTile(
+  //Misc API
+  fillRect(
     x: number,
     y: number,
     width: number,
     height: number,
-    t: Tile,
+    color: Color,
   ): EngineContext;
 }
 

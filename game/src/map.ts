@@ -1,6 +1,7 @@
-import { ScrollableTilemapContainerWidget } from "../../engine/src/widgets/tilemap.ts";
 import { Assets, Rect } from "../../engine/src/types.ts";
 import { TileWidget } from "../../engine/src/widgets/tile.ts";
+import { ScrollableTilesContainerWidget } from "../../engine/src/widgets/tiles-container.ts";
+import { TilemapWidget } from "../../engine/src/widgets/tilemap.ts";
 
 function random<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -52,37 +53,42 @@ function randomCenterTile(terrainId: string) {
 }
 
 export default function initMap(
-  mapContainer: ScrollableTilemapContainerWidget,
+  tilesContainer: ScrollableTilesContainerWidget,
   assets: Assets,
 ) {
+  const floorTilemap = assets.getTilemap("terrain");
+
+  const floor = new TilemapWidget(floorTilemap, MAP_SIZE, MAP_SIZE, 0);
+  const floor2 = new TilemapWidget(floorTilemap, MAP_SIZE, MAP_SIZE, -1);
+  floor.layer = -3;
+  floor2.layer = -2;
+
+  const floorTiles = floor.tiles;
+
+  tilesContainer.addTilemap(floor);
+  tilesContainer.addTilemap(floor2);
+
+  const setFloor2Tile = (x: number, y: number, id: string) => {
+    floor2.tiles[y][x] = floor2.tilemap.getTile(id).index;
+  };
+
   const addTile = (x: number, y: number, id: string) => {
-    const t = new TileWidget(
-      assets.getTile(id),
-    );
+    const t = new TileWidget(assets.getTile(id));
     t.layer = -1;
     t.x = x * t.tile.width;
     t.y = y * t.tile.height;
-    t.parent = mapContainer;
+    t.parent = tilesContainer;
   };
-
-  const floorTilemap = assets.getTilemap("terrain");
-  const floorTiles: number[][] = [];
-
-  mapContainer.floorTilemap = floorTilemap;
-  mapContainer.floorTiles = floorTiles;
 
   const getTerrainId = (x: number, y: number) => {
     return floorTilemap.tiles[floorTiles[y][x]].id.split("-")[0];
   };
 
   for (let y = 0; y < MAP_SIZE; y++) {
-    const row: number[] = [];
+    const row = floorTiles[y];
     for (let x = 0; x < MAP_SIZE; x++) {
-      row.push(
-        mapContainer.floorTilemap.getTile(randomCenterTile(mainTerrain)).index,
-      );
+      row[x] = floorTilemap.getTile(randomCenterTile(mainTerrain)).index;
     }
-    mapContainer.floorTiles.push(row);
   }
 
   const addAltTerrain = (
@@ -105,23 +111,39 @@ export default function initMap(
     //Transition tiles
     for (let y = fy + 1; y < ty - 1; y++) {
       //Left
-      addTile(fx, y, "terrain." + getTerrainId(fx - 1, y) + "-right");
+      setFloor2Tile(fx, y, getTerrainId(fx - 1, y) + "-right");
       //Right
-      addTile(tx - 1, y, "terrain." + getTerrainId(tx, y) + "-left");
+      setFloor2Tile(tx - 1, y, getTerrainId(tx, y) + "-left");
     }
 
     for (let x = fx + 1; x < tx - 1; x++) {
       //Top
-      addTile(x, fy, "terrain." + getTerrainId(x, fy - 1) + "-bottom");
+      setFloor2Tile(x, fy, getTerrainId(x, fy - 1) + "-bottom");
       //Bottom
-      addTile(x, ty - 1, "terrain." + getTerrainId(x, ty) + "-top");
+      setFloor2Tile(x, ty - 1, getTerrainId(x, ty) + "-top");
     }
 
-    addTile(fx, fy, "terrain." + getTerrainId(fx - 1, fy - 1) + "-hole-br");
-    addTile(tx - 1, fy, "terrain." + getTerrainId(tx, fy - 1) + "-hole-bl");
+    setFloor2Tile(
+      fx,
+      fy,
+      getTerrainId(fx - 1, fy - 1) + "-hole-br",
+    );
+    setFloor2Tile(
+      tx - 1,
+      fy,
+      getTerrainId(tx, fy - 1) + "-hole-bl",
+    );
 
-    addTile(fx, ty - 1, "terrain." + getTerrainId(fx - 1, ty) + "-hole-tr");
-    addTile(tx - 1, ty - 1, "terrain." + getTerrainId(tx, ty) + "-hole-tl");
+    setFloor2Tile(
+      fx,
+      ty - 1,
+      getTerrainId(fx - 1, ty) + "-hole-tr",
+    );
+    setFloor2Tile(
+      tx - 1,
+      ty - 1,
+      getTerrainId(tx, ty) + "-hole-tl",
+    );
   };
 
   const altTerrainsRects: Rect[] = [];

@@ -1,12 +1,6 @@
 import { BaseWidget } from "./widget.ts";
 import { DrawContext, Tile, Animation } from "../types.ts";
 
-function buildDefaultSequence(len: number) {
-  const seq: number[] = [];
-  for (let i = 0; i < len; i++) seq.push(i);
-  return seq;
-}
-
 export class AnimatedTileWidget extends BaseWidget {
   public animation: Animation;
   private tile: Tile | null = null;
@@ -34,19 +28,17 @@ export class AnimatedTileWidget extends BaseWidget {
       return;
     }
 
-    const newTile = animation.tiles[
-      this.animation.loops
-        ? animation.sequence[this.frame % animation.sequence.length]
-        : animation.sequence[
-          this.frame < animation.sequence.length
-            ? this.frame
-            : animation.sequence.length - 1
-        ]
-    ];
+    const newTile = this.animation.loops
+      ? animation.tiles[this.frame % animation.tiles.length]
+      : animation.tiles[
+        this.frame < animation.tiles.length
+          ? this.frame
+          : animation.tiles.length - 1
+      ];
 
     if (
       !this.animation.loops &&
-      this.frame === animation.sequence.length &&
+      this.frame === animation.tiles.length &&
       this.animationFinishedCb !== null
     ) {
       this.animationFinishedCb();

@@ -344,6 +344,26 @@ export function getWebNativeContext(): NativeContext {
     }
   };
 
+  const fillRect = (
+    color: Color,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => {
+    setDirty(x, y, width, height);
+
+    let p = 0;
+    let f = 0;
+
+    for (let py = 0; py < height; py++) {
+      p = (y + py) * imageData.width + x;
+      for (let px = 0; px < width; px++) {
+        imageDataPixels32[p++] = color;
+      }
+    }
+  };
+
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
   window.addEventListener("keypress", handleKeyPress);
@@ -359,6 +379,7 @@ export function getWebNativeContext(): NativeContext {
       },
       tintTile,
       setTile,
+      fillRect,
       beginDraw: () => {
         dirty = false;
       },

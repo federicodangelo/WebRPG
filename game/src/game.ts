@@ -9,9 +9,9 @@ import {
   KeyEvent,
 } from "engine/types.ts";
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
-import { ScrollableTilemapContainerWidget } from "../../engine/src/widgets/tilemap.ts";
 import { Avatar } from "./avatar.ts";
 import initMap1 from "./map.ts";
+import { ScrollableTilesContainerWidget } from "engine/widgets/tiles-container.ts";
 
 const NPCS_COUNT = 2;
 
@@ -19,7 +19,7 @@ export var mainUI: SplitPanelContainerWidget;
 
 const npcs: Avatar[] = [];
 const characters: Avatar[] = [];
-let playingBox: ScrollableTilemapContainerWidget;
+let playingBox: ScrollableTilesContainerWidget;
 
 const keysDown = new Map<string, boolean>();
 
@@ -53,7 +53,7 @@ export function initGame(engine: Engine, assets_: Assets) {
   mainUI.panel2.border = 2;
   mainUI.panel2.backColor = FixedColor.BrightBlack;
 
-  playingBox = new ScrollableTilemapContainerWidget(font);
+  playingBox = new ScrollableTilesContainerWidget();
 
   playingBox.setLayout({ heightPercent: 100, widthPercent: 100 });
   playingBox.setChildrenLayout({ type: "none" });
@@ -169,11 +169,11 @@ export function updateGame(engine: Engine): boolean {
   for (let i = 0; i < characters.length; i++) {
     const char = characters[i];
     char.x = Math.max(
-      Math.min(char.x, playingBox.floorWidth),
+      Math.min(char.x, playingBox.tilemapsBounds.width),
       0,
     );
     char.y = Math.max(
-      Math.min(char.y, playingBox.floorHeight),
+      Math.min(char.y, playingBox.tilemapsBounds.height),
       0,
     );
 
@@ -190,13 +190,13 @@ export function updateGame(engine: Engine): boolean {
     Math.trunc(
       Math.max(
         Math.min(newOffsetX, 0),
-        -(playingBox.floorWidth - playingBox.width),
+        -(playingBox.tilemapsBounds.width - playingBox.width),
       ),
     ),
     Math.trunc(
       Math.max(
         Math.min(newOffsetY, 0),
-        -(playingBox.floorHeight - playingBox.height),
+        -(playingBox.tilemapsBounds.height - playingBox.height),
       ),
     ),
   );

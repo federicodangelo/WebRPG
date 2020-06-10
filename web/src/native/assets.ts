@@ -8,10 +8,13 @@ import {
   Tilemaps,
   AlphaType,
   Animations,
+  Point,
 } from "../../../engine/src/types.ts";
 
 type TileJson = {
-  index: number;
+  index?: number;
+  x?: number;
+  y?: number;
 };
 
 type TilemapJson = {
@@ -20,8 +23,7 @@ type TilemapJson = {
   tiles?: Record<string, TileJson>;
 };
 
-type TerrainJson = {
-  index: number;
+type TerrainJson = TileJson & {
   specialTransitions?: Record<string, TerrainJson>;
 };
 
@@ -89,6 +91,12 @@ async function loadTilemap(
     heightInTiles: imageHeightInTiles,
     getTile: (id) => tilesById.get(id) as Tile,
     getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
+    getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
+    getTileXYByIndex: (index) =>
+      new Point(
+        index % imageWidthInTiles,
+        Math.trunc(index / imageWidthInTiles),
+      ),
   };
 
   const setTileId = (index: number, id: string) => {
@@ -140,7 +148,10 @@ async function loadTilemap(
   if (json.tiles) {
     for (const tileId in json.tiles) {
       const tileJson = json.tiles[tileId];
-      setTileId(tileJson.index, tileId);
+      const index = tileJson.index !== undefined
+        ? tileJson.index
+        : tilemap.getTileIndexByXY(tileJson.x || 0, tileJson.y || 0);
+      setTileId(index, tileId);
     }
   }
 
@@ -161,7 +172,6 @@ function loadTerrain(
   };
 
   const imageWidthInTiles = tilemap.widthInTiles;
-  const imageHeightInTiles = tilemap.heightInTiles;
 
   // Each terrain has this shape:
   //
@@ -191,33 +201,41 @@ function loadTerrain(
   // |           |           |           |
   // +-----------+-----------+-----------+
 
-  const index = terrainJson.index;
+  const index = terrainJson.index !== undefined
+    ? terrainJson.index
+    : tilemap.getTileIndexByXY(terrainJson.x || 0, terrainJson.y || 0);
 
-  const deco1 = index;
-  const deco2 = deco1 + imageWidthInTiles;
+  const { x, y } = tilemap.getTileXYByIndex(index);
+
+  const getTileIndex = (dx: number, dy: number) => {
+    return tilemap.getTileIndexByXY(x + dx, y + dy);
+  };
+
+  const deco1 = getTileIndex(0, 0);
+  const deco2 = getTileIndex(0, 1);
 
   setTileId(deco1, terrainId + "-deco1");
   setTileId(deco2, terrainId + "-deco2");
 
-  const hole_br = index + 1;
-  const hole_bl = index + 2;
-  const hole_tr = hole_br + imageWidthInTiles;
-  const hole_tl = hole_bl + imageWidthInTiles;
+  const hole_br = getTileIndex(1, 0);
+  const hole_bl = getTileIndex(2, 0);
+  const hole_tr = getTileIndex(1, 1);
+  const hole_tl = getTileIndex(2, 1);
 
   setTileId(hole_br, terrainId + "-hole-br");
   setTileId(hole_bl, terrainId + "-hole-bl");
   setTileId(hole_tr, terrainId + "-hole-tr");
   setTileId(hole_tl, terrainId + "-hole-tl");
 
-  const topLeft = index + imageWidthInTiles * 2;
-  const top = topLeft + 1;
-  const topRight = topLeft + 2;
-  const left = index + imageWidthInTiles * 3;
-  const center = left + 1;
-  const right = center + 1;
-  const bottomLeft = index + imageWidthInTiles * 4;
-  const bottom = bottomLeft + 1;
-  const bottomRight = bottom + 1;
+  const topLeft = getTileIndex(0, 2);
+  const top = getTileIndex(1, 2);
+  const topRight = getTileIndex(2, 2);
+  const left = getTileIndex(0, 3);
+  const center = getTileIndex(1, 3);
+  const right = getTileIndex(2, 3);
+  const bottomLeft = getTileIndex(0, 4);
+  const bottom = getTileIndex(1, 4);
+  const bottomRight = getTileIndex(2, 4);
 
   setTileId(topLeft, terrainId + "-top-left");
   setTileId(top, terrainId + "-top");
@@ -229,9 +247,9 @@ function loadTerrain(
   setTileId(bottom, terrainId + "-bottom");
   setTileId(bottomRight, terrainId + "-bottom-left");
 
-  const center2 = index + imageWidthInTiles * 5;
-  const center3 = center2 + 1;
-  const center4 = center3 + 1;
+  const center2 = getTileIndex(0, 5);
+  const center3 = getTileIndex(1, 5);
+  const center4 = getTileIndex(2, 5);
 
   setTileId(center2, terrainId + "-center2");
   setTileId(center3, terrainId + "-center3");
@@ -253,16 +271,13 @@ function loadAvatar(
     delay = 100,
   ) => {
     const tiles: Tile[] = [];
-    const sequence: number[] = [];
-    for (let i = fromX; i <= toX; i++) {
-      tiles.push(tilemap.getTileByXY(i, y));
-      sequence.push(i - fromX);
+    for (let x = fromX; x <= toX; x++) {
+      tiles.push(tilemap.getTileByXY(x, y));
     }
 
     const animation: Animation = {
       id,
       tiles,
-      sequence,
       delay,
       loops,
     };
@@ -329,14 +344,10 @@ function loadAnimation(
     }
   }
 
-  const sequence: number[] = [];
-  for (let i = 0; i < tiles.length; i++) sequence.push(i);
-
   return {
     id,
     delay,
     tiles,
-    sequence,
     loops: !!json.loops,
   };
 }
