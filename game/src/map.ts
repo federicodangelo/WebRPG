@@ -2,14 +2,7 @@ import { Assets, Rect } from "../../engine/src/types.ts";
 import { TileWidget } from "../../engine/src/widgets/tile.ts";
 import { ScrollableTilesContainerWidget } from "../../engine/src/widgets/tiles-container.ts";
 import { TilemapWidget } from "../../engine/src/widgets/tilemap.ts";
-
-function random<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function randomIntervalInt(min: number, max: number): number {
-  return min + Math.floor(Math.random() * (max - min));
-}
+import { randomIntervalInt, random } from "./random.ts";
 
 const MAP_SIZE = 512;
 

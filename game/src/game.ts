@@ -12,8 +12,10 @@ import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { Avatar } from "./avatar.ts";
 import initMap1 from "./map.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/tiles-container.ts";
+import { randomIntervalInt } from "./random.ts";
+import { Npc } from "./npc.ts";
 
-const NPCS_COUNT = 2;
+const NPCS_COUNT = 10;
 
 export var mainUI: SplitPanelContainerWidget;
 
@@ -104,28 +106,33 @@ export function initGame(engine: Engine, assets_: Assets) {
 
   new LabelWidget(
     font,
-    "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L\nQuit: Z",
+    "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
     FixedColor.White,
     mainUI.panel2.backColor,
   ).parent = mainUI.panel2;
 
   p1 = new Avatar("female1", assets);
-  p1.x = 10 * font.tileWidth;
-  p1.y = 10 * font.tileHeight;
-
   p2 = new Avatar("female2", assets);
-  p2.x = 13 * font.tileWidth;
-  p2.y = 3 * font.tileHeight;
 
   for (let i = 0; i < NPCS_COUNT; i++) {
-    npcs.push(new Avatar(i % 2 == 0 ? "npc1" : "npc2", assets));
+    npcs.push(new Npc(i % 2 == 0 ? "npc1" : "npc2", assets));
   }
 
   characters.push(...npcs, p1, p2);
 
   initMap1(playingBox, assets);
 
-  characters.forEach((c) => (c.parent = playingBox));
+  characters.forEach((c) => {
+    c.parent = playingBox;
+    c.x = randomIntervalInt(
+      playingBox.tilemapsBounds.width / 2 - 100,
+      playingBox.tilemapsBounds.width / 2 + 100,
+    );
+    c.y = randomIntervalInt(
+      playingBox.tilemapsBounds.height / 2 - 100,
+      playingBox.tilemapsBounds.height / 2 + 100,
+    );
+  });
 
   function onKeyEvent(e: KeyEvent) {
     if (e.char) {
@@ -144,14 +151,6 @@ export function initGame(engine: Engine, assets_: Assets) {
 export function updateGame(engine: Engine): boolean {
   let running = true;
 
-  for (let i = 0; i < npcs.length; i++) {
-    const npc = npcs[i];
-    npc.move(
-      Math.round(Math.random() * 2 - 1),
-      Math.round(Math.random() * 2 - 1),
-    );
-  }
-
   if (isKeyDown("a")) p1.move(-1, 0);
   if (isKeyDown("d")) p1.move(1, 0);
   if (isKeyDown("w")) p1.move(0, -1);
@@ -166,8 +165,7 @@ export function updateGame(engine: Engine): boolean {
   if (isKeyDown(";")) p2.shoot();
   if (isKeyDown("p")) p2.slash();
 
-  for (let i = 0; i < characters.length; i++) {
-    const char = characters[i];
+  characters.forEach((char) => {
     char.x = Math.max(
       Math.min(char.x, playingBox.tilemapsBounds.width),
       0,
@@ -177,8 +175,8 @@ export function updateGame(engine: Engine): boolean {
       0,
     );
 
-    characters[i].updateAnimations();
-  }
+    char.update();
+  });
 
   let newOffsetX = playingBox.offsetX;
   let newOffsetY = playingBox.offsetY;

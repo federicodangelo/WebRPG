@@ -860,7 +860,7 @@ System.register(
           set x(v) {
             if (v !== this._x) {
               this.invalidate();
-              this._x = v;
+              this._x = Math.trunc(v);
               this.invalidate();
               this._parent?.onChildrenTransformChanged(this);
             }
@@ -871,7 +871,7 @@ System.register(
           set y(v) {
             if (v !== this._y) {
               this.invalidate();
-              this._y = v;
+              this._y = Math.trunc(v);
               this.invalidate();
               this._parent?.onChildrenTransformChanged(this);
             }
@@ -882,7 +882,7 @@ System.register(
           set width(v) {
             if (v !== this._width) {
               this.invalidate();
-              this._width = v;
+              this._width = Math.trunc(v);
               this.invalidate();
               this._parent?.onChildrenTransformChanged(this);
             }
@@ -893,7 +893,7 @@ System.register(
           set height(v) {
             if (v !== this._height) {
               this.invalidate();
-              this._height = v;
+              this._height = Math.trunc(v);
               this.invalidate();
               this._parent?.onChildrenTransformChanged(this);
             }
@@ -904,7 +904,7 @@ System.register(
           set pivotX(v) {
             if (v !== this._pivotX) {
               this.invalidate();
-              this._pivotX = v;
+              this._pivotX = Math.trunc(v);
               this.invalidate();
               this._parent?.onChildrenTransformChanged(this);
             }
@@ -915,7 +915,7 @@ System.register(
           set pivotY(v) {
             if (v !== this._pivotY) {
               this.invalidate();
-              this._pivotY = v;
+              this._pivotY = Math.trunc(v);
               this.invalidate();
               this._parent?.onChildrenTransformChanged(this);
             }
@@ -1638,6 +1638,9 @@ System.register(
               this.nextAction = "slash";
             }
           }
+          update() {
+            this.updateAnimations();
+          }
         };
         exports_12("Avatar", Avatar);
       },
@@ -1756,8 +1759,8 @@ System.register(
           }
           setOffset(offsetX, offsetY) {
             if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
-              this._offsetX = offsetX;
-              this._offsetY = offsetY;
+              this._offsetX = Math.trunc(offsetX);
+              this._offsetY = Math.trunc(offsetY);
               this.invalidate();
             }
           }
@@ -1904,14 +1907,41 @@ System.register(
     };
   },
 );
+System.register("game/src/random", [], function (exports_17, context_17) {
+  "use strict";
+  var __moduleName = context_17 && context_17.id;
+  function random(arr) {
+    return arr[Math.trunc(Math.random() * arr.length)];
+  }
+  exports_17("random", random);
+  function randomIntervalInt(min, max) {
+    return Math.trunc(min) + Math.trunc(Math.random() * (max - min));
+  }
+  exports_17("randomIntervalInt", randomIntervalInt);
+  function randomDirection() {
+    return Math.round(Math.random() * 2 - 1);
+  }
+  exports_17("randomDirection", randomDirection);
+  return {
+    setters: [],
+    execute: function () {
+    },
+  };
+});
 System.register(
   "game/src/map",
-  ["engine/src/types", "engine/src/widgets/tile", "engine/src/widgets/tilemap"],
-  function (exports_17, context_17) {
+  [
+    "engine/src/types",
+    "engine/src/widgets/tile",
+    "engine/src/widgets/tilemap",
+    "game/src/random",
+  ],
+  function (exports_18, context_18) {
     "use strict";
     var types_ts_7,
       tile_ts_1,
       tilemap_ts_1,
+      random_ts_1,
       MAP_SIZE,
       DECOS_COUNT,
       ALT_TERRAINS_COUNT,
@@ -1919,13 +1949,7 @@ System.register(
       ALT_TERRAINS_MAX_SIZE,
       mainTerrain,
       altTerrains;
-    var __moduleName = context_17 && context_17.id;
-    function random(arr) {
-      return arr[Math.floor(Math.random() * arr.length)];
-    }
-    function randomIntervalInt(min, max) {
-      return min + Math.floor(Math.random() * (max - min));
-    }
+    var __moduleName = context_18 && context_18.id;
     function randomDecoTile(terrainId) {
       if (Math.random() > 0.5) {
         return terrainId + "-deco1";
@@ -2009,24 +2033,24 @@ System.register(
       const altTerrainsRects = [];
       const altTerrainsRectsOverflow = [];
       for (let i = 0; i < ALT_TERRAINS_COUNT; i++) {
-        const w = randomIntervalInt(
+        const w = random_ts_1.randomIntervalInt(
           ALT_TERRAINS_MIN_SIZE,
           ALT_TERRAINS_MAX_SIZE,
         );
-        const h = randomIntervalInt(
+        const h = random_ts_1.randomIntervalInt(
           ALT_TERRAINS_MIN_SIZE,
           ALT_TERRAINS_MAX_SIZE,
         );
-        const terrainId = random(altTerrains);
-        const fx = randomIntervalInt(1, MAP_SIZE - w - 1);
-        const fy = randomIntervalInt(1, MAP_SIZE - h - 1);
+        const terrainId = random_ts_1.random(altTerrains);
+        const fx = random_ts_1.randomIntervalInt(1, MAP_SIZE - w - 1);
+        const fy = random_ts_1.randomIntervalInt(1, MAP_SIZE - h - 1);
         const r = new types_ts_7.Rect(fx, fy, w, h);
         if (altTerrainsRectsOverflow.some((a) => a.intersects(r))) {
           continue;
         }
         addAltTerrain(terrainId, fx, fy, w, h);
         if (Math.random() > 0.5) {
-          const nestedTerrainId = random(altTerrains);
+          const nestedTerrainId = random_ts_1.random(altTerrains);
           if (nestedTerrainId !== terrainId) {
             addAltTerrain(nestedTerrainId, fx + 2, fy + 2, w - 4, h - 4);
           }
@@ -2035,8 +2059,8 @@ System.register(
         altTerrainsRectsOverflow.push(r.clone().expand(2));
       }
       for (let i = 0; i < DECOS_COUNT; i++) {
-        const x = randomIntervalInt(0, MAP_SIZE);
-        const y = randomIntervalInt(0, MAP_SIZE);
+        const x = random_ts_1.randomIntervalInt(0, MAP_SIZE);
+        const y = random_ts_1.randomIntervalInt(0, MAP_SIZE);
         if (
           altTerrainsRects.some((a) =>
             x == a.x || x == a.x1 || y == a.y || y == a.y1
@@ -2047,7 +2071,7 @@ System.register(
         addTile(x, y, "terrain." + randomDecoTile(getTerrainId(x, y)));
       }
     }
-    exports_17("default", initMap);
+    exports_18("default", initMap);
     return {
       setters: [
         function (types_ts_7_1) {
@@ -2058,6 +2082,9 @@ System.register(
         },
         function (tilemap_ts_1_1) {
           tilemap_ts_1 = tilemap_ts_1_1;
+        },
+        function (random_ts_1_1) {
+          random_ts_1 = random_ts_1_1;
         },
       ],
       execute: function () {
@@ -2083,6 +2110,46 @@ System.register(
   },
 );
 System.register(
+  "game/src/npc",
+  ["game/src/avatar", "game/src/random"],
+  function (exports_19, context_19) {
+    "use strict";
+    var avatar_ts_1, random_ts_2, Npc;
+    var __moduleName = context_19 && context_19.id;
+    return {
+      setters: [
+        function (avatar_ts_1_1) {
+          avatar_ts_1 = avatar_ts_1_1;
+        },
+        function (random_ts_2_1) {
+          random_ts_2 = random_ts_2_1;
+        },
+      ],
+      execute: function () {
+        Npc = class Npc extends avatar_ts_1.Avatar {
+          constructor() {
+            super(...arguments);
+            this.dx = 0;
+            this.dy = 0;
+            this.steps = 0;
+          }
+          update() {
+            if (this.steps <= 0) {
+              this.dx = random_ts_2.randomDirection();
+              this.dy = random_ts_2.randomDirection();
+              this.steps = random_ts_2.randomIntervalInt(60, 120);
+            }
+            this.move(this.dx, this.dy);
+            this.steps--;
+            super.update();
+          }
+        };
+        exports_19("Npc", Npc);
+      },
+    };
+  },
+);
+System.register(
   "game/src/game",
   [
     "engine/src/widgets/label",
@@ -2091,15 +2158,19 @@ System.register(
     "game/src/avatar",
     "game/src/map",
     "engine/src/widgets/tiles-container",
+    "game/src/random",
+    "game/src/npc",
   ],
-  function (exports_18, context_18) {
+  function (exports_20, context_20) {
     "use strict";
     var label_ts_1,
       types_ts_8,
       split_panel_ts_1,
-      avatar_ts_1,
+      avatar_ts_2,
       map_ts_1,
       tiles_container_ts_1,
+      random_ts_3,
+      npc_ts_1,
       NPCS_COUNT,
       mainUI,
       npcs,
@@ -2110,14 +2181,14 @@ System.register(
       p2,
       assets,
       font;
-    var __moduleName = context_18 && context_18.id;
+    var __moduleName = context_20 && context_20.id;
     function isKeyDown(key) {
       return keysDown.get(key) || false;
     }
     function initGame(engine, assets_) {
       assets = assets_;
       font = assets.defaultFont;
-      exports_18(
+      exports_20(
         "mainUI",
         mainUI = new split_panel_ts_1.SplitPanelContainerWidget(font),
       );
@@ -2185,22 +2256,28 @@ System.register(
       };
       new label_ts_1.LabelWidget(
         font,
-        "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L\nQuit: Z",
+        "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
         types_ts_8.FixedColor.White,
         mainUI.panel2.backColor,
       ).parent = mainUI.panel2;
-      p1 = new avatar_ts_1.Avatar("female1", assets);
-      p1.x = 10 * font.tileWidth;
-      p1.y = 10 * font.tileHeight;
-      p2 = new avatar_ts_1.Avatar("female2", assets);
-      p2.x = 13 * font.tileWidth;
-      p2.y = 3 * font.tileHeight;
+      p1 = new avatar_ts_2.Avatar("female1", assets);
+      p2 = new avatar_ts_2.Avatar("female2", assets);
       for (let i = 0; i < NPCS_COUNT; i++) {
-        npcs.push(new avatar_ts_1.Avatar(i % 2 == 0 ? "npc1" : "npc2", assets));
+        npcs.push(new npc_ts_1.Npc(i % 2 == 0 ? "npc1" : "npc2", assets));
       }
       characters.push(...npcs, p1, p2);
       map_ts_1.default(playingBox, assets);
-      characters.forEach((c) => (c.parent = playingBox));
+      characters.forEach((c) => {
+        c.parent = playingBox;
+        c.x = random_ts_3.randomIntervalInt(
+          playingBox.tilemapsBounds.width / 2 - 100,
+          playingBox.tilemapsBounds.width / 2 + 100,
+        );
+        c.y = random_ts_3.randomIntervalInt(
+          playingBox.tilemapsBounds.height / 2 - 100,
+          playingBox.tilemapsBounds.height / 2 + 100,
+        );
+      });
       function onKeyEvent(e) {
         if (e.char) {
           if (e.type === "down") {
@@ -2213,16 +2290,9 @@ System.register(
       engine.addWidget(mainUI);
       engine.onKeyEvent(onKeyEvent);
     }
-    exports_18("initGame", initGame);
+    exports_20("initGame", initGame);
     function updateGame(engine) {
       let running = true;
-      for (let i = 0; i < npcs.length; i++) {
-        const npc = npcs[i];
-        npc.move(
-          Math.round(Math.random() * 2 - 1),
-          Math.round(Math.random() * 2 - 1),
-        );
-      }
       if (isKeyDown("a")) {
         p1.move(-1, 0);
       }
@@ -2259,15 +2329,14 @@ System.register(
       if (isKeyDown("p")) {
         p2.slash();
       }
-      for (let i = 0; i < characters.length; i++) {
-        const char = characters[i];
+      characters.forEach((char) => {
         char.x = Math.max(Math.min(char.x, playingBox.tilemapsBounds.width), 0);
         char.y = Math.max(
           Math.min(char.y, playingBox.tilemapsBounds.height),
           0,
         );
-        characters[i].updateAnimations();
-      }
+        char.update();
+      });
       let newOffsetX = playingBox.offsetX;
       let newOffsetY = playingBox.offsetY;
       newOffsetX = -p1.x + Math.floor(playingBox.width * 0.5);
@@ -2288,7 +2357,7 @@ System.register(
       );
       return running;
     }
-    exports_18("updateGame", updateGame);
+    exports_20("updateGame", updateGame);
     return {
       setters: [
         function (label_ts_1_1) {
@@ -2300,8 +2369,8 @@ System.register(
         function (split_panel_ts_1_1) {
           split_panel_ts_1 = split_panel_ts_1_1;
         },
-        function (avatar_ts_1_1) {
-          avatar_ts_1 = avatar_ts_1_1;
+        function (avatar_ts_2_1) {
+          avatar_ts_2 = avatar_ts_2_1;
         },
         function (map_ts_1_1) {
           map_ts_1 = map_ts_1_1;
@@ -2309,9 +2378,15 @@ System.register(
         function (tiles_container_ts_1_1) {
           tiles_container_ts_1 = tiles_container_ts_1_1;
         },
+        function (random_ts_3_1) {
+          random_ts_3 = random_ts_3_1;
+        },
+        function (npc_ts_1_1) {
+          npc_ts_1 = npc_ts_1_1;
+        },
       ],
       execute: function () {
-        NPCS_COUNT = 2;
+        NPCS_COUNT = 10;
         npcs = [];
         characters = [];
         keysDown = new Map();
@@ -2322,10 +2397,10 @@ System.register(
 System.register(
   "web/src/native/web",
   ["engine/src/types"],
-  function (exports_19, context_19) {
+  function (exports_21, context_21) {
     "use strict";
     var types_ts_9, SCALE;
-    var __moduleName = context_19 && context_19.id;
+    var __moduleName = context_21 && context_21.id;
     function updateCanvasSize(canvas, width, height) {
       canvas.width = Math.floor(width / SCALE);
       canvas.height = Math.floor(height / SCALE);
@@ -2680,7 +2755,7 @@ System.register(
         destroy: () => {},
       };
     }
-    exports_19("getWebNativeContext", getWebNativeContext);
+    exports_21("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
         function (types_ts_9_1) {
@@ -2696,10 +2771,10 @@ System.register(
 System.register(
   "web/src/native/assets",
   ["engine/src/types"],
-  function (exports_20, context_20) {
+  function (exports_22, context_22) {
     "use strict";
     var types_ts_10;
-    var __moduleName = context_20 && context_20.id;
+    var __moduleName = context_22 && context_22.id;
     async function loadImage(src) {
       return new Promise((resolve, reject) => {
         const image = new Image();
@@ -2985,7 +3060,7 @@ System.register(
       };
       return assets;
     }
-    exports_20("initAssets", initAssets);
+    exports_22("initAssets", initAssets);
     return {
       setters: [
         function (types_ts_10_1) {
@@ -3007,7 +3082,7 @@ System.register(
     "web/src/native/web",
     "web/src/native/assets",
   ],
-  function (exports_21, context_21) {
+  function (exports_23, context_23) {
     "use strict";
     var types_ts_11,
       engine_ts_1,
@@ -3023,7 +3098,7 @@ System.register(
       framesTime,
       lastUpdateTime,
       timeToNextUpdate;
-    var __moduleName = context_21 && context_21.id;
+    var __moduleName = context_23 && context_23.id;
     function updateFps() {
       const now = performance.now();
       frames++;

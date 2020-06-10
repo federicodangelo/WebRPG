@@ -44,7 +44,7 @@ export abstract class BaseWidget implements Widget {
   public set x(v: number) {
     if (v !== this._x) {
       this.invalidate();
-      this._x = v;
+      this._x = Math.trunc(v);
       this.invalidate();
       this._parent?.onChildrenTransformChanged(this);
     }
@@ -57,7 +57,7 @@ export abstract class BaseWidget implements Widget {
   public set y(v: number) {
     if (v !== this._y) {
       this.invalidate();
-      this._y = v;
+      this._y = Math.trunc(v);
       this.invalidate();
       this._parent?.onChildrenTransformChanged(this);
     }
@@ -70,7 +70,7 @@ export abstract class BaseWidget implements Widget {
   public set width(v: number) {
     if (v !== this._width) {
       this.invalidate();
-      this._width = v;
+      this._width = Math.trunc(v);
       this.invalidate();
       this._parent?.onChildrenTransformChanged(this);
     }
@@ -83,7 +83,7 @@ export abstract class BaseWidget implements Widget {
   public set height(v: number) {
     if (v !== this._height) {
       this.invalidate();
-      this._height = v;
+      this._height = Math.trunc(v);
       this.invalidate();
       this._parent?.onChildrenTransformChanged(this);
     }
@@ -96,7 +96,7 @@ export abstract class BaseWidget implements Widget {
   public set pivotX(v: number) {
     if (v !== this._pivotX) {
       this.invalidate();
-      this._pivotX = v;
+      this._pivotX = Math.trunc(v);
       this.invalidate();
       this._parent?.onChildrenTransformChanged(this);
     }
@@ -109,7 +109,7 @@ export abstract class BaseWidget implements Widget {
   public set pivotY(v: number) {
     if (v !== this._pivotY) {
       this.invalidate();
-      this._pivotY = v;
+      this._pivotY = Math.trunc(v);
       this.invalidate();
       this._parent?.onChildrenTransformChanged(this);
     }

@@ -30,8 +30,8 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
 
   public setOffset(offsetX: number, offsetY: number) {
     if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
-      this._offsetX = offsetX;
-      this._offsetY = offsetY;
+      this._offsetX = Math.trunc(offsetX);
+      this._offsetY = Math.trunc(offsetY);
       this.invalidate();
     }
   }

@@ -80,7 +80,7 @@ export class Avatar extends GroupContainerWidget {
     }
   }
 
-  public updateAnimations() {
+  private updateAnimations() {
     const dx = this.x - this.lastX;
     const dy = this.y - this.lastY;
 
@@ -129,5 +129,9 @@ export class Avatar extends GroupContainerWidget {
       this.canMove_ = false;
       this.nextAction = "slash";
     }
+  }
+
+  public update() {
+    this.updateAnimations();
   }
 }
