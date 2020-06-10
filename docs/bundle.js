@@ -1654,42 +1654,12 @@ System.register(
   },
 );
 System.register(
-  "engine/src/widgets/tile",
+  "engine/src/widgets/animated-tile",
   ["engine/src/widgets/widget"],
   function (exports_13, context_13) {
     "use strict";
-    var widget_ts_3, TileWidget;
+    var widget_ts_3, AnimatedTileWidget;
     var __moduleName = context_13 && context_13.id;
-    return {
-      setters: [
-        function (widget_ts_3_1) {
-          widget_ts_3 = widget_ts_3_1;
-        },
-      ],
-      execute: function () {
-        TileWidget = class TileWidget extends widget_ts_3.BaseWidget {
-          constructor(tile) {
-            super();
-            this.tile = tile;
-            this.width = tile.width;
-            this.height = tile.height;
-          }
-          drawSelf(context) {
-            context.tile(0, 0, this.tile);
-          }
-        };
-        exports_13("TileWidget", TileWidget);
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/animated-tile",
-  ["engine/src/widgets/widget"],
-  function (exports_14, context_14) {
-    "use strict";
-    var widget_ts_4, AnimatedTileWidget;
-    var __moduleName = context_14 && context_14.id;
     function buildDefaultSequence(len) {
       const seq = [];
       for (let i = 0; i < len; i++) {
@@ -1699,18 +1669,19 @@ System.register(
     }
     return {
       setters: [
-        function (widget_ts_4_1) {
-          widget_ts_4 = widget_ts_4_1;
+        function (widget_ts_3_1) {
+          widget_ts_3 = widget_ts_3_1;
         },
       ],
       execute: function () {
         AnimatedTileWidget = class AnimatedTileWidget
-          extends widget_ts_4.BaseWidget {
+          extends widget_ts_3.BaseWidget {
           constructor(animation) {
             super();
             this.tile = null;
             this.frame = 0;
             this.lastTimeoutCB = -1;
+            this.animationFinishedCb = null;
             this.animation = animation;
             this.updateCurrentTile();
           }
@@ -1726,11 +1697,22 @@ System.register(
             if (animation === null) {
               return;
             }
-            const newTile =
-              animation
-                .tiles[
-                animation.sequence[this.frame % animation.sequence.length]
-              ];
+            const newTile = animation.tiles[
+              this.animation.loops
+                ? animation.sequence[this.frame % animation.sequence.length]
+                : animation.sequence[
+                  this.frame < animation.sequence.length
+                    ? this.frame
+                    : animation.sequence.length - 1
+                ]
+            ];
+            if (
+              !this.animation.loops &&
+              this.frame === animation.sequence.length &&
+              this.animationFinishedCb !== null
+            ) {
+              this.animationFinishedCb();
+            }
             if (newTile !== this.tile) {
               this.tile = newTile;
               this.width = newTile.width;
@@ -1755,29 +1737,22 @@ System.register(
             }
           }
         };
-        exports_14("AnimatedTileWidget", AnimatedTileWidget);
+        exports_13("AnimatedTileWidget", AnimatedTileWidget);
       },
     };
   },
 );
 System.register(
   "game/src/avatar",
-  [
-    "engine/src/widgets/group",
-    "engine/src/widgets/tile",
-    "engine/src/widgets/animated-tile",
-  ],
-  function (exports_15, context_15) {
+  ["engine/src/widgets/group", "engine/src/widgets/animated-tile"],
+  function (exports_14, context_14) {
     "use strict";
-    var group_ts_1, tile_ts_1, animated_tile_ts_1, WALK_SPEED, Avatar;
-    var __moduleName = context_15 && context_15.id;
+    var group_ts_1, animated_tile_ts_1, WALK_SPEED, Avatar;
+    var __moduleName = context_14 && context_14.id;
     return {
       setters: [
         function (group_ts_1_1) {
           group_ts_1 = group_ts_1_1;
-        },
-        function (tile_ts_1_1) {
-          tile_ts_1 = tile_ts_1_1;
         },
         function (animated_tile_ts_1_1) {
           animated_tile_ts_1 = animated_tile_ts_1_1;
@@ -1786,58 +1761,143 @@ System.register(
       execute: function () {
         WALK_SPEED = 4;
         Avatar = class Avatar extends group_ts_1.GroupContainerWidget {
-          constructor(assets) {
+          constructor(avatarId, assets) {
             super();
             this.lastX = 0;
             this.lastY = 0;
+            this.direction = "down";
+            this.action = "";
+            this.blockingAction = false;
+            this.canMove_ = true;
+            this.nextAction = "";
+            this.avatarId = avatarId;
             this.assets = assets;
-            this.animations = new animated_tile_ts_1.AnimatedTileWidget(
-              assets.getAnimation("down"),
+            this.avatarAnimations = new animated_tile_ts_1.AnimatedTileWidget(
+              assets.getAnimation(avatarId + "-" + this.direction),
             );
-            const shadow = new tile_ts_1.TileWidget(
-              assets.getTilemap("shadows").tiles[0],
+            this.shadowAnimations = new animated_tile_ts_1.AnimatedTileWidget(
+              assets.getAnimation("shadows-down"),
             );
-            shadow.parent = this;
-            shadow.y = 4;
-            this.animations.parent = this;
-            this.pivotX = -Math.floor(this.animations.width / 2);
-            this.pivotY = -Math.floor((this.animations.height * 7) / 8);
-            this.width = this.animations.width;
-            this.height = this.animations.height + 4;
+            this.avatarAnimations.animationFinishedCb = () =>
+              this.onAnimationFinished();
+            this.shadowAnimations.parent = this;
+            this.shadowAnimations.y = 3;
+            this.avatarAnimations.parent = this;
+            this.pivotX = -Math.floor(this.avatarAnimations.width / 2);
+            this.pivotY = -Math.floor((this.avatarAnimations.height * 7) / 8);
+            this.width = this.avatarAnimations.width;
+            this.height = this.avatarAnimations.height + 3;
           }
-          get animation() {
-            return this.animations.animation;
+          get canMove() {
+            return this.canMove_;
           }
-          setAnimation(animation) {
-            this.animations.setAnimation(animation);
+          playAnimations() {
+            this.avatarAnimations.setAnimation(
+              this.assets.getAnimation(
+                this.avatarId + "-" + this.direction +
+                  (this.action
+                    ? "-" + this.action
+                    : ""),
+              ),
+            );
+            this.shadowAnimations.setAnimation(
+              this.assets.getAnimation(
+                "shadows" + "-" + this.direction +
+                  (this.action
+                    ? "-" + this.action
+                    : ""),
+              ),
+            );
+          }
+          setDirection(direction) {
+            this.direction = direction;
+          }
+          setAction(action) {
+            this.action = action;
+          }
+          onAnimationFinished() {
+            if (this.blockingAction) {
+              this.setAction("");
+              this.nextAction = "";
+              this.canMove_ = true;
+              this.blockingAction = false;
+            }
           }
           updateAnimations() {
             const dx = this.x - this.lastX;
             const dy = this.y - this.lastY;
             if (dx < 0) {
-              this.setAnimation(this.assets.getAnimation("left-walking"));
+              this.setDirection("left");
             } else if (dx > 0) {
-              this.setAnimation(this.assets.getAnimation("right-walking"));
+              this.setDirection("right");
             } else if (dy < 0) {
-              this.setAnimation(this.assets.getAnimation("up-walking"));
+              this.setDirection("up");
             } else if (dy > 0) {
-              this.setAnimation(this.assets.getAnimation("down-walking"));
-            } else if (this.animation.id.endsWith("-walking")) {
-              this.setAnimation(
-                this.assets.getAnimation(
-                  this.animation.id.replace("-walking", ""),
-                ),
-              );
+              this.setDirection("down");
             }
+            if (dx !== 0 || dy !== 0) {
+              this.setAction("walking");
+            } else if (this.blockingAction) {
+              this.setAction(this.nextAction);
+            } else {
+              this.setAction("");
+            }
+            this.playAnimations();
             this.lastX = this.x;
             this.lastY = this.y;
           }
           move(dx, dy) {
-            this.x += dx * WALK_SPEED;
-            this.y += dy * WALK_SPEED;
+            if (this.canMove) {
+              this.x += dx * WALK_SPEED;
+              this.y += dy * WALK_SPEED;
+            }
+          }
+          shoot() {
+            if (this.canMove) {
+              this.blockingAction = true;
+              this.canMove_ = false;
+              this.nextAction = "shoot";
+            }
+          }
+          slash() {
+            if (this.canMove) {
+              this.blockingAction = true;
+              this.canMove_ = false;
+              this.nextAction = "slash";
+            }
           }
         };
-        exports_15("Avatar", Avatar);
+        exports_14("Avatar", Avatar);
+      },
+    };
+  },
+);
+System.register(
+  "engine/src/widgets/tile",
+  ["engine/src/widgets/widget"],
+  function (exports_15, context_15) {
+    "use strict";
+    var widget_ts_4, TileWidget;
+    var __moduleName = context_15 && context_15.id;
+    return {
+      setters: [
+        function (widget_ts_4_1) {
+          widget_ts_4 = widget_ts_4_1;
+        },
+      ],
+      execute: function () {
+        TileWidget = class TileWidget extends widget_ts_4.BaseWidget {
+          constructor(tile) {
+            super();
+            this.tile = tile;
+            this.width = tile.width;
+            this.height = tile.height;
+          }
+          drawSelf(context) {
+            context.tile(0, 0, this.tile);
+          }
+        };
+        exports_15("TileWidget", TileWidget);
       },
     };
   },
@@ -1848,7 +1908,7 @@ System.register(
   function (exports_16, context_16) {
     "use strict";
     var types_ts_6,
-      tile_ts_2,
+      tile_ts_1,
       MAP_SIZE,
       DECOS_COUNT,
       ALT_TERRAINS_COUNT,
@@ -1880,7 +1940,7 @@ System.register(
     }
     function initMap(mapContainer, assets) {
       const addTile = (x, y, id) => {
-        const t = new tile_ts_2.TileWidget(assets.getTile(id));
+        const t = new tile_ts_1.TileWidget(assets.getTile(id));
         t.layer = -1;
         t.x = x * t.tile.width;
         t.y = y * t.tile.height;
@@ -1971,18 +2031,18 @@ System.register(
         addTile(x, y, "terrain." + randomDecoTile(getTerrainId(x, y)));
       }
     }
-    exports_16("initMap", initMap);
+    exports_16("default", initMap);
     return {
       setters: [
         function (types_ts_6_1) {
           types_ts_6 = types_ts_6_1;
         },
-        function (tile_ts_2_1) {
-          tile_ts_2 = tile_ts_2_1;
+        function (tile_ts_1_1) {
+          tile_ts_1 = tile_ts_1_1;
         },
       ],
       execute: function () {
-        exports_16("MAP_SIZE", MAP_SIZE = 512);
+        MAP_SIZE = 512;
         DECOS_COUNT = 1024;
         ALT_TERRAINS_COUNT = 256;
         ALT_TERRAINS_MIN_SIZE = 8;
@@ -2110,17 +2170,17 @@ System.register(
         types_ts_7.FixedColor.White,
         mainUI.panel2.backColor,
       ).parent = mainUI.panel2;
-      p1 = new avatar_ts_1.Avatar(assets);
+      p1 = new avatar_ts_1.Avatar("female1", assets);
       p1.x = 10 * font.tileWidth;
       p1.y = 10 * font.tileHeight;
-      p2 = new avatar_ts_1.Avatar(assets);
+      p2 = new avatar_ts_1.Avatar("female2", assets);
       p2.x = 13 * font.tileWidth;
       p2.y = 3 * font.tileHeight;
       for (let i = 0; i < NPCS_COUNT; i++) {
-        npcs.push(new avatar_ts_1.Avatar(assets));
+        npcs.push(new avatar_ts_1.Avatar(i % 2 == 0 ? "npc1" : "npc2", assets));
       }
       characters.push(...npcs, p1, p2);
-      map_ts_1.initMap(playingBox, assets);
+      map_ts_1.default(playingBox, assets);
       characters.forEach((c) => (c.parent = playingBox));
       function onKeyEvent(e) {
         if (e.char) {
@@ -2156,6 +2216,12 @@ System.register(
       if (isKeyDown("s")) {
         p1.move(0, 1);
       }
+      if (isKeyDown("f")) {
+        p1.shoot();
+      }
+      if (isKeyDown("r")) {
+        p1.slash();
+      }
       if (isKeyDown("j")) {
         p2.move(-1, 0);
       }
@@ -2167,6 +2233,12 @@ System.register(
       }
       if (isKeyDown("k")) {
         p2.move(0, 1);
+      }
+      if (isKeyDown(";")) {
+        p2.shoot();
+      }
+      if (isKeyDown("p")) {
+        p2.slash();
       }
       for (let i = 0; i < characters.length; i++) {
         const char = characters[i];
@@ -2618,7 +2690,10 @@ System.register("web/src/native/assets", [], function (exports_19, context_19) {
       tiles,
       tilesById,
       type,
+      widthInTiles: imageWidthInTiles,
+      heightInTiles: imageHeightInTiles,
       getTile: (id) => tilesById.get(id),
+      getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
     };
     const setTileId = (index, id) => {
       tiles[index].id = id;
@@ -2662,80 +2737,143 @@ System.register("web/src/native/assets", [], function (exports_19, context_19) {
         setTileId(tileJson.index, tileId);
       }
     }
-    if (json.terrains) {
-      // Each terrain has this shape:
-      //
-      // +-----------+-----------+-----------+
-      // |           |           |           |
-      // |   deco1   |  hole-br  |  hole-bl  |
-      // |           |          /|\          |
-      // +-----------+-----------+-----------+
-      // |           |          \|/          |
-      // |   deco2   |  hole-tr  |  hole-tl  |
-      // |           |           |           |
-      // +-----------+-----------+-----------+
-      // |           |           |           |
-      // |  top-left |    top    | top-right |
-      // |         /-|-----------|-\         |
-      // +-----------+-----------+-----------+
-      // |         | |           | |         |
-      // |   left  | |  center   | |  right  |
-      // |         | |           | |         |
-      // +-----------+-----------+-----------+
-      // |         \-|-----------|-/         |
-      // |  bottom-  |   bottom  |  bottom-  |
-      // |   left    |           |   right   |
-      // +-----------+-----------+-----------+
-      // |           |           |           |
-      // |  center2  |  center3  |  center4  |
-      // |           |           |           |
-      // +-----------+-----------+-----------+
-      for (const terrainId in json.terrains) {
-        const terrainJson = json.terrains[terrainId];
-        const index = terrainJson.index;
-        const deco1 = index;
-        const deco2 = deco1 + imageWidthInTiles;
-        setTileId(deco1, terrainId + "-deco1");
-        setTileId(deco2, terrainId + "-deco2");
-        const hole_br = index + 1;
-        const hole_bl = index + 2;
-        const hole_tr = hole_br + imageWidthInTiles;
-        const hole_tl = hole_bl + imageWidthInTiles;
-        setTileId(hole_br, terrainId + "-hole-br");
-        setTileId(hole_bl, terrainId + "-hole-bl");
-        setTileId(hole_tr, terrainId + "-hole-tr");
-        setTileId(hole_tl, terrainId + "-hole-tl");
-        const topLeft = index + imageWidthInTiles * 2;
-        const top = topLeft + 1;
-        const topRight = topLeft + 2;
-        const left = index + imageWidthInTiles * 3;
-        const center = left + 1;
-        const right = center + 1;
-        const bottomLeft = index + imageWidthInTiles * 4;
-        const bottom = bottomLeft + 1;
-        const bottomRight = bottom + 1;
-        setTileId(topLeft, terrainId + "-top-left");
-        setTileId(top, terrainId + "-top");
-        setTileId(topRight, terrainId + "-top-right");
-        setTileId(left, terrainId + "-left");
-        setTileId(center, terrainId + "-center");
-        setTileId(right, terrainId + "-right");
-        setTileId(bottomLeft, terrainId + "-bottom-left");
-        setTileId(bottom, terrainId + "-bottom");
-        setTileId(bottomRight, terrainId + "-bottom-left");
-        const center2 = index + imageWidthInTiles * 5;
-        const center3 = center2 + 1;
-        const center4 = center3 + 1;
-        setTileId(center2, terrainId + "-center2");
-        setTileId(center3, terrainId + "-center3");
-        setTileId(center4, terrainId + "-center4");
-      }
-    }
     return tilemap;
+  }
+  function loadTerrain(terrainId, terrainJson, tilemap) {
+    const tiles = tilemap.tiles;
+    const tilesById = tilemap.tilesById;
+    const setTileId = (index, id) => {
+      tiles[index].id = id;
+      tilesById.set(id, tiles[index]);
+    };
+    const imageWidthInTiles = tilemap.widthInTiles;
+    const imageHeightInTiles = tilemap.heightInTiles;
+    // Each terrain has this shape:
+    //
+    // +-----------+-----------+-----------+
+    // |           |           |           |
+    // |   deco1   |  hole-br  |  hole-bl  |
+    // |           |          /|\          |
+    // +-----------+-----------+-----------+
+    // |           |          \|/          |
+    // |   deco2   |  hole-tr  |  hole-tl  |
+    // |           |           |           |
+    // +-----------+-----------+-----------+
+    // |           |           |           |
+    // |  top-left |    top    | top-right |
+    // |         /-|-----------|-\         |
+    // +-----------+-----------+-----------+
+    // |         | |           | |         |
+    // |   left  | |  center   | |  right  |
+    // |         | |           | |         |
+    // +-----------+-----------+-----------+
+    // |         \-|-----------|-/         |
+    // |  bottom-  |   bottom  |  bottom-  |
+    // |   left    |           |   right   |
+    // +-----------+-----------+-----------+
+    // |           |           |           |
+    // |  center2  |  center3  |  center4  |
+    // |           |           |           |
+    // +-----------+-----------+-----------+
+    const index = terrainJson.index;
+    const deco1 = index;
+    const deco2 = deco1 + imageWidthInTiles;
+    setTileId(deco1, terrainId + "-deco1");
+    setTileId(deco2, terrainId + "-deco2");
+    const hole_br = index + 1;
+    const hole_bl = index + 2;
+    const hole_tr = hole_br + imageWidthInTiles;
+    const hole_tl = hole_bl + imageWidthInTiles;
+    setTileId(hole_br, terrainId + "-hole-br");
+    setTileId(hole_bl, terrainId + "-hole-bl");
+    setTileId(hole_tr, terrainId + "-hole-tr");
+    setTileId(hole_tl, terrainId + "-hole-tl");
+    const topLeft = index + imageWidthInTiles * 2;
+    const top = topLeft + 1;
+    const topRight = topLeft + 2;
+    const left = index + imageWidthInTiles * 3;
+    const center = left + 1;
+    const right = center + 1;
+    const bottomLeft = index + imageWidthInTiles * 4;
+    const bottom = bottomLeft + 1;
+    const bottomRight = bottom + 1;
+    setTileId(topLeft, terrainId + "-top-left");
+    setTileId(top, terrainId + "-top");
+    setTileId(topRight, terrainId + "-top-right");
+    setTileId(left, terrainId + "-left");
+    setTileId(center, terrainId + "-center");
+    setTileId(right, terrainId + "-right");
+    setTileId(bottomLeft, terrainId + "-bottom-left");
+    setTileId(bottom, terrainId + "-bottom");
+    setTileId(bottomRight, terrainId + "-bottom-left");
+    const center2 = index + imageWidthInTiles * 5;
+    const center3 = center2 + 1;
+    const center4 = center3 + 1;
+    setTileId(center2, terrainId + "-center2");
+    setTileId(center3, terrainId + "-center3");
+    setTileId(center4, terrainId + "-center4");
+  }
+  function loadAvatar(avatarId, avatarJson, tilemap, animations) {
+    const addAnimation = (id, y, fromX, toX, loops = true, delay = 100) => {
+      const tiles = [];
+      const sequence = [];
+      for (let i = fromX; i <= toX; i++) {
+        tiles.push(tilemap.getTileByXY(i, y));
+        sequence.push(i - fromX);
+      }
+      const animation = {
+        id,
+        tiles,
+        sequence,
+        delay,
+        loops,
+      };
+      animations.set(id, animation);
+    };
+    addAnimation(avatarId + "-up", 8, 0, 0);
+    addAnimation(avatarId + "-left", 9, 0, 0);
+    addAnimation(avatarId + "-down", 10, 0, 0);
+    addAnimation(avatarId + "-right", 11, 0, 0);
+    addAnimation(avatarId + "-up-walking", 8, 1, 8);
+    addAnimation(avatarId + "-left-walking", 9, 1, 8);
+    addAnimation(avatarId + "-down-walking", 10, 1, 8);
+    addAnimation(avatarId + "-right-walking", 11, 1, 8);
+    addAnimation(avatarId + "-up-cast", 0, 0, 6, false);
+    addAnimation(avatarId + "-left-cast", 1, 0, 6, false);
+    addAnimation(avatarId + "-down-cast", 2, 0, 6, false);
+    addAnimation(avatarId + "-right-cast", 3, 0, 6, false);
+    addAnimation(avatarId + "-up-thrust", 4, 0, 7, false);
+    addAnimation(avatarId + "-left-thrust", 5, 0, 7, false);
+    addAnimation(avatarId + "-down-thrust", 6, 0, 7, false);
+    addAnimation(avatarId + "-right-thrust", 7, 0, 7, false);
+    addAnimation(avatarId + "-up-slash", 12, 0, 5, false);
+    addAnimation(avatarId + "-left-slash", 13, 0, 5, false);
+    addAnimation(avatarId + "-down-slash", 14, 0, 5, false);
+    addAnimation(avatarId + "-right-slash", 15, 0, 5, false);
+    addAnimation(avatarId + "-up-shoot", 16, 0, 12, false, 75);
+    addAnimation(avatarId + "-left-shoot", 17, 0, 12, false, 75);
+    addAnimation(avatarId + "-down-shoot", 18, 0, 12, false, 75);
+    addAnimation(avatarId + "-right-shoot", 19, 0, 12, false, 75);
+    addAnimation(avatarId + "-up-hurt", 20, 0, 5, false);
+    addAnimation(avatarId + "-left-hurt", 20, 0, 5, false);
+    addAnimation(avatarId + "-down-hurt", 20, 0, 5, false);
+    addAnimation(avatarId + "-right-hurt", 20, 0, 5, false);
   }
   function loadAnimation(id, json, tilemaps) {
     const delay = json.fps > 0 ? 1000 / json.fps : 0;
-    const tiles = json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]);
+    const tiles = [];
+    if (json.frames) {
+      tiles.push(
+        ...json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]),
+      );
+    }
+    if (json.framesRange) {
+      const from = json.framesRange[0];
+      const to = json.framesRange[1];
+      for (let i = from; i <= to; i++) {
+        tiles.push(tilemaps.get(json.tilemap).tiles[i]);
+      }
+    }
     const sequence = [];
     for (let i = 0; i < tiles.length; i++) {
       sequence.push(i);
@@ -2745,6 +2883,7 @@ System.register("web/src/native/assets", [], function (exports_19, context_19) {
       delay,
       tiles,
       sequence,
+      loops: !!json.loops,
     };
   }
   async function initAssets() {
@@ -2767,6 +2906,22 @@ System.register("web/src/native/assets", [], function (exports_19, context_19) {
       const animationJson = assetsJson.animations[animationId];
       const animation = loadAnimation(animationId, animationJson, tilemaps);
       animations.set(animationId, animation);
+    }
+    const terrainTilemap = await loadTilemap(
+      "terrain",
+      assetsJson.terrains,
+      "color",
+    );
+    tilemaps.set("terrain", terrainTilemap);
+    for (const terrainId in assetsJson.terrains.terrains) {
+      const terrainJson = assetsJson.terrains.terrains[terrainId];
+      loadTerrain(terrainId, terrainJson, terrainTilemap);
+    }
+    for (const avatarId in assetsJson.avatars) {
+      const avatarJson = assetsJson.avatars[avatarId];
+      const tilemap = await loadTilemap(avatarId, avatarJson, "color");
+      tilemaps.set(avatarId, tilemap);
+      loadAvatar(avatarId, avatarJson, tilemap, animations);
     }
     const assets = {
       fonts,

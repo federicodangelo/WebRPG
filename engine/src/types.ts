@@ -293,7 +293,10 @@ export type Tilemap = {
   type: TileSetType;
   tileWidth: number;
   tileHeight: number;
+  widthInTiles: number;
+  heightInTiles: number;
   getTile(id: string): Tile;
+  getTileByXY(x: number, y: number): Tile;
 };
 
 export const enum AlphaType {
@@ -318,6 +321,7 @@ export type Animation = {
   tiles: Tile[];
   sequence: number[];
   delay: number;
+  loops: boolean;
 };
 
 export type Font = Tilemap;

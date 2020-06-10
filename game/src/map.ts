@@ -10,7 +10,7 @@ function randomIntervalInt(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min));
 }
 
-export const MAP_SIZE = 512;
+const MAP_SIZE = 512;
 
 const DECOS_COUNT = 1024;
 const ALT_TERRAINS_COUNT = 256;
@@ -51,7 +51,7 @@ function randomCenterTile(terrainId: string) {
   return terrainId + "-center3";
 }
 
-export function initMap(
+export default function initMap(
   mapContainer: ScrollableTilemapContainerWidget,
   assets: Assets,
 ) {

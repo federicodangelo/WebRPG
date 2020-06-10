@@ -12,6 +12,7 @@ export class AnimatedTileWidget extends BaseWidget {
   private tile: Tile | null = null;
   private frame = 0;
   private lastTimeoutCB = -1;
+  public animationFinishedCb: (() => void) | null = null;
 
   constructor(animation: Animation) {
     super();
@@ -33,10 +34,23 @@ export class AnimatedTileWidget extends BaseWidget {
       return;
     }
 
-    const newTile =
-      animation.tiles[
-        animation.sequence[this.frame % animation.sequence.length]
-      ];
+    const newTile = animation.tiles[
+      this.animation.loops
+        ? animation.sequence[this.frame % animation.sequence.length]
+        : animation.sequence[
+          this.frame < animation.sequence.length
+            ? this.frame
+            : animation.sequence.length - 1
+        ]
+    ];
+
+    if (
+      !this.animation.loops &&
+      this.frame === animation.sequence.length &&
+      this.animationFinishedCb !== null
+    ) {
+      this.animationFinishedCb();
+    }
 
     if (newTile !== this.tile) {
       this.tile = newTile;

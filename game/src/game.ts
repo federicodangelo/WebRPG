@@ -11,7 +11,7 @@ import {
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { ScrollableTilemapContainerWidget } from "../../engine/src/widgets/tilemap.ts";
 import { Avatar } from "./avatar.ts";
-import { initMap, MAP_SIZE } from "./map.ts";
+import initMap1 from "./map.ts";
 
 const NPCS_COUNT = 2;
 
@@ -109,21 +109,21 @@ export function initGame(engine: Engine, assets_: Assets) {
     mainUI.panel2.backColor,
   ).parent = mainUI.panel2;
 
-  p1 = new Avatar(assets);
+  p1 = new Avatar("female1", assets);
   p1.x = 10 * font.tileWidth;
   p1.y = 10 * font.tileHeight;
 
-  p2 = new Avatar(assets);
+  p2 = new Avatar("female2", assets);
   p2.x = 13 * font.tileWidth;
   p2.y = 3 * font.tileHeight;
 
   for (let i = 0; i < NPCS_COUNT; i++) {
-    npcs.push(new Avatar(assets));
+    npcs.push(new Avatar(i % 2 == 0 ? "npc1" : "npc2", assets));
   }
 
   characters.push(...npcs, p1, p2);
 
-  initMap(playingBox, assets);
+  initMap1(playingBox, assets);
 
   characters.forEach((c) => (c.parent = playingBox));
 
@@ -156,11 +156,15 @@ export function updateGame(engine: Engine): boolean {
   if (isKeyDown("d")) p1.move(1, 0);
   if (isKeyDown("w")) p1.move(0, -1);
   if (isKeyDown("s")) p1.move(0, 1);
+  if (isKeyDown("f")) p1.shoot();
+  if (isKeyDown("r")) p1.slash();
 
   if (isKeyDown("j")) p2.move(-1, 0);
   if (isKeyDown("l")) p2.move(1, 0);
   if (isKeyDown("i")) p2.move(0, -1);
   if (isKeyDown("k")) p2.move(0, 1);
+  if (isKeyDown(";")) p2.shoot();
+  if (isKeyDown("p")) p2.slash();
 
   for (let i = 0; i < characters.length; i++) {
     const char = characters[i];

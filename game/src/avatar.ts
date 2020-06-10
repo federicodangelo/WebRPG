@@ -1,40 +1,83 @@
 import { GroupContainerWidget } from "../../engine/src/widgets/group.ts";
 import { Assets, Animation } from "../../engine/src/types.ts";
-import { TileWidget } from "../../engine/src/widgets/tile.ts";
 import { AnimatedTileWidget } from "../../engine/src/widgets/animated-tile.ts";
 
 const WALK_SPEED = 4;
 
 export class Avatar extends GroupContainerWidget {
-  private animations: AnimatedTileWidget;
+  private avatarAnimations: AnimatedTileWidget;
+  private shadowAnimations: AnimatedTileWidget;
 
   private lastX: number = 0;
   private lastY: number = 0;
   private assets: Assets;
+  private avatarId: string;
+  private direction: string = "down";
+  private action: string = "";
 
-  constructor(assets: Assets) {
+  private blockingAction: boolean = false;
+  private canMove_: boolean = true;
+  private nextAction: string = "";
+
+  public get canMove(): boolean {
+    return this.canMove_;
+  }
+
+  constructor(avatarId: string, assets: Assets) {
     super();
+    this.avatarId = avatarId;
     this.assets = assets;
-    this.animations = new AnimatedTileWidget(assets.getAnimation("down"));
-    const shadow = new TileWidget(assets.getTilemap("shadows").tiles[0]);
+    this.avatarAnimations = new AnimatedTileWidget(
+      assets.getAnimation(avatarId + "-" + this.direction),
+    );
+    this.shadowAnimations = new AnimatedTileWidget(
+      assets.getAnimation("shadows-down"),
+    );
 
-    shadow.parent = this;
-    shadow.y = 4;
-    this.animations.parent = this;
+    this.avatarAnimations.animationFinishedCb = () =>
+      this.onAnimationFinished();
 
-    this.pivotX = -Math.floor(this.animations.width / 2);
-    this.pivotY = -Math.floor((this.animations.height * 7) / 8);
+    this.shadowAnimations.parent = this;
+    this.shadowAnimations.y = 3;
+    this.avatarAnimations.parent = this;
 
-    this.width = this.animations.width;
-    this.height = this.animations.height + 4;
+    this.pivotX = -Math.floor(this.avatarAnimations.width / 2);
+    this.pivotY = -Math.floor((this.avatarAnimations.height * 7) / 8);
+
+    this.width = this.avatarAnimations.width;
+    this.height = this.avatarAnimations.height + 3;
   }
 
-  public get animation() {
-    return this.animations.animation;
+  private playAnimations() {
+    this.avatarAnimations.setAnimation(
+      this.assets.getAnimation(
+        this.avatarId + "-" + this.direction +
+          (this.action ? "-" + this.action : ""),
+      ),
+    );
+    this.shadowAnimations.setAnimation(
+      this.assets.getAnimation(
+        "shadows" + "-" + this.direction +
+          (this.action ? "-" + this.action : ""),
+      ),
+    );
   }
 
-  public setAnimation(animation: Animation) {
-    this.animations.setAnimation(animation);
+  private setDirection(direction: string) {
+    this.direction = direction;
+  }
+
+  private setAction(action: string) {
+    this.action = action;
+  }
+
+  private onAnimationFinished() {
+    if (this.blockingAction) {
+      this.setAction("");
+      this.nextAction = "";
+      this.canMove_ = true;
+      this.blockingAction = false;
+    }
   }
 
   public updateAnimations() {
@@ -42,25 +85,49 @@ export class Avatar extends GroupContainerWidget {
     const dy = this.y - this.lastY;
 
     if (dx < 0) {
-      this.setAnimation(this.assets.getAnimation("left-walking"));
+      this.setDirection("left");
     } else if (dx > 0) {
-      this.setAnimation(this.assets.getAnimation("right-walking"));
+      this.setDirection("right");
     } else if (dy < 0) {
-      this.setAnimation(this.assets.getAnimation("up-walking"));
+      this.setDirection("up");
     } else if (dy > 0) {
-      this.setAnimation(this.assets.getAnimation("down-walking"));
-    } else if (this.animation.id.endsWith("-walking")) {
-      this.setAnimation(
-        this.assets.getAnimation(this.animation.id.replace("-walking", "")),
-      );
+      this.setDirection("down");
     }
+
+    if (dx !== 0 || dy !== 0) {
+      this.setAction("walking");
+    } else if (this.blockingAction) {
+      this.setAction(this.nextAction);
+    } else {
+      this.setAction("");
+    }
+
+    this.playAnimations();
 
     this.lastX = this.x;
     this.lastY = this.y;
   }
 
   public move(dx: number, dy: number) {
-    this.x += dx * WALK_SPEED;
-    this.y += dy * WALK_SPEED;
+    if (this.canMove) {
+      this.x += dx * WALK_SPEED;
+      this.y += dy * WALK_SPEED;
+    }
+  }
+
+  public shoot() {
+    if (this.canMove) {
+      this.blockingAction = true;
+      this.canMove_ = false;
+      this.nextAction = "shoot";
+    }
+  }
+
+  public slash() {
+    if (this.canMove) {
+      this.blockingAction = true;
+      this.canMove_ = false;
+      this.nextAction = "slash";
+    }
   }
 }

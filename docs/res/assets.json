@@ -10,68 +10,40 @@
       "size": "9x14"
     }
   },
-  "tilemaps": {
-    "princess": {
-      "filename": "princess.png",
-      "size": "64x64"
-    },
-    "shadows": {
-      "filename": "shadows.png",
-      "size": "64x64"
-    },
-    "terrain": {
-      "filename": "terrain.png",
-      "size": "32x32",
-      "terrains": {
-        "dirt": { "index": 0 },
-        "dirt2": { "index": 3 },
-        "dirt3": { "index": 6 },
-        "rock": { "index": 12 },
-        "lava-rock": { "index": 9 },
-        "lava": { "index": 15 },
-        "hole": { "index": 18 },
-        "hole2": { "index": 21 },
-        "hole3": { "index": 24 },
-        "water": { "index": 27 },
-        "grass": { "index": 192 },
-        "grass2": { "index": 195 },
-        "grass3": { "index": 198 },
-        "sand": {
-          "index": 210,
-          "specialTransitions": { "water": { "index": 210 } }
-        },
-        "snow": { "index": 402 },
-        "frozen-water": {
-          "index": 399,
-          "specialTransitions": { "snow": { "index": 405 } }
-        }
-      }
-    }
+  "animations": {},
+  "avatars": {
+    "female1": { "filename": "female1.png", "size": "64x64" },
+    "female2": { "filename": "female2.png", "size": "64x64" },
+    "npc1": { "filename": "npc1.png", "size": "64x64" },
+    "npc2": { "filename": "npc2.png", "size": "64x64" },
+    "shadows": { "filename": "shadows.png", "size": "64x64" }
   },
-  "animations": {
-    "up": { "tilemap": "princess", "frames": [0], "fps": 0 },
-    "left": { "tilemap": "princess", "frames": [9], "fps": 0 },
-    "down": { "tilemap": "princess", "frames": [18], "fps": 0 },
-    "right": { "tilemap": "princess", "frames": [27], "fps": 0 },
-    "up-walking": {
-      "tilemap": "princess",
-      "frames": [1, 2, 3, 4, 5, 6, 7, 8],
-      "fps": 8
-    },
-    "left-walking": {
-      "tilemap": "princess",
-      "frames": [10, 11, 12, 13, 14, 15, 16, 17],
-      "fps": 8
-    },
-    "down-walking": {
-      "tilemap": "princess",
-      "frames": [19, 20, 21, 22, 23, 24, 25, 26],
-      "fps": 8
-    },
-    "right-walking": {
-      "tilemap": "princess",
-      "frames": [28, 29, 30, 31, 32, 33, 34, 35],
-      "fps": 8
+  "terrains": {
+    "filename": "terrain.png",
+    "size": "32x32",
+    "terrains": {
+      "dirt": { "index": 0 },
+      "dirt2": { "index": 3 },
+      "dirt3": { "index": 6 },
+      "rock": { "index": 12 },
+      "lava-rock": { "index": 9 },
+      "lava": { "index": 15 },
+      "hole": { "index": 18 },
+      "hole2": { "index": 21 },
+      "hole3": { "index": 24 },
+      "water": { "index": 27 },
+      "grass": { "index": 192 },
+      "grass2": { "index": 195 },
+      "grass3": { "index": 198 },
+      "sand": {
+        "index": 210,
+        "specialTransitions": { "water": { "index": 210 } }
+      },
+      "snow": { "index": 402 },
+      "frozen-water": {
+        "index": 399,
+        "specialTransitions": { "snow": { "index": 405 } }
+      }
     }
   }
 }
