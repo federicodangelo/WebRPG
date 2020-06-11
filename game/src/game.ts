@@ -1,203 +1,133 @@
-import { LabelWidget } from "engine/widgets/label.ts";
 import {
-  FixedColor,
   Engine,
-  rgb,
-  Intensity,
   Assets,
-  Font,
   KeyEvent,
+  KeyCode,
 } from "engine/types.ts";
-import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { Avatar } from "./avatar.ts";
 import initMap1 from "./map.ts";
-import { ScrollableTilesContainerWidget } from "engine/widgets/tiles-container.ts";
 import { randomIntervalInt } from "./random.ts";
 import { Npc } from "./npc.ts";
+import { Updateable, Game } from "./types.ts";
+import {
+  setKeyDown,
+  isKeyDown,
+  followAvatar,
+  setSpecialKeyDown,
+  isSpecialKeyDown,
+} from "./utils.ts";
+import { initUI } from "./ui.ts";
 
 const NPCS_COUNT = 10;
 
-export var mainUI: SplitPanelContainerWidget;
-
-const npcs: Avatar[] = [];
-const characters: Avatar[] = [];
-let playingBox: ScrollableTilesContainerWidget;
-
-const keysDown = new Map<string, boolean>();
-
-function isKeyDown(key: string) {
-  return keysDown.get(key) || false;
+function onKeyEvent(game: Game, e: KeyEvent) {
+  if (e.char) {
+    if (e.type === "down") {
+      setKeyDown(game, e.char, true);
+    } else if (e.type === "up") {
+      setKeyDown(game, e.char, false);
+    }
+  } else if (e.code) {
+    if (e.type === "down") {
+      setSpecialKeyDown(game, e.code, true);
+    } else if (e.type === "up") {
+      setSpecialKeyDown(game, e.code, false);
+    }
+  }
 }
 
-let p1: Avatar;
-let p2: Avatar;
-let assets: Assets;
-let font: Font;
+export function initGame(engine: Engine, assets: Assets): Game {
+  const { mainUI, map } = initUI(engine, assets);
 
-export function initGame(engine: Engine, assets_: Assets) {
-  assets = assets_;
-
-  font = assets.defaultFont;
-
-  mainUI = new SplitPanelContainerWidget(font);
-  mainUI.layout = {
-    widthPercent: 100,
-    heightPercent: 100,
-  };
-  mainUI.splitLayout = {
-    direction: "horizontal",
-    fixed: {
-      panel: "panel2",
-      amount: 19 * font.tileWidth,
-    },
-  };
-
-  mainUI.panel2.border = 2;
-  mainUI.panel2.backColor = FixedColor.BrightBlack;
-
-  playingBox = new ScrollableTilesContainerWidget();
-
-  playingBox.setLayout({ heightPercent: 100, widthPercent: 100 });
-  playingBox.setChildrenLayout({ type: "none" });
-  playingBox.parent = mainUI.panel1;
-
-  mainUI.panel1.title = " Map ";
-  mainUI.panel1.titleForeColor = FixedColor.BrightWhite;
-  mainUI.panel1.titleBackColor = rgb(
-    Intensity.I20,
-    Intensity.I0,
-    Intensity.I20,
-  );
-  mainUI.panel1.borderForeColor = rgb(
-    Intensity.I60,
-    Intensity.I0,
-    Intensity.I60,
-  );
-  mainUI.panel1.borderBackColor = rgb(
-    Intensity.I20,
-    Intensity.I0,
-    Intensity.I20,
-  );
-  mainUI.panel1.backColor = FixedColor.Black;
-  mainUI.panel1.fillChar = "";
-
-  mainUI.panel2.title = " Stats ";
-  mainUI.panel2.titleForeColor = FixedColor.BrightWhite;
-  mainUI.panel2.titleBackColor = rgb(
-    Intensity.I0,
-    Intensity.I20,
-    Intensity.I40,
-  );
-  mainUI.panel2.borderForeColor = rgb(
-    Intensity.I0,
-    Intensity.I0,
-    Intensity.I60,
-  );
-  mainUI.panel2.borderBackColor = rgb(
-    Intensity.I0,
-    Intensity.I20,
-    Intensity.I40,
-  );
-  mainUI.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
-  mainUI.panel2.childrenLayout = {
-    type: "vertical",
-    spacing: 1 * font.tileWidth,
-  };
-
-  new LabelWidget(
-    font,
-    "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
-    FixedColor.White,
-    mainUI.panel2.backColor,
-  ).parent = mainUI.panel2;
-
-  p1 = new Avatar("female1", assets);
-  p2 = new Avatar("female2", assets);
+  const ui = mainUI.panel2;
+  const scrollable = map;
+  const p1 = new Avatar("female1", assets);
+  const p2 = new Avatar("female2", assets);
+  const npcs: Npc[] = [];
+  const avatars: Avatar[] = [];
+  const updateables: Updateable[] = [];
 
   for (let i = 0; i < NPCS_COUNT; i++) {
     npcs.push(new Npc(i % 2 == 0 ? "npc1" : "npc2", assets));
   }
 
-  characters.push(...npcs, p1, p2);
+  avatars.push(...npcs, p1, p2);
 
-  initMap1(playingBox, assets);
+  updateables.push(...avatars);
 
-  characters.forEach((c) => {
-    c.parent = playingBox;
+  initMap1(map, assets);
+
+  avatars.forEach((c) => {
+    c.parent = map;
     c.x = randomIntervalInt(
-      playingBox.tilemapsBounds.width / 2 - 100,
-      playingBox.tilemapsBounds.width / 2 + 100,
+      map.tilemapsBounds.width / 2 - 100,
+      map.tilemapsBounds.width / 2 + 100,
     );
     c.y = randomIntervalInt(
-      playingBox.tilemapsBounds.height / 2 - 100,
-      playingBox.tilemapsBounds.height / 2 + 100,
+      map.tilemapsBounds.height / 2 - 100,
+      map.tilemapsBounds.height / 2 + 100,
     );
   });
 
-  function onKeyEvent(e: KeyEvent) {
-    if (e.char) {
-      if (e.type === "down") {
-        keysDown.set(e.char, true);
-      } else if (e.type === "up") {
-        keysDown.set(e.char, false);
-      }
-    }
-  }
+  const game: Game = {
+    ui,
+    scrollable,
+    avatars,
+    map,
+    npcs,
+    p1,
+    p2,
+    updateables,
+    keysDown: new Map<string, boolean>(),
+    specialKeysDown: new Map<KeyCode, boolean>(),
+  };
 
   engine.addWidget(mainUI);
-  engine.onKeyEvent(onKeyEvent);
+  engine.onKeyEvent((e) => onKeyEvent(game, e));
+  engine.setMainScrollable(map);
+
+  return game;
 }
 
-export function updateGame(engine: Engine): boolean {
-  let running = true;
+export function updateGame(engine: Engine, game: Game): boolean {
+  const { p1, p2, avatars, updateables, map } = game;
 
-  if (isKeyDown("a")) p1.move(-1, 0);
-  if (isKeyDown("d")) p1.move(1, 0);
-  if (isKeyDown("w")) p1.move(0, -1);
-  if (isKeyDown("s")) p1.move(0, 1);
-  if (isKeyDown("f")) p1.shoot();
-  if (isKeyDown("r")) p1.slash();
+  if (isKeyDown(game, "a") || isSpecialKeyDown(game, KeyCode.ArrowLeft)) {
+    p1.move(-1, 0);
+  }
+  if (isKeyDown(game, "d") || isSpecialKeyDown(game, KeyCode.ArrowRight)) {
+    p1.move(1, 0);
+  }
+  if (isKeyDown(game, "w") || isSpecialKeyDown(game, KeyCode.ArrowUp)) {
+    p1.move(0, -1);
+  }
+  if (isKeyDown(game, "s") || isSpecialKeyDown(game, KeyCode.ArrowDown)) {
+    p1.move(0, 1);
+  }
+  if (isKeyDown(game, "f") || isKeyDown(game, "z")) p1.shoot();
+  if (isKeyDown(game, "r") || isKeyDown(game, "x")) p1.slash();
 
-  if (isKeyDown("j")) p2.move(-1, 0);
-  if (isKeyDown("l")) p2.move(1, 0);
-  if (isKeyDown("i")) p2.move(0, -1);
-  if (isKeyDown("k")) p2.move(0, 1);
-  if (isKeyDown(";")) p2.shoot();
-  if (isKeyDown("p")) p2.slash();
+  if (isKeyDown(game, "j")) p2.move(-1, 0);
+  if (isKeyDown(game, "l")) p2.move(1, 0);
+  if (isKeyDown(game, "i")) p2.move(0, -1);
+  if (isKeyDown(game, "k")) p2.move(0, 1);
+  if (isKeyDown(game, ";")) p2.shoot();
+  if (isKeyDown(game, "p")) p2.slash();
 
-  characters.forEach((char) => {
-    char.x = Math.max(
-      Math.min(char.x, playingBox.tilemapsBounds.width),
+  avatars.forEach((avatar) => {
+    avatar.x = Math.max(
+      Math.min(avatar.x, map.tilemapsBounds.width),
       0,
     );
-    char.y = Math.max(
-      Math.min(char.y, playingBox.tilemapsBounds.height),
+    avatar.y = Math.max(
+      Math.min(avatar.y, map.tilemapsBounds.height),
       0,
     );
-
-    char.update();
   });
 
-  let newOffsetX = playingBox.offsetX;
-  let newOffsetY = playingBox.offsetY;
+  updateables.forEach((u) => u.update());
 
-  newOffsetX = -p1.x + Math.floor(playingBox.width * 0.5);
-  newOffsetY = -p1.y + Math.floor(playingBox.height * 0.5);
+  followAvatar(p1, map, engine);
 
-  playingBox.setOffset(
-    Math.trunc(
-      Math.max(
-        Math.min(newOffsetX, 0),
-        -(playingBox.tilemapsBounds.width - playingBox.width),
-      ),
-    ),
-    Math.trunc(
-      Math.max(
-        Math.min(newOffsetY, 0),
-        -(playingBox.tilemapsBounds.height - playingBox.height),
-      ),
-    ),
-  );
-
-  return running;
+  return true;
 }

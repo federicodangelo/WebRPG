@@ -36,6 +36,15 @@ export interface NativeContextScreen {
     height: number,
   ): void;
 
+  scrollRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    dx: number,
+    dy: number,
+  ): void;
+
   endDraw(): void;
 }
 

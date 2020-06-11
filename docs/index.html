@@ -20,11 +20,27 @@
     <script type="module" src="bundle.js"></script>
     <script type="module">
         var script = document.createElement('script');
+        globalThis.statsPaused = false;
         script.onload = function() {
             var stats = new Stats();
+            
+            globalThis.pauseStats = () => {
+                if (!globalThis.statsPaused) {
+                    globalThis.statsPaused = true;
+                    document.body.removeChild(stats.dom);
+                }
+            }
+            globalThis.resumeStats = () => {
+                if (globalThis.statsPaused) {
+                    globalThis.statsPaused = false;
+                    document.body.appendChild(stats.dom);
+                }
+            }
+            
             document.body.appendChild(stats.dom);
+
             requestAnimationFrame(function loop() {
-                stats.update();
+                if (!globalThis.statsPaused) stats.update();
                 requestAnimationFrame(loop);
             });
         };

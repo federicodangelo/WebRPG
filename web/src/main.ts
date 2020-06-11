@@ -1,14 +1,16 @@
 import { FixedColor, Engine } from "engine/types.ts";
-import { buildEngine, destroyEngine } from "engine/engine.ts";
+import { buildEngine } from "engine/engine.ts";
 import { LabelWidget } from "engine/widgets/label.ts";
-import { initGame, updateGame, mainUI } from "game/game.ts";
+import { initGame, updateGame } from "game/game.ts";
 import { getWebNativeContext } from "./native/web.ts";
 import { initAssets } from "./native/assets.ts";
+import { Game } from "../../game/src/types.ts";
 
 const TARGET_FPS = 30;
 
 let engine: Engine;
 let fpsLabel: LabelWidget;
+let game: Game;
 
 let totalRenderTime = 0;
 let frames = 0;
@@ -19,8 +21,7 @@ function updateFps() {
   frames++;
   if (now - framesTime > 1000) {
     const fps = frames / ((now - framesTime) / 1000);
-    const stats =
-      "FPS: " +
+    const stats = "FPS: " +
       fps.toFixed(2) +
       "\nRender: " +
       (totalRenderTime / frames).toFixed(2) +
@@ -41,7 +42,7 @@ async function init() {
 
   console.log("Engine Initialized");
 
-  initGame(engine, assets);
+  game = initGame(engine, assets);
 
   console.log("Game Initialized");
 
@@ -49,14 +50,15 @@ async function init() {
     assets.defaultFont,
     "FPS: 0.00\nRender: 0.00ms",
     FixedColor.White,
-    mainUI.panel2.backColor
+    game.ui.backColor,
   );
 
-  fpsLabel.parent = mainUI.panel2;
+  fpsLabel.parent = game.ui;
 
   return engine;
 }
 
+let firstUpdate = true;
 let lastUpdateTime = performance.now();
 let timeToNextUpdate = 0;
 
@@ -67,6 +69,12 @@ function update() {
   timeToNextUpdate -= delta;
   if (timeToNextUpdate < -1000) timeToNextUpdate = -1000;
 
+  if (firstUpdate) {
+    firstUpdate = false;
+    timeToNextUpdate = 1000 / TARGET_FPS;
+    return;
+  }
+
   if (timeToNextUpdate > 0.1) return;
 
   timeToNextUpdate += 1000 / TARGET_FPS;
@@ -75,7 +83,7 @@ function update() {
 
   engine.update();
 
-  updateGame(engine);
+  updateGame(engine, game);
 
   engine.draw();
 

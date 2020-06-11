@@ -1,6 +1,7 @@
-import { Engine, Widget, Size, Rect, Tilemap, KeyEvent } from "./types.ts";
+import { Engine, Widget, Size, Rect, KeyEvent, Point } from "./types.ts";
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
+import { ScrollableContainerWidget } from "./widgets/scrollable.ts";
 
 class EngineImpl implements Engine {
   private children: Widget[] = [];
@@ -8,6 +9,8 @@ class EngineImpl implements Engine {
   private context: EngineContextImpl;
   private screenSize = new Size();
   private invalidRects: Rect[] = [];
+  private mainScrollable: ScrollableContainerWidget | null = null;
+  private mainScrollableOffset = new Point();
 
   constructor(nativeContext: NativeContext) {
     this.nativeContext = nativeContext;
@@ -25,7 +28,7 @@ class EngineImpl implements Engine {
     }
     this.screenSize.set(consoleSize.width, consoleSize.height);
     this.nativeContext.screen.onScreenSizeChanged(
-      this.onScreenSizeChanged.bind(this)
+      this.onScreenSizeChanged.bind(this),
     );
   }
 
@@ -33,20 +36,18 @@ class EngineImpl implements Engine {
     if (!size.equals(this.screenSize)) {
       this.screenSize.set(size.width, size.height);
       this.invalidateRect(
-        new Rect(0, 0, this.screenSize.width, this.screenSize.height)
+        new Rect(0, 0, this.screenSize.width, this.screenSize.height),
       );
     }
   }
 
-  public draw() {
+  private drawInvalidRects(): void {
     if (this.invalidRects.length == 0) return;
 
     var pendingLayout = true;
 
     const clip = new Rect();
     const consoleSize = this.screenSize;
-
-    this.context.beginDraw();
 
     for (let i = 0; i < this.invalidRects.length; i++) {
       clip.copyFrom(this.invalidRects[i]);
@@ -86,16 +87,75 @@ class EngineImpl implements Engine {
 
       this.context.endClip();
     }
-    this.context.endDraw();
 
     this.invalidRects.length = 0;
+  }
+
+  public draw() {
+    this.context.beginDraw();
+
+    this.drawInvalidRects();
+
+    if (this.mainScrollable !== null) {
+      const dx = this.mainScrollableOffset.x - this.mainScrollable.offsetX;
+      const dy = this.mainScrollableOffset.y - this.mainScrollable.offsetY;
+      if (dx !== 0 || dy !== 0) {
+        const bbox = this.mainScrollable.getBoundingBox();
+
+        if (Math.abs(dx) < bbox.width && Math.abs(dy) < bbox.height) {
+          this.mainScrollable.setOffset(
+            this.mainScrollableOffset.x,
+            this.mainScrollableOffset.y,
+            false,
+          );
+
+          this.nativeContext.screen.scrollRect(
+            bbox.x,
+            bbox.y,
+            bbox.width,
+            bbox.height,
+            dx,
+            dy,
+          );
+
+          if (dy > 0) {
+            this.invalidRects.push(
+              new Rect(bbox.x, bbox.y, bbox.width, dy),
+            );
+          } else if (dy < 0) {
+            this.invalidRects.push(
+              new Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy),
+            );
+          }
+
+          if (dx > 0) {
+            this.invalidRects.push(
+              new Rect(bbox.x, bbox.y, dx, bbox.height),
+            );
+          } else if (dx < 0) {
+            this.invalidRects.push(
+              new Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height),
+            );
+          }
+        } else {
+          this.mainScrollable.setOffset(
+            this.mainScrollableOffset.x,
+            this.mainScrollableOffset.y,
+          );
+        }
+
+        this.drawInvalidRects();
+      }
+    }
+
+    this.context.endDraw();
   }
 
   private updateLayout() {
     for (let i = 0; i < this.children.length; i++) {
       this.children[i].updateLayout(
         this.screenSize.width,
-        this.screenSize.height
+        this.screenSize.height,
       );
     }
   }
@@ -120,10 +180,9 @@ class EngineImpl implements Engine {
   }
 
   public invalidateRect(rect: Rect) {
-    let lastRect =
-      this.invalidRects.length > 0
-        ? this.invalidRects[this.invalidRects.length - 1]
-        : null;
+    let lastRect = this.invalidRects.length > 0
+      ? this.invalidRects[this.invalidRects.length - 1]
+      : null;
 
     if (lastRect !== null && lastRect.intersects(rect)) {
       lastRect.union(rect);
@@ -135,6 +194,15 @@ class EngineImpl implements Engine {
 
   public destroy() {
     this.nativeContext.destroy();
+  }
+
+  public setMainScrollable(scrollable: ScrollableContainerWidget): void {
+    this.mainScrollable = scrollable;
+  }
+
+  public setMainScroll(offsetX: number, offsetY: number): void {
+    this.mainScrollableOffset.x = offsetX;
+    this.mainScrollableOffset.y = offsetY;
   }
 }
 

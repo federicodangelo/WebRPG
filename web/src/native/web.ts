@@ -1,5 +1,13 @@
 import { NativeContext } from "engine/native-types.ts";
-import { Size, Color, Tile, KeyEvent, Rect, AlphaType } from "engine/types.ts";
+import {
+  Size,
+  Color,
+  Tile,
+  KeyEvent,
+  AlphaType,
+  KeyCode,
+  KeyEventType,
+} from "engine/types.ts";
 
 const SCALE = 1;
 
@@ -75,31 +83,42 @@ export function getWebNativeContext(): NativeContext {
     screenSize.set(canvas.width, canvas.height);
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKey = (e: KeyboardEvent, type: KeyEventType) => {
     const key = e.key;
 
-    if (key.length === 1) {
-      disptachKeyEvent({ type: "down", char: key });
+    if (type === "down" && key === "f") {
+      if ((globalThis as any).statsPaused) {
+        (globalThis as any).resumeStats();
+      } else {
+        (globalThis as any).pauseStats();
+      }
+    }
+
+    switch (key) {
+      case "ArrowLeft":
+        disptachKeyEvent({ type, code: KeyCode.ArrowLeft });
+        break;
+      case "ArrowRight":
+        disptachKeyEvent({ type, code: KeyCode.ArrowRight });
+        break;
+      case "ArrowUp":
+        disptachKeyEvent({ type, code: KeyCode.ArrowUp });
+        break;
+      case "ArrowDown":
+        disptachKeyEvent({ type, code: KeyCode.ArrowDown });
+        break;
+      default:
+        if (key.length === 1) {
+          disptachKeyEvent({ type, char: key });
+        }
+        break;
     }
   };
 
-  const handleKeyUp = (e: KeyboardEvent) => {
-    const key = e.key;
+  let mouseKeyCode: KeyCode | null = null;
+  let mouseDown = false;
 
-    if (key.length === 1) {
-      disptachKeyEvent({ type: "up", char: key });
-    }
-  };
-
-  const handleKeyPress = (e: KeyboardEvent) => {
-    const key = e.key;
-
-    if (key.length === 1) {
-      disptachKeyEvent({ type: "press", char: key });
-    }
-  };
-
-  const handleMouseDown = (e: MouseEvent) => {
+  const mouseEventToKeyCode = (e: MouseEvent): KeyCode | null => {
     const dx = e.clientX < window.innerWidth / 3
       ? -1
       : e.clientX > (window.innerWidth * 2) / 3
@@ -111,19 +130,53 @@ export function getWebNativeContext(): NativeContext {
       ? 1
       : 0;
 
-    const key = dx === -1
-      ? "a"
+    return dx === -1
+      ? KeyCode.ArrowLeft
       : dx === 1
-      ? "d"
+      ? KeyCode.ArrowRight
       : dy === -1
-      ? "w"
+      ? KeyCode.ArrowUp
       : dy === 1
-      ? "s"
-      : "";
+      ? KeyCode.ArrowDown
+      : null;
+  };
 
-    if (key.length === 1) {
-      disptachKeyEvent({ type: "press", char: key });
+  const handleMouseDown = (e: MouseEvent) => {
+    mouseDown = true;
+    const code = mouseEventToKeyCode(e);
+
+    if (code !== mouseKeyCode) {
+      if (mouseKeyCode !== null) {
+        disptachKeyEvent({ type: "up", code: mouseKeyCode });
+      }
+      mouseKeyCode = code;
+      if (mouseKeyCode !== null) {
+        disptachKeyEvent({ type: "down", code: mouseKeyCode });
+      }
     }
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!mouseDown) return;
+    const code = mouseEventToKeyCode(e);
+
+    if (code !== mouseKeyCode) {
+      if (mouseKeyCode !== null) {
+        disptachKeyEvent({ type: "up", code: mouseKeyCode });
+      }
+      mouseKeyCode = code;
+      if (mouseKeyCode !== null) {
+        disptachKeyEvent({ type: "down", code: mouseKeyCode });
+      }
+    }
+  };
+
+  const handleMouseUp = (e: MouseEvent) => {
+    mouseDown = false;
+    if (mouseKeyCode !== null) {
+      disptachKeyEvent({ type: "up", code: mouseKeyCode });
+    }
+    mouseKeyCode = null;
   };
 
   const handleResize = () => {
@@ -354,7 +407,6 @@ export function getWebNativeContext(): NativeContext {
     setDirty(x, y, width, height);
 
     let p = 0;
-    let f = 0;
 
     for (let py = 0; py < height; py++) {
       p = (y + py) * imageData.width + x;
@@ -364,10 +416,57 @@ export function getWebNativeContext(): NativeContext {
     }
   };
 
-  window.addEventListener("keydown", handleKeyDown);
-  window.addEventListener("keyup", handleKeyUp);
-  window.addEventListener("keypress", handleKeyPress);
+  const scrollRect = (
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    dx: number,
+    dy: number,
+  ) => {
+    setDirty(x, y, width, height);
+
+    const screenWidth = screenSize.width;
+
+    if (dy > 0) {
+      for (let i = y + height - dy; i >= y; i--) {
+        const toRowStart = (i + dy) * screenWidth + x;
+        const fromRowStart = i * screenWidth + x;
+        const fromRowEnd = fromRowStart + width;
+        imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
+      }
+    } else if (dy < 0) {
+      for (let i = y - dy; i < y + height; i++) {
+        const toRowStart = (i + dy) * screenWidth + x;
+        const fromRowStart = i * screenWidth + x;
+        const fromRowEnd = fromRowStart + width;
+        imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
+      }
+    }
+
+    if (dx > 0) {
+      for (let i = y; i < y + height; i++) {
+        const toRowStart = i * screenWidth + x + dx;
+        const fromRowStart = i * screenWidth + x;
+        const fromRowEnd = fromRowStart + width - dx;
+        imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
+      }
+    } else if (dx < 0) {
+      for (let i = y; i < y + height; i++) {
+        const toRowStart = i * screenWidth + x;
+        const fromRowStart = i * screenWidth + x - dx;
+        const fromRowEnd = fromRowStart + width + dx;
+        imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
+      }
+    }
+  };
+
+  window.addEventListener("keydown", (e) => handleKey(e, "down"));
+  window.addEventListener("keyup", (e) => handleKey(e, "up"));
+  window.addEventListener("keypress", (e) => handleKey(e, "press"));
   window.addEventListener("mousedown", handleMouseDown);
+  window.addEventListener("mouseup", handleMouseUp);
+  window.addEventListener("mousemove", handleMouseMove);
   window.addEventListener("resize", handleResize);
   updateScreenSize();
 
@@ -380,6 +479,7 @@ export function getWebNativeContext(): NativeContext {
       tintTile,
       setTile,
       fillRect,
+      scrollRect,
       beginDraw: () => {
         dirty = false;
       },

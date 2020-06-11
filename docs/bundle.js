@@ -107,21 +107,427 @@ let System, __instantiateAsync, __instantiate;
   };
 })();
 
-System.register("engine/src/types", [], function (exports_1, context_1) {
+System.register(
+  "engine/src/widgets/widget",
+  ["engine/src/types"],
+  function (exports_1, context_1) {
+    "use strict";
+    var types_ts_1, BaseWidget;
+    var __moduleName = context_1 && context_1.id;
+    return {
+      setters: [
+        function (types_ts_1_1) {
+          types_ts_1 = types_ts_1_1;
+        },
+      ],
+      execute: function () {
+        BaseWidget = class BaseWidget {
+          constructor() {
+            this._x = 0;
+            this._y = 0;
+            this._width = 0;
+            this._height = 0;
+            this._pivotX = 0;
+            this._pivotY = 0;
+            this._layer = 0;
+            this._parent = null;
+            this._engine = null;
+            this._boundingBox = new types_ts_1.Rect();
+            this.layout = null;
+          }
+          setLayout(layout) {
+            this.layout = layout;
+            return this;
+          }
+          get engine() {
+            return this._engine;
+          }
+          set engine(val) {
+            if (val !== this._engine) {
+              this._engine = val;
+            }
+          }
+          get x() {
+            return this._x;
+          }
+          set x(v) {
+            if (v !== this._x) {
+              this.invalidate();
+              this._x = Math.trunc(v);
+              this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
+            }
+          }
+          get y() {
+            return this._y;
+          }
+          set y(v) {
+            if (v !== this._y) {
+              this.invalidate();
+              this._y = Math.trunc(v);
+              this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
+            }
+          }
+          get width() {
+            return this._width;
+          }
+          set width(v) {
+            if (v !== this._width) {
+              this.invalidate();
+              this._width = Math.trunc(v);
+              this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
+            }
+          }
+          get height() {
+            return this._height;
+          }
+          set height(v) {
+            if (v !== this._height) {
+              this.invalidate();
+              this._height = Math.trunc(v);
+              this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
+            }
+          }
+          get pivotX() {
+            return this._pivotX;
+          }
+          set pivotX(v) {
+            if (v !== this._pivotX) {
+              this.invalidate();
+              this._pivotX = Math.trunc(v);
+              this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
+            }
+          }
+          get pivotY() {
+            return this._pivotY;
+          }
+          set pivotY(v) {
+            if (v !== this._pivotY) {
+              this.invalidate();
+              this._pivotY = Math.trunc(v);
+              this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
+            }
+          }
+          get visibleX() {
+            return this._x + this._pivotX;
+          }
+          get visibleY() {
+            return this._y + this._pivotY;
+          }
+          get layer() {
+            return this._layer;
+          }
+          set layer(v) {
+            if (v !== this._layer) {
+              this._layer = v;
+              this.invalidate();
+              this._parent?.onChildrenTransformChanged(this);
+            }
+          }
+          get parent() {
+            return this._parent;
+          }
+          set parent(v) {
+            if (v !== this._parent) {
+              this.invalidate();
+              if (this._parent !== null) {
+                const index = this._parent.children.indexOf(this);
+                if (index >= 0) {
+                  this._parent.children.splice(index, 1);
+                }
+              }
+              this._parent = v;
+              if (this._parent !== null) {
+                this._parent.children.push(this);
+                this.engine = this._parent.engine;
+                this._parent.onChildrenAdded(this);
+              } else {
+                this.engine = null;
+              }
+              this.invalidate();
+            }
+          }
+          updateLayout(parentWidth, parentHeight) {
+            const layout = this.layout;
+            if (layout !== null) {
+              if (layout.heightPercent !== undefined) {
+                this.height = Math.ceil(
+                  (parentHeight * layout.heightPercent) / 100,
+                );
+              }
+              if (layout.widthPercent !== undefined) {
+                this.width = Math.ceil(
+                  (parentWidth * layout.widthPercent) / 100,
+                );
+              }
+              if (layout.customSizeFn !== undefined) {
+                layout.customSizeFn(this, parentWidth, parentHeight);
+              }
+              if (layout.horizontalSpacingPercent !== undefined) {
+                this.x = Math.floor(
+                  ((parentWidth - this.width) *
+                    layout.horizontalSpacingPercent) / 100,
+                );
+              }
+              if (layout.verticalSpacingPercent !== undefined) {
+                this.y = Math.floor(
+                  ((parentHeight - this.height) *
+                    layout.verticalSpacingPercent) / 100,
+                );
+              }
+              if (layout.customPositionFn !== undefined) {
+                layout.customPositionFn(this, parentWidth, parentHeight);
+              }
+            }
+          }
+          draw(context) {
+            if (
+              !context.isVisible(
+                this.visibleX,
+                this.visibleY,
+                this.width,
+                this.height,
+              )
+            ) {
+              return;
+            }
+            context.pushTransform(this.visibleX, this.visibleY);
+            context.pushClip(0, 0, this.width, this.height);
+            context.moveCursorTo(0, 0);
+            this.drawSelf(context);
+            context.popClip();
+            context.popTransform();
+          }
+          getBoundingBox() {
+            this._boundingBox.set(
+              this.visibleX,
+              this.visibleY,
+              this.width,
+              this.height,
+            );
+            let p = this._parent;
+            while (p !== null) {
+              this._boundingBox.x += p.visibleX + p.innerX;
+              this._boundingBox.y += p.visibleY + p.innerY;
+              p = p.parent;
+            }
+            return this._boundingBox;
+          }
+          invalidate() {
+            const engine = this.engine;
+            const bbox = this.getBoundingBox();
+            engine?.invalidateRect(bbox);
+          }
+        };
+        exports_1("BaseWidget", BaseWidget);
+      },
+    };
+  },
+);
+System.register(
+  "engine/src/widgets/widget-container",
+  ["engine/src/widgets/widget"],
+  function (exports_2, context_2) {
+    "use strict";
+    var widget_ts_1, BaseWidgetContainer;
+    var __moduleName = context_2 && context_2.id;
+    return {
+      setters: [
+        function (widget_ts_1_1) {
+          widget_ts_1 = widget_ts_1_1;
+        },
+      ],
+      execute: function () {
+        BaseWidgetContainer = class BaseWidgetContainer
+          extends widget_ts_1.BaseWidget {
+          constructor() {
+            super(...arguments);
+            this._children = [];
+            this.childrenLayout = null;
+          }
+          setChildrenLayout(layout) {
+            this.childrenLayout = layout;
+            return this;
+          }
+          get engine() {
+            return super.engine;
+          }
+          set engine(val) {
+            if (val !== this.engine) {
+              super.engine = val;
+              for (let i = 0; i < this._children.length; i++) {
+                this._children[i].engine = val;
+              }
+            }
+          }
+          get innerX() {
+            return 0;
+          }
+          get innerY() {
+            return 0;
+          }
+          get innerWidth() {
+            return this.width;
+          }
+          get innerHeight() {
+            return this.height;
+          }
+          get children() {
+            return this._children;
+          }
+          updateLayout(parentWidth, parentHeight) {
+            super.updateLayout(parentWidth, parentHeight);
+            if (
+              this.childrenLayout === null ||
+              this.childrenLayout.type === "absolute"
+            ) {
+              for (let i = 0; i < this.children.length; i++) {
+                this.children[i].updateLayout(
+                  this.innerWidth,
+                  this.innerHeight,
+                );
+              }
+            } else if (this.childrenLayout.type === "vertical") {
+              const spacing = this.childrenLayout.spacing || 0;
+              let top = 0;
+              for (let i = 0; i < this.children.length; i++) {
+                this.children[i].updateLayout(
+                  this.innerWidth,
+                  this.innerHeight,
+                );
+                this.children[i].x = 0;
+                this.children[i].y = top;
+                top += this.children[i].height + spacing;
+              }
+            } else if (this.childrenLayout.type === "horizontal") {
+              const spacing = this.childrenLayout.spacing || 0;
+              let left = 0;
+              for (let i = 0; i < this.children.length; i++) {
+                this.children[i].updateLayout(
+                  this.innerWidth,
+                  this.innerHeight,
+                );
+                this.children[i].y = 0;
+                this.children[i].x = left;
+                left += this.children[i].width + spacing;
+              }
+            }
+            //The last option is "none".. so we don't do anything
+          }
+          draw(context) {
+            if (
+              !context.isVisible(
+                this.visibleX,
+                this.visibleY,
+                this.width,
+                this.height,
+              )
+            ) {
+              return;
+            }
+            context.pushTransform(this.visibleX, this.visibleY);
+            context.pushClip(0, 0, this.width, this.height);
+            context.moveCursorTo(0, 0);
+            this.drawSelf(context);
+            this.preDrawChildren(context);
+            for (let i = 0; i < this._children.length; i++) {
+              this._children[i].draw(context);
+            }
+            this.postDrawChildren(context);
+            context.popClip();
+            context.popTransform();
+          }
+          preDrawChildren(context) {}
+          postDrawChildren(context) {}
+          onChildrenTransformChanged(child) {}
+          onChildrenAdded(child) {}
+        };
+        exports_2("BaseWidgetContainer", BaseWidgetContainer);
+      },
+    };
+  },
+);
+System.register(
+  "engine/src/widgets/scrollable",
+  ["engine/src/types", "engine/src/widgets/widget-container"],
+  function (exports_3, context_3) {
+    "use strict";
+    var types_ts_2, widget_container_ts_1, ScrollableContainerWidget;
+    var __moduleName = context_3 && context_3.id;
+    return {
+      setters: [
+        function (types_ts_2_1) {
+          types_ts_2 = types_ts_2_1;
+        },
+        function (widget_container_ts_1_1) {
+          widget_container_ts_1 = widget_container_ts_1_1;
+        },
+      ],
+      execute: function () {
+        ScrollableContainerWidget = class ScrollableContainerWidget
+          extends widget_container_ts_1.BaseWidgetContainer {
+          constructor() {
+            super(...arguments);
+            this.backColor = types_ts_2.FixedColor.Black;
+            this._offsetX = 0;
+            this._offsetY = 0;
+          }
+          get offsetX() {
+            return this._offsetX;
+          }
+          get offsetY() {
+            return this._offsetY;
+          }
+          get innerX() {
+            return this._offsetX;
+          }
+          get innerY() {
+            return this._offsetY;
+          }
+          setOffset(offsetX, offsetY, invalidate = true) {
+            if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
+              this._offsetX = Math.trunc(offsetX);
+              this._offsetY = Math.trunc(offsetY);
+              if (invalidate) {
+                this.invalidate();
+              }
+            }
+          }
+          preDrawChildren(context) {
+            context.pushTransform(this.innerX, this.innerY);
+          }
+          postDrawChildren(context) {
+            context.popTransform();
+          }
+          drawSelf(context) {
+            context.fillRect(0, 0, this.width, this.height, this.backColor);
+          }
+        };
+        exports_3("ScrollableContainerWidget", ScrollableContainerWidget);
+      },
+    };
+  },
+);
+System.register("engine/src/types", [], function (exports_4, context_4) {
   "use strict";
   var FixedColor, Point, Size, Rect;
-  var __moduleName = context_1 && context_1.id;
+  var __moduleName = context_4 && context_4.id;
   function rgb(r, g, b) {
     return rgba(r, g, b, 255);
   }
-  exports_1("rgb", rgb);
+  exports_4("rgb", rgb);
   function rgba(r, g, b, a) {
     return ((a << 24) | // alpha
       (b << 16) | // blue
       (g << 8) | // green
       r);
   }
-  exports_1("rgba", rgba);
+  exports_4("rgba", rgba);
   return {
     setters: [],
     execute: function () {
@@ -147,7 +553,7 @@ System.register("engine/src/types", [], function (exports_1, context_1) {
         FixedColor.BrightWhite = rgb(242, 242, 242);
         return FixedColor;
       })();
-      exports_1("FixedColor", FixedColor);
+      exports_4("FixedColor", FixedColor);
       Point = class Point {
         constructor(x = 0, y = 0) {
           this.x = x;
@@ -170,7 +576,7 @@ System.register("engine/src/types", [], function (exports_1, context_1) {
           return new Point(this.x, this.y);
         }
       };
-      exports_1("Point", Point);
+      exports_4("Point", Point);
       Size = class Size {
         constructor(width = 0, height = 0) {
           this.width = width;
@@ -193,7 +599,7 @@ System.register("engine/src/types", [], function (exports_1, context_1) {
           return new Size(this.width, this.height);
         }
       };
-      exports_1("Size", Size);
+      exports_4("Size", Size);
       Rect = class Rect {
         constructor(x = 0, y = 0, width = 0, height = 0) {
           this.x = x;
@@ -254,13 +660,13 @@ System.register("engine/src/types", [], function (exports_1, context_1) {
           return new Rect(this.x, this.y, this.width, this.height);
         }
       };
-      exports_1("Rect", Rect);
+      exports_4("Rect", Rect);
     },
   };
 });
-System.register("engine/src/native-types", [], function (exports_2, context_2) {
+System.register("engine/src/native-types", [], function (exports_5, context_5) {
   "use strict";
-  var __moduleName = context_2 && context_2.id;
+  var __moduleName = context_5 && context_5.id;
   return {
     setters: [],
     execute: function () {
@@ -270,10 +676,10 @@ System.register("engine/src/native-types", [], function (exports_2, context_2) {
 System.register(
   "engine/src/context",
   ["engine/src/types"],
-  function (exports_3, context_3) {
+  function (exports_6, context_6) {
     "use strict";
-    var types_ts_1, useCp437, AnsiSpecialChar, EngineContextImpl;
-    var __moduleName = context_3 && context_3.id;
+    var types_ts_3, useCp437, AnsiSpecialChar, EngineContextImpl;
+    var __moduleName = context_6 && context_6.id;
     function ceilToMultipleOf(n, m) {
       if (n % m === 0) {
         return n;
@@ -288,8 +694,8 @@ System.register(
     }
     return {
       setters: [
-        function (types_ts_1_1) {
-          types_ts_1 = types_ts_1_1;
+        function (types_ts_3_1) {
+          types_ts_3 = types_ts_3_1;
         },
       ],
       execute: function () {
@@ -332,14 +738,14 @@ System.register(
         ];
         EngineContextImpl = class EngineContextImpl {
           constructor(nativeContext) {
-            this.bounds = new types_ts_1.Rect();
-            this.clip = new types_ts_1.Rect();
+            this.bounds = new types_ts_3.Rect();
+            this.clip = new types_ts_3.Rect();
             this.tx = 0;
             this.ty = 0;
             this.x = 0;
             this.y = 0;
-            this.foreColor = types_ts_1.FixedColor.White;
-            this.backColor = types_ts_1.FixedColor.Black;
+            this.foreColor = types_ts_3.FixedColor.White;
+            this.backColor = types_ts_3.FixedColor.Black;
             this.transformsStack = [];
             this.clipStack = [];
             this.nativeContext = nativeContext;
@@ -362,7 +768,7 @@ System.register(
             this.nativeContext.endDraw();
           }
           pushTransform(x, y) {
-            this.transformsStack.push(new types_ts_1.Point(this.tx, this.ty));
+            this.transformsStack.push(new types_ts_3.Point(this.tx, this.ty));
             this.tx += x;
             this.ty += y;
           }
@@ -410,8 +816,8 @@ System.register(
             return this;
           }
           resetTextColor() {
-            this.foreColor = types_ts_1.FixedColor.White;
-            this.backColor = types_ts_1.FixedColor.Black;
+            this.foreColor = types_ts_3.FixedColor.White;
+            this.backColor = types_ts_3.FixedColor.Black;
             return this;
           }
           text(font, str) {
@@ -658,7 +1064,7 @@ System.register(
             return this;
           }
         };
-        exports_3("EngineContextImpl", EngineContextImpl);
+        exports_6("EngineContextImpl", EngineContextImpl);
       },
     };
   },
@@ -666,24 +1072,24 @@ System.register(
 System.register(
   "engine/src/engine",
   ["engine/src/types", "engine/src/context"],
-  function (exports_4, context_4) {
+  function (exports_7, context_7) {
     "use strict";
-    var types_ts_2, context_ts_1, EngineImpl;
-    var __moduleName = context_4 && context_4.id;
+    var types_ts_4, context_ts_1, EngineImpl;
+    var __moduleName = context_7 && context_7.id;
     async function buildEngine(nativeContext) {
       const engine = new EngineImpl(nativeContext);
       await engine.init();
       return engine;
     }
-    exports_4("buildEngine", buildEngine);
+    exports_7("buildEngine", buildEngine);
     function destroyEngine(engine) {
       engine.destroy();
     }
-    exports_4("destroyEngine", destroyEngine);
+    exports_7("destroyEngine", destroyEngine);
     return {
       setters: [
-        function (types_ts_2_1) {
-          types_ts_2 = types_ts_2_1;
+        function (types_ts_4_1) {
+          types_ts_4 = types_ts_4_1;
         },
         function (context_ts_1_1) {
           context_ts_1 = context_ts_1_1;
@@ -693,8 +1099,10 @@ System.register(
         EngineImpl = class EngineImpl {
           constructor(nativeContext) {
             this.children = [];
-            this.screenSize = new types_ts_2.Size();
+            this.screenSize = new types_ts_4.Size();
             this.invalidRects = [];
+            this.mainScrollable = null;
+            this.mainScrollableOffset = new types_ts_4.Point();
             this.nativeContext = nativeContext;
             this.context = new context_ts_1.EngineContextImpl(
               this.nativeContext.screen,
@@ -718,7 +1126,7 @@ System.register(
             if (!size.equals(this.screenSize)) {
               this.screenSize.set(size.width, size.height);
               this.invalidateRect(
-                new types_ts_2.Rect(
+                new types_ts_4.Rect(
                   0,
                   0,
                   this.screenSize.width,
@@ -727,14 +1135,13 @@ System.register(
               );
             }
           }
-          draw() {
+          drawInvalidRects() {
             if (this.invalidRects.length == 0) {
               return;
             }
             var pendingLayout = true;
-            const clip = new types_ts_2.Rect();
+            const clip = new types_ts_4.Rect();
             const consoleSize = this.screenSize;
-            this.context.beginDraw();
             for (let i = 0; i < this.invalidRects.length; i++) {
               clip.copyFrom(this.invalidRects[i]);
               if (clip.x < 0) {
@@ -769,8 +1176,70 @@ System.register(
               }
               this.context.endClip();
             }
-            this.context.endDraw();
             this.invalidRects.length = 0;
+          }
+          draw() {
+            this.context.beginDraw();
+            this.drawInvalidRects();
+            if (this.mainScrollable !== null) {
+              const dx = this.mainScrollableOffset.x -
+                this.mainScrollable.offsetX;
+              const dy = this.mainScrollableOffset.y -
+                this.mainScrollable.offsetY;
+              if (dx !== 0 || dy !== 0) {
+                const bbox = this.mainScrollable.getBoundingBox();
+                if (Math.abs(dx) < bbox.width && Math.abs(dy) < bbox.height) {
+                  this.mainScrollable.setOffset(
+                    this.mainScrollableOffset.x,
+                    this.mainScrollableOffset.y,
+                    false,
+                  );
+                  this.nativeContext.screen.scrollRect(
+                    bbox.x,
+                    bbox.y,
+                    bbox.width,
+                    bbox.height,
+                    dx,
+                    dy,
+                  );
+                  if (dy > 0) {
+                    this.invalidRects.push(
+                      new types_ts_4.Rect(bbox.x, bbox.y, bbox.width, dy),
+                    );
+                  } else if (dy < 0) {
+                    this.invalidRects.push(
+                      new types_ts_4.Rect(
+                        bbox.x,
+                        bbox.y + bbox.height + dy,
+                        bbox.width,
+                        -dy,
+                      ),
+                    );
+                  }
+                  if (dx > 0) {
+                    this.invalidRects.push(
+                      new types_ts_4.Rect(bbox.x, bbox.y, dx, bbox.height),
+                    );
+                  } else if (dx < 0) {
+                    this.invalidRects.push(
+                      new types_ts_4.Rect(
+                        bbox.x + bbox.width + dx,
+                        bbox.y,
+                        -dx,
+                        bbox.height,
+                      ),
+                    );
+                  }
+                } else {
+                  this.mainScrollable.setOffset(
+                    this.mainScrollableOffset.x,
+                    this.mainScrollableOffset.y,
+                  );
+                }
+                this.drawInvalidRects();
+              }
+            }
+            this.context.endDraw();
           }
           updateLayout() {
             for (let i = 0; i < this.children.length; i++) {
@@ -809,229 +1278,14 @@ System.register(
           destroy() {
             this.nativeContext.destroy();
           }
-        };
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/widget",
-  ["engine/src/types"],
-  function (exports_5, context_5) {
-    "use strict";
-    var types_ts_3, BaseWidget;
-    var __moduleName = context_5 && context_5.id;
-    return {
-      setters: [
-        function (types_ts_3_1) {
-          types_ts_3 = types_ts_3_1;
-        },
-      ],
-      execute: function () {
-        BaseWidget = class BaseWidget {
-          constructor() {
-            this._x = 0;
-            this._y = 0;
-            this._width = 0;
-            this._height = 0;
-            this._pivotX = 0;
-            this._pivotY = 0;
-            this._layer = 0;
-            this._parent = null;
-            this._engine = null;
-            this._boundingBox = new types_ts_3.Rect();
-            this.layout = null;
+          setMainScrollable(scrollable) {
+            this.mainScrollable = scrollable;
           }
-          setLayout(layout) {
-            this.layout = layout;
-            return this;
-          }
-          get engine() {
-            return this._engine;
-          }
-          set engine(val) {
-            if (val !== this._engine) {
-              this._engine = val;
-            }
-          }
-          get x() {
-            return this._x;
-          }
-          set x(v) {
-            if (v !== this._x) {
-              this.invalidate();
-              this._x = Math.trunc(v);
-              this.invalidate();
-              this._parent?.onChildrenTransformChanged(this);
-            }
-          }
-          get y() {
-            return this._y;
-          }
-          set y(v) {
-            if (v !== this._y) {
-              this.invalidate();
-              this._y = Math.trunc(v);
-              this.invalidate();
-              this._parent?.onChildrenTransformChanged(this);
-            }
-          }
-          get width() {
-            return this._width;
-          }
-          set width(v) {
-            if (v !== this._width) {
-              this.invalidate();
-              this._width = Math.trunc(v);
-              this.invalidate();
-              this._parent?.onChildrenTransformChanged(this);
-            }
-          }
-          get height() {
-            return this._height;
-          }
-          set height(v) {
-            if (v !== this._height) {
-              this.invalidate();
-              this._height = Math.trunc(v);
-              this.invalidate();
-              this._parent?.onChildrenTransformChanged(this);
-            }
-          }
-          get pivotX() {
-            return this._pivotX;
-          }
-          set pivotX(v) {
-            if (v !== this._pivotX) {
-              this.invalidate();
-              this._pivotX = Math.trunc(v);
-              this.invalidate();
-              this._parent?.onChildrenTransformChanged(this);
-            }
-          }
-          get pivotY() {
-            return this._pivotY;
-          }
-          set pivotY(v) {
-            if (v !== this._pivotY) {
-              this.invalidate();
-              this._pivotY = Math.trunc(v);
-              this.invalidate();
-              this._parent?.onChildrenTransformChanged(this);
-            }
-          }
-          get visibleX() {
-            return this._x + this._pivotX;
-          }
-          get visibleY() {
-            return this._y + this._pivotY;
-          }
-          get layer() {
-            return this._layer;
-          }
-          set layer(v) {
-            if (v !== this._layer) {
-              this._layer = v;
-              this.invalidate();
-              this._parent?.onChildrenTransformChanged(this);
-            }
-          }
-          get parent() {
-            return this._parent;
-          }
-          set parent(v) {
-            if (v !== this._parent) {
-              this.invalidate();
-              if (this._parent !== null) {
-                const index = this._parent.children.indexOf(this);
-                if (index >= 0) {
-                  this._parent.children.splice(index, 1);
-                }
-              }
-              this._parent = v;
-              if (this._parent !== null) {
-                this._parent.children.push(this);
-                this.engine = this._parent.engine;
-                this._parent.onChildrenAdded(this);
-              } else {
-                this.engine = null;
-              }
-              this.invalidate();
-            }
-          }
-          updateLayout(parentWidth, parentHeight) {
-            const layout = this.layout;
-            if (layout !== null) {
-              if (layout.heightPercent !== undefined) {
-                this.height = Math.ceil(
-                  (parentHeight * layout.heightPercent) / 100,
-                );
-              }
-              if (layout.widthPercent !== undefined) {
-                this.width = Math.ceil(
-                  (parentWidth * layout.widthPercent) / 100,
-                );
-              }
-              if (layout.customSizeFn !== undefined) {
-                layout.customSizeFn(this, parentWidth, parentHeight);
-              }
-              if (layout.horizontalSpacingPercent !== undefined) {
-                this.x = Math.floor(
-                  ((parentWidth - this.width) *
-                    layout.horizontalSpacingPercent) / 100,
-                );
-              }
-              if (layout.verticalSpacingPercent !== undefined) {
-                this.y = Math.floor(
-                  ((parentHeight - this.height) *
-                    layout.verticalSpacingPercent) / 100,
-                );
-              }
-              if (layout.customPositionFn !== undefined) {
-                layout.customPositionFn(this, parentWidth, parentHeight);
-              }
-            }
-          }
-          draw(context) {
-            if (
-              !context.isVisible(
-                this.visibleX,
-                this.visibleY,
-                this.width,
-                this.height,
-              )
-            ) {
-              return;
-            }
-            context.pushTransform(this.visibleX, this.visibleY);
-            context.pushClip(0, 0, this.width, this.height);
-            context.moveCursorTo(0, 0);
-            this.drawSelf(context);
-            context.popClip();
-            context.popTransform();
-          }
-          getBoundingBox() {
-            this._boundingBox.set(
-              this.visibleX,
-              this.visibleY,
-              this.width,
-              this.height,
-            );
-            let p = this._parent;
-            while (p !== null) {
-              this._boundingBox.x += p.visibleX + p.innerX;
-              this._boundingBox.y += p.visibleY + p.innerY;
-              p = p.parent;
-            }
-            return this._boundingBox;
-          }
-          invalidate() {
-            const engine = this.engine;
-            const bbox = this.getBoundingBox();
-            engine?.invalidateRect(bbox);
+          setMainScroll(offsetX, offsetY) {
+            this.mainScrollableOffset.x = offsetX;
+            this.mainScrollableOffset.y = offsetY;
           }
         };
-        exports_5("BaseWidget", BaseWidget);
       },
     };
   },
@@ -1039,18 +1293,18 @@ System.register(
 System.register(
   "engine/src/widgets/label",
   ["engine/src/widgets/widget"],
-  function (exports_6, context_6) {
+  function (exports_8, context_8) {
     "use strict";
-    var widget_ts_1, LabelWidget;
-    var __moduleName = context_6 && context_6.id;
+    var widget_ts_2, LabelWidget;
+    var __moduleName = context_8 && context_8.id;
     return {
       setters: [
-        function (widget_ts_1_1) {
-          widget_ts_1 = widget_ts_1_1;
+        function (widget_ts_2_1) {
+          widget_ts_2 = widget_ts_2_1;
         },
       ],
       execute: function () {
-        LabelWidget = class LabelWidget extends widget_ts_1.BaseWidget {
+        LabelWidget = class LabelWidget extends widget_ts_2.BaseWidget {
           constructor(font, text, foreColor, backColor) {
             super();
             this._text = "";
@@ -1087,326 +1341,7 @@ System.register(
             }
           }
         };
-        exports_6("LabelWidget", LabelWidget);
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/widget-container",
-  ["engine/src/widgets/widget"],
-  function (exports_7, context_7) {
-    "use strict";
-    var widget_ts_2, BaseWidgetContainer;
-    var __moduleName = context_7 && context_7.id;
-    return {
-      setters: [
-        function (widget_ts_2_1) {
-          widget_ts_2 = widget_ts_2_1;
-        },
-      ],
-      execute: function () {
-        BaseWidgetContainer = class BaseWidgetContainer
-          extends widget_ts_2.BaseWidget {
-          constructor() {
-            super(...arguments);
-            this._children = [];
-            this.childrenLayout = null;
-          }
-          setChildrenLayout(layout) {
-            this.childrenLayout = layout;
-            return this;
-          }
-          get engine() {
-            return super.engine;
-          }
-          set engine(val) {
-            if (val !== this.engine) {
-              super.engine = val;
-              for (let i = 0; i < this._children.length; i++) {
-                this._children[i].engine = val;
-              }
-            }
-          }
-          get innerX() {
-            return 0;
-          }
-          get innerY() {
-            return 0;
-          }
-          get innerWidth() {
-            return this.width;
-          }
-          get innerHeight() {
-            return this.height;
-          }
-          get children() {
-            return this._children;
-          }
-          updateLayout(parentWidth, parentHeight) {
-            super.updateLayout(parentWidth, parentHeight);
-            if (
-              this.childrenLayout === null ||
-              this.childrenLayout.type === "absolute"
-            ) {
-              for (let i = 0; i < this.children.length; i++) {
-                this.children[i].updateLayout(
-                  this.innerWidth,
-                  this.innerHeight,
-                );
-              }
-            } else if (this.childrenLayout.type === "vertical") {
-              const spacing = this.childrenLayout.spacing || 0;
-              let top = 0;
-              for (let i = 0; i < this.children.length; i++) {
-                this.children[i].updateLayout(
-                  this.innerWidth,
-                  this.innerHeight,
-                );
-                this.children[i].x = 0;
-                this.children[i].y = top;
-                top += this.children[i].height + spacing;
-              }
-            } else if (this.childrenLayout.type === "horizontal") {
-              const spacing = this.childrenLayout.spacing || 0;
-              let left = 0;
-              for (let i = 0; i < this.children.length; i++) {
-                this.children[i].updateLayout(
-                  this.innerWidth,
-                  this.innerHeight,
-                );
-                this.children[i].y = 0;
-                this.children[i].x = left;
-                left += this.children[i].width + spacing;
-              }
-            }
-            //The last option is "none".. so we don't do anything
-          }
-          draw(context) {
-            if (
-              !context.isVisible(
-                this.visibleX,
-                this.visibleY,
-                this.width,
-                this.height,
-              )
-            ) {
-              return;
-            }
-            context.pushTransform(this.visibleX, this.visibleY);
-            context.pushClip(0, 0, this.width, this.height);
-            context.moveCursorTo(0, 0);
-            this.drawSelf(context);
-            this.preDrawChildren(context);
-            for (let i = 0; i < this._children.length; i++) {
-              this._children[i].draw(context);
-            }
-            this.postDrawChildren(context);
-            context.popClip();
-            context.popTransform();
-          }
-          preDrawChildren(context) {}
-          postDrawChildren(context) {}
-          onChildrenTransformChanged(child) {}
-          onChildrenAdded(child) {}
-        };
-        exports_7("BaseWidgetContainer", BaseWidgetContainer);
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/box",
-  ["engine/src/types", "engine/src/widgets/widget-container"],
-  function (exports_8, context_8) {
-    "use strict";
-    var types_ts_4, widget_container_ts_1, BoxContainerWidget;
-    var __moduleName = context_8 && context_8.id;
-    return {
-      setters: [
-        function (types_ts_4_1) {
-          types_ts_4 = types_ts_4_1;
-        },
-        function (widget_container_ts_1_1) {
-          widget_container_ts_1 = widget_container_ts_1_1;
-        },
-      ],
-      execute: function () {
-        BoxContainerWidget = class BoxContainerWidget
-          extends widget_container_ts_1.BaseWidgetContainer {
-          constructor(
-            font,
-            border = font.tileWidth,
-            borderForeColor = types_ts_4.FixedColor.White,
-            borderBackColor = types_ts_4.FixedColor.Black,
-            foreColor = types_ts_4.FixedColor.White,
-            backColor = types_ts_4.FixedColor.Black,
-            fillChar = " ",
-          ) {
-            super();
-            this.title = "";
-            this.titleForeColor = types_ts_4.FixedColor.White;
-            this.titleBackColor = types_ts_4.FixedColor.Black;
-            this.border = 0;
-            this.font = font;
-            this.border = border;
-            this.borderForeColor = borderForeColor;
-            this.borderBackColor = borderBackColor;
-            this.foreColor = foreColor;
-            this.backColor = backColor;
-            this.fillChar = fillChar;
-          }
-          get innerX() {
-            return this.border * this.font.tileWidth;
-          }
-          get innerY() {
-            return this.border * this.font.tileHeight;
-          }
-          get innerWidth() {
-            return this.width - this.border * 2 * this.font.tileWidth;
-          }
-          get innerHeight() {
-            return this.height - this.border * 2 * this.font.tileHeight;
-          }
-          preDrawChildren(context) {
-            if (this.innerX > 0 || this.innerY > 0) {
-              context.pushTransform(this.innerX, this.innerY);
-              context.pushClip(0, 0, this.innerWidth, this.innerHeight);
-            }
-          }
-          postDrawChildren(context) {
-            if (this.innerX > 0 || this.innerY > 0) {
-              context.popClip();
-              context.popTransform();
-            }
-          }
-          drawSelf(context) {
-            if (this.border > 0) {
-              context.textColor(this.foreColor, this.backColor).fillChar(
-                this.font,
-                this.font.tileWidth,
-                this.font.tileHeight,
-                this.width - 2 * this.font.tileWidth,
-                this.height - 2 * this.font.tileHeight,
-                this.fillChar,
-              );
-              context.textColor(this.borderForeColor, this.borderBackColor)
-                .textBorder(this.font, 0, 0, this.width, this.height);
-            } else {
-              context.textColor(this.foreColor, this.backColor).fillChar(
-                this.font,
-                0,
-                0,
-                this.width,
-                this.height,
-                this.fillChar,
-              );
-            }
-            if (this.title.length > 0) {
-              context.moveCursorTo(
-                Math.floor(
-                  (this.width - this.title.length * this.font.tileWidth) / 2,
-                ),
-                0,
-              )
-                .textColor(this.titleForeColor, this.titleBackColor)
-                .text(this.font, this.title);
-            }
-          }
-        };
-        exports_8("BoxContainerWidget", BoxContainerWidget);
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/split-panel",
-  ["engine/src/widgets/widget-container", "engine/src/widgets/box"],
-  function (exports_9, context_9) {
-    "use strict";
-    var widget_container_ts_2, box_ts_1, SplitPanelContainerWidget;
-    var __moduleName = context_9 && context_9.id;
-    return {
-      setters: [
-        function (widget_container_ts_2_1) {
-          widget_container_ts_2 = widget_container_ts_2_1;
-        },
-        function (box_ts_1_1) {
-          box_ts_1 = box_ts_1_1;
-        },
-      ],
-      execute: function () {
-        SplitPanelContainerWidget = class SplitPanelContainerWidget
-          extends widget_container_ts_2.BaseWidgetContainer {
-          constructor(font, sl = null) {
-            super();
-            this.splitLayout = null;
-            this.font = font;
-            this.panel1 = new box_ts_1.BoxContainerWidget(this.font, 1);
-            this.panel2 = new box_ts_1.BoxContainerWidget(this.font, 1);
-            this.panel1.parent = this;
-            this.panel2.parent = this;
-            this.splitLayout = sl;
-            this.panel1.layout = {
-              customSizeFn: (widget, parentWidth, parentHeight) => {
-                const splitPercent = this.splitLayout?.splitPercent || 50;
-                const direction = this.splitLayout?.direction || "horizontal";
-                const fixedPanel = this.splitLayout?.fixed?.panel;
-                const fixedAmount = this.splitLayout?.fixed?.amount || 0;
-                if (direction === "horizontal") {
-                  widget.height = parentHeight;
-                  widget.width = fixedPanel === undefined
-                    ? Math.floor(parentWidth * splitPercent / 100)
-                    : fixedPanel === "panel1"
-                    ? fixedAmount
-                    : parentWidth - fixedAmount;
-                } else {
-                  widget.width = parentWidth;
-                  widget.height = fixedPanel === undefined
-                    ? Math.floor(parentHeight * splitPercent / 100)
-                    : fixedPanel === "panel1"
-                    ? fixedAmount
-                    : parentHeight - fixedAmount;
-                }
-              },
-            };
-            this.panel2.layout = {
-              heightPercent: 100,
-              customSizeFn: (widget, parentWidth, parentHeight) => {
-                const splitPercent = this.splitLayout?.splitPercent || 50;
-                const direction = this.splitLayout?.direction || "horizontal";
-                const fixedPanel = this.splitLayout?.fixed?.panel;
-                const fixedAmount = this.splitLayout?.fixed?.amount || 0;
-                if (direction === "horizontal") {
-                  widget.height = parentHeight;
-                  widget.width = fixedPanel === undefined
-                    ? Math.ceil(parentWidth * (100 - splitPercent) / 100)
-                    : fixedPanel === "panel2"
-                    ? fixedAmount
-                    : parentWidth - fixedAmount;
-                } else {
-                  widget.width = parentWidth;
-                  widget.height = fixedPanel === undefined
-                    ? Math.ceil(parentHeight * (100 - splitPercent) / 100)
-                    : fixedPanel === "panel2"
-                    ? fixedAmount
-                    : parentHeight - fixedAmount;
-                }
-              },
-              customPositionFn: (widget) => {
-                const direction = this.splitLayout?.direction || "horizontal";
-                if (direction === "horizontal") {
-                  widget.x = this.width - widget.width;
-                } else {
-                  widget.y = this.height - widget.height;
-                }
-              },
-            };
-          }
-          drawSelf() {
-          }
-        };
-        exports_9("SplitPanelContainerWidget", SplitPanelContainerWidget);
+        exports_8("LabelWidget", LabelWidget);
       },
     };
   },
@@ -1414,22 +1349,22 @@ System.register(
 System.register(
   "engine/src/widgets/group",
   ["engine/src/widgets/widget-container"],
-  function (exports_10, context_10) {
+  function (exports_9, context_9) {
     "use strict";
-    var widget_container_ts_3, GroupContainerWidget;
-    var __moduleName = context_10 && context_10.id;
+    var widget_container_ts_2, GroupContainerWidget;
+    var __moduleName = context_9 && context_9.id;
     return {
       setters: [
-        function (widget_container_ts_3_1) {
-          widget_container_ts_3 = widget_container_ts_3_1;
+        function (widget_container_ts_2_1) {
+          widget_container_ts_2 = widget_container_ts_2_1;
         },
       ],
       execute: function () {
         GroupContainerWidget = class GroupContainerWidget
-          extends widget_container_ts_3.BaseWidgetContainer {
+          extends widget_container_ts_2.BaseWidgetContainer {
           drawSelf() {}
         };
-        exports_10("GroupContainerWidget", GroupContainerWidget);
+        exports_9("GroupContainerWidget", GroupContainerWidget);
       },
     };
   },
@@ -1437,10 +1372,10 @@ System.register(
 System.register(
   "engine/src/widgets/animated-tile",
   ["engine/src/widgets/widget"],
-  function (exports_11, context_11) {
+  function (exports_10, context_10) {
     "use strict";
     var widget_ts_3, AnimatedTileWidget;
-    var __moduleName = context_11 && context_11.id;
+    var __moduleName = context_10 && context_10.id;
     return {
       setters: [
         function (widget_ts_3_1) {
@@ -1509,7 +1444,7 @@ System.register(
             }
           }
         };
-        exports_11("AnimatedTileWidget", AnimatedTileWidget);
+        exports_10("AnimatedTileWidget", AnimatedTileWidget);
       },
     };
   },
@@ -1517,10 +1452,10 @@ System.register(
 System.register(
   "game/src/avatar",
   ["engine/src/widgets/group", "engine/src/widgets/animated-tile"],
-  function (exports_12, context_12) {
+  function (exports_11, context_11) {
     "use strict";
     var group_ts_1, animated_tile_ts_1, WALK_SPEED, Avatar;
-    var __moduleName = context_12 && context_12.id;
+    var __moduleName = context_11 && context_11.id;
     return {
       setters: [
         function (group_ts_1_1) {
@@ -1642,7 +1577,7 @@ System.register(
             this.updateAnimations();
           }
         };
-        exports_12("Avatar", Avatar);
+        exports_11("Avatar", Avatar);
       },
     };
   },
@@ -1650,10 +1585,10 @@ System.register(
 System.register(
   "engine/src/widgets/tile",
   ["engine/src/widgets/widget"],
-  function (exports_13, context_13) {
+  function (exports_12, context_12) {
     "use strict";
     var widget_ts_4, TileWidget;
-    var __moduleName = context_13 && context_13.id;
+    var __moduleName = context_12 && context_12.id;
     return {
       setters: [
         function (widget_ts_4_1) {
@@ -1672,7 +1607,7 @@ System.register(
             context.tile(0, 0, this.tile);
           }
         };
-        exports_13("TileWidget", TileWidget);
+        exports_12("TileWidget", TileWidget);
       },
     };
   },
@@ -1680,10 +1615,10 @@ System.register(
 System.register(
   "engine/src/widgets/tilemap",
   ["engine/src/widgets/widget"],
-  function (exports_14, context_14) {
+  function (exports_13, context_13) {
     "use strict";
     var widget_ts_5, TilemapWidget;
-    var __moduleName = context_14 && context_14.id;
+    var __moduleName = context_13 && context_13.id;
     return {
       setters: [
         function (widget_ts_5_1) {
@@ -1715,66 +1650,7 @@ System.register(
             context.tilemap(0, 0, tilemap, tiles);
           }
         };
-        exports_14("TilemapWidget", TilemapWidget);
-      },
-    };
-  },
-);
-System.register(
-  "engine/src/widgets/scrollable",
-  ["engine/src/types", "engine/src/widgets/widget-container"],
-  function (exports_15, context_15) {
-    "use strict";
-    var types_ts_5, widget_container_ts_4, ScrollableContainerWidget;
-    var __moduleName = context_15 && context_15.id;
-    return {
-      setters: [
-        function (types_ts_5_1) {
-          types_ts_5 = types_ts_5_1;
-        },
-        function (widget_container_ts_4_1) {
-          widget_container_ts_4 = widget_container_ts_4_1;
-        },
-      ],
-      execute: function () {
-        ScrollableContainerWidget = class ScrollableContainerWidget
-          extends widget_container_ts_4.BaseWidgetContainer {
-          constructor() {
-            super(...arguments);
-            this.backColor = types_ts_5.FixedColor.Black;
-            this._offsetX = 0;
-            this._offsetY = 0;
-          }
-          get offsetX() {
-            return this._offsetX;
-          }
-          get offsetY() {
-            return this._offsetY;
-          }
-          get innerX() {
-            return this._offsetX;
-          }
-          get innerY() {
-            return this._offsetY;
-          }
-          setOffset(offsetX, offsetY) {
-            if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
-              this._offsetX = Math.trunc(offsetX);
-              this._offsetY = Math.trunc(offsetY);
-              this.invalidate();
-            }
-          }
-          preDrawChildren(context) {
-            context.pushTransform(this.innerX, this.innerY);
-          }
-          postDrawChildren(context) {
-            context.popTransform();
-          }
-          drawSelf(context) {
-            context.fillRect(0, 0, this.width, this.height, this.backColor);
-          }
-        };
-        exports_15("ScrollableContainerWidget", ScrollableContainerWidget);
+        exports_13("TilemapWidget", TilemapWidget);
       },
     };
   },
@@ -1782,10 +1658,10 @@ System.register(
 System.register(
   "engine/src/widgets/tiles-container",
   ["engine/src/types", "engine/src/widgets/scrollable"],
-  function (exports_16, context_16) {
+  function (exports_14, context_14) {
     "use strict";
-    var types_ts_6, scrollable_ts_1, ScrollableTilesContainerWidget;
-    var __moduleName = context_16 && context_16.id;
+    var types_ts_5, scrollable_ts_1, ScrollableTilesContainerWidget;
+    var __moduleName = context_14 && context_14.id;
     function compareChildren(c1, c2) {
       if (c1.layer === c2.layer) {
         return c1.visibleY - c2.visibleY;
@@ -1794,8 +1670,8 @@ System.register(
     }
     return {
       setters: [
-        function (types_ts_6_1) {
-          types_ts_6 = types_ts_6_1;
+        function (types_ts_5_1) {
+          types_ts_5 = types_ts_5_1;
         },
         function (scrollable_ts_1_1) {
           scrollable_ts_1 = scrollable_ts_1_1;
@@ -1807,13 +1683,13 @@ System.register(
           constructor() {
             super(...arguments);
             this.tilemaps = [];
-            this.tilemapsBounds = new types_ts_6.Rect();
+            this.tilemapsBounds = new types_ts_5.Rect();
           }
           addTilemap(tilemap) {
             tilemap.parent = this;
             this.tilemaps.push(tilemap);
             this.tilemapsBounds.union(
-              new types_ts_6.Rect(0, 0, tilemap.width, tilemap.height),
+              new types_ts_5.Rect(0, 0, tilemap.width, tilemap.height),
             );
           }
           onChildrenAdded(child) {
@@ -1899,7 +1775,7 @@ System.register(
             }
           }
         };
-        exports_16(
+        exports_14(
           "ScrollableTilesContainerWidget",
           ScrollableTilesContainerWidget,
         );
@@ -1907,21 +1783,21 @@ System.register(
     };
   },
 );
-System.register("game/src/random", [], function (exports_17, context_17) {
+System.register("game/src/random", [], function (exports_15, context_15) {
   "use strict";
-  var __moduleName = context_17 && context_17.id;
+  var __moduleName = context_15 && context_15.id;
   function random(arr) {
     return arr[Math.trunc(Math.random() * arr.length)];
   }
-  exports_17("random", random);
+  exports_15("random", random);
   function randomIntervalInt(min, max) {
     return Math.trunc(min) + Math.trunc(Math.random() * (max - min));
   }
-  exports_17("randomIntervalInt", randomIntervalInt);
+  exports_15("randomIntervalInt", randomIntervalInt);
   function randomDirection() {
     return Math.round(Math.random() * 2 - 1);
   }
-  exports_17("randomDirection", randomDirection);
+  exports_15("randomDirection", randomDirection);
   return {
     setters: [],
     execute: function () {
@@ -1936,9 +1812,9 @@ System.register(
     "engine/src/widgets/tilemap",
     "game/src/random",
   ],
-  function (exports_18, context_18) {
+  function (exports_16, context_16) {
     "use strict";
-    var types_ts_7,
+    var types_ts_6,
       tile_ts_1,
       tilemap_ts_1,
       random_ts_1,
@@ -1949,7 +1825,7 @@ System.register(
       ALT_TERRAINS_MAX_SIZE,
       mainTerrain,
       altTerrains;
-    var __moduleName = context_18 && context_18.id;
+    var __moduleName = context_16 && context_16.id;
     function randomDecoTile(terrainId) {
       if (Math.random() > 0.5) {
         return terrainId + "-deco1";
@@ -2044,7 +1920,7 @@ System.register(
         const terrainId = random_ts_1.random(altTerrains);
         const fx = random_ts_1.randomIntervalInt(1, MAP_SIZE - w - 1);
         const fy = random_ts_1.randomIntervalInt(1, MAP_SIZE - h - 1);
-        const r = new types_ts_7.Rect(fx, fy, w, h);
+        const r = new types_ts_6.Rect(fx, fy, w, h);
         if (altTerrainsRectsOverflow.some((a) => a.intersects(r))) {
           continue;
         }
@@ -2071,11 +1947,11 @@ System.register(
         addTile(x, y, "terrain." + randomDecoTile(getTerrainId(x, y)));
       }
     }
-    exports_18("default", initMap);
+    exports_16("default", initMap);
     return {
       setters: [
-        function (types_ts_7_1) {
-          types_ts_7 = types_ts_7_1;
+        function (types_ts_6_1) {
+          types_ts_6 = types_ts_6_1;
         },
         function (tile_ts_1_1) {
           tile_ts_1 = tile_ts_1_1;
@@ -2112,10 +1988,10 @@ System.register(
 System.register(
   "game/src/npc",
   ["game/src/avatar", "game/src/random"],
-  function (exports_19, context_19) {
+  function (exports_17, context_17) {
     "use strict";
     var avatar_ts_1, random_ts_2, Npc;
-    var __moduleName = context_19 && context_19.id;
+    var __moduleName = context_17 && context_17.id;
     return {
       setters: [
         function (avatar_ts_1_1) {
@@ -2144,54 +2020,275 @@ System.register(
             super.update();
           }
         };
-        exports_19("Npc", Npc);
+        exports_17("Npc", Npc);
       },
     };
   },
 );
 System.register(
-  "game/src/game",
+  "engine/src/widgets/box",
+  ["engine/src/types", "engine/src/widgets/widget-container"],
+  function (exports_18, context_18) {
+    "use strict";
+    var types_ts_7, widget_container_ts_3, BoxContainerWidget;
+    var __moduleName = context_18 && context_18.id;
+    return {
+      setters: [
+        function (types_ts_7_1) {
+          types_ts_7 = types_ts_7_1;
+        },
+        function (widget_container_ts_3_1) {
+          widget_container_ts_3 = widget_container_ts_3_1;
+        },
+      ],
+      execute: function () {
+        BoxContainerWidget = class BoxContainerWidget
+          extends widget_container_ts_3.BaseWidgetContainer {
+          constructor(
+            font,
+            border = font.tileWidth,
+            borderForeColor = types_ts_7.FixedColor.White,
+            borderBackColor = types_ts_7.FixedColor.Black,
+            foreColor = types_ts_7.FixedColor.White,
+            backColor = types_ts_7.FixedColor.Black,
+            fillChar = " ",
+          ) {
+            super();
+            this.title = "";
+            this.titleForeColor = types_ts_7.FixedColor.White;
+            this.titleBackColor = types_ts_7.FixedColor.Black;
+            this.border = 0;
+            this.font = font;
+            this.border = border;
+            this.borderForeColor = borderForeColor;
+            this.borderBackColor = borderBackColor;
+            this.foreColor = foreColor;
+            this.backColor = backColor;
+            this.fillChar = fillChar;
+          }
+          get innerX() {
+            return this.border * this.font.tileWidth;
+          }
+          get innerY() {
+            return this.border * this.font.tileHeight;
+          }
+          get innerWidth() {
+            return this.width - this.border * 2 * this.font.tileWidth;
+          }
+          get innerHeight() {
+            return this.height - this.border * 2 * this.font.tileHeight;
+          }
+          preDrawChildren(context) {
+            if (this.innerX > 0 || this.innerY > 0) {
+              context.pushTransform(this.innerX, this.innerY);
+              context.pushClip(0, 0, this.innerWidth, this.innerHeight);
+            }
+          }
+          postDrawChildren(context) {
+            if (this.innerX > 0 || this.innerY > 0) {
+              context.popClip();
+              context.popTransform();
+            }
+          }
+          drawSelf(context) {
+            if (this.border > 0) {
+              context.textColor(this.foreColor, this.backColor).fillChar(
+                this.font,
+                this.font.tileWidth,
+                this.font.tileHeight,
+                this.width - 2 * this.font.tileWidth,
+                this.height - 2 * this.font.tileHeight,
+                this.fillChar,
+              );
+              context.textColor(this.borderForeColor, this.borderBackColor)
+                .textBorder(this.font, 0, 0, this.width, this.height);
+            } else {
+              context.textColor(this.foreColor, this.backColor).fillChar(
+                this.font,
+                0,
+                0,
+                this.width,
+                this.height,
+                this.fillChar,
+              );
+            }
+            if (this.title.length > 0) {
+              context.moveCursorTo(
+                Math.floor(
+                  (this.width - this.title.length * this.font.tileWidth) / 2,
+                ),
+                0,
+              )
+                .textColor(this.titleForeColor, this.titleBackColor)
+                .text(this.font, this.title);
+            }
+          }
+        };
+        exports_18("BoxContainerWidget", BoxContainerWidget);
+      },
+    };
+  },
+);
+System.register("game/src/types", [], function (exports_19, context_19) {
+  "use strict";
+  var __moduleName = context_19 && context_19.id;
+  return {
+    setters: [],
+    execute: function () {
+    },
+  };
+});
+System.register("game/src/utils", [], function (exports_20, context_20) {
+  "use strict";
+  var __moduleName = context_20 && context_20.id;
+  function followAvatar(avatar, map, engine) {
+    let newOffsetX = -avatar.x + Math.floor(map.width * 0.5);
+    let newOffsetY = -avatar.y + Math.floor(map.height * 0.5);
+    engine.setMainScroll(
+      Math.trunc(
+        Math.max(
+          Math.min(newOffsetX, 0),
+          -(map.tilemapsBounds.width - map.width),
+        ),
+      ),
+      Math.trunc(
+        Math.max(
+          Math.min(newOffsetY, 0),
+          -(map.tilemapsBounds.height - map.height),
+        ),
+      ),
+    );
+  }
+  exports_20("followAvatar", followAvatar);
+  function isKeyDown(game, key) {
+    return game.keysDown.get(key) || false;
+  }
+  exports_20("isKeyDown", isKeyDown);
+  function setKeyDown(game, key, down) {
+    game.keysDown.set(key, down);
+  }
+  exports_20("setKeyDown", setKeyDown);
+  function isSpecialKeyDown(game, code) {
+    return game.specialKeysDown.get(code) || false;
+  }
+  exports_20("isSpecialKeyDown", isSpecialKeyDown);
+  function setSpecialKeyDown(game, code, down) {
+    game.specialKeysDown.set(code, down);
+  }
+  exports_20("setSpecialKeyDown", setSpecialKeyDown);
+  return {
+    setters: [],
+    execute: function () {
+    },
+  };
+});
+System.register(
+  "engine/src/widgets/split-panel",
+  ["engine/src/widgets/widget-container", "engine/src/widgets/box"],
+  function (exports_21, context_21) {
+    "use strict";
+    var widget_container_ts_4, box_ts_1, SplitPanelContainerWidget;
+    var __moduleName = context_21 && context_21.id;
+    return {
+      setters: [
+        function (widget_container_ts_4_1) {
+          widget_container_ts_4 = widget_container_ts_4_1;
+        },
+        function (box_ts_1_1) {
+          box_ts_1 = box_ts_1_1;
+        },
+      ],
+      execute: function () {
+        SplitPanelContainerWidget = class SplitPanelContainerWidget
+          extends widget_container_ts_4.BaseWidgetContainer {
+          constructor(font, sl = null) {
+            super();
+            this.splitLayout = null;
+            this.font = font;
+            this.panel1 = new box_ts_1.BoxContainerWidget(this.font, 1);
+            this.panel2 = new box_ts_1.BoxContainerWidget(this.font, 1);
+            this.panel1.parent = this;
+            this.panel2.parent = this;
+            this.splitLayout = sl;
+            this.panel1.layout = {
+              customSizeFn: (widget, parentWidth, parentHeight) => {
+                const splitPercent = this.splitLayout?.splitPercent || 50;
+                const direction = this.splitLayout?.direction || "horizontal";
+                const fixedPanel = this.splitLayout?.fixed?.panel;
+                const fixedAmount = this.splitLayout?.fixed?.amount || 0;
+                if (direction === "horizontal") {
+                  widget.height = parentHeight;
+                  widget.width = fixedPanel === undefined
+                    ? Math.floor(parentWidth * splitPercent / 100)
+                    : fixedPanel === "panel1"
+                    ? fixedAmount
+                    : parentWidth - fixedAmount;
+                } else {
+                  widget.width = parentWidth;
+                  widget.height = fixedPanel === undefined
+                    ? Math.floor(parentHeight * splitPercent / 100)
+                    : fixedPanel === "panel1"
+                    ? fixedAmount
+                    : parentHeight - fixedAmount;
+                }
+              },
+            };
+            this.panel2.layout = {
+              heightPercent: 100,
+              customSizeFn: (widget, parentWidth, parentHeight) => {
+                const splitPercent = this.splitLayout?.splitPercent || 50;
+                const direction = this.splitLayout?.direction || "horizontal";
+                const fixedPanel = this.splitLayout?.fixed?.panel;
+                const fixedAmount = this.splitLayout?.fixed?.amount || 0;
+                if (direction === "horizontal") {
+                  widget.height = parentHeight;
+                  widget.width = fixedPanel === undefined
+                    ? Math.ceil(parentWidth * (100 - splitPercent) / 100)
+                    : fixedPanel === "panel2"
+                    ? fixedAmount
+                    : parentWidth - fixedAmount;
+                } else {
+                  widget.width = parentWidth;
+                  widget.height = fixedPanel === undefined
+                    ? Math.ceil(parentHeight * (100 - splitPercent) / 100)
+                    : fixedPanel === "panel2"
+                    ? fixedAmount
+                    : parentHeight - fixedAmount;
+                }
+              },
+              customPositionFn: (widget) => {
+                const direction = this.splitLayout?.direction || "horizontal";
+                if (direction === "horizontal") {
+                  widget.x = this.width - widget.width;
+                } else {
+                  widget.y = this.height - widget.height;
+                }
+              },
+            };
+          }
+          drawSelf() {
+          }
+        };
+        exports_21("SplitPanelContainerWidget", SplitPanelContainerWidget);
+      },
+    };
+  },
+);
+System.register(
+  "game/src/ui",
   [
     "engine/src/widgets/label",
     "engine/src/types",
     "engine/src/widgets/split-panel",
-    "game/src/avatar",
-    "game/src/map",
     "engine/src/widgets/tiles-container",
-    "game/src/random",
-    "game/src/npc",
   ],
-  function (exports_20, context_20) {
+  function (exports_22, context_22) {
     "use strict";
-    var label_ts_1,
-      types_ts_8,
-      split_panel_ts_1,
-      avatar_ts_2,
-      map_ts_1,
-      tiles_container_ts_1,
-      random_ts_3,
-      npc_ts_1,
-      NPCS_COUNT,
-      mainUI,
-      npcs,
-      characters,
-      playingBox,
-      keysDown,
-      p1,
-      p2,
-      assets,
-      font;
-    var __moduleName = context_20 && context_20.id;
-    function isKeyDown(key) {
-      return keysDown.get(key) || false;
-    }
-    function initGame(engine, assets_) {
-      assets = assets_;
-      font = assets.defaultFont;
-      exports_20(
-        "mainUI",
-        mainUI = new split_panel_ts_1.SplitPanelContainerWidget(font),
-      );
+    var label_ts_1, types_ts_8, split_panel_ts_1, tiles_container_ts_1;
+    var __moduleName = context_22 && context_22.id;
+    function initUI(engine, assets) {
+      const font = assets.defaultFont;
+      const mainUI = new split_panel_ts_1.SplitPanelContainerWidget(font);
       mainUI.layout = {
         widthPercent: 100,
         heightPercent: 100,
@@ -2205,10 +2302,10 @@ System.register(
       };
       mainUI.panel2.border = 2;
       mainUI.panel2.backColor = types_ts_8.FixedColor.BrightBlack;
-      playingBox = new tiles_container_ts_1.ScrollableTilesContainerWidget();
-      playingBox.setLayout({ heightPercent: 100, widthPercent: 100 });
-      playingBox.setChildrenLayout({ type: "none" });
-      playingBox.parent = mainUI.panel1;
+      const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
+      map.setLayout({ heightPercent: 100, widthPercent: 100 });
+      map.setChildrenLayout({ type: "none" });
+      map.parent = mainUI.panel1;
       mainUI.panel1.title = " Map ";
       mainUI.panel1.titleForeColor = types_ts_8.FixedColor.BrightWhite;
       mainUI.panel1.titleBackColor = types_ts_8.rgb(
@@ -2260,104 +2357,9 @@ System.register(
         types_ts_8.FixedColor.White,
         mainUI.panel2.backColor,
       ).parent = mainUI.panel2;
-      p1 = new avatar_ts_2.Avatar("female1", assets);
-      p2 = new avatar_ts_2.Avatar("female2", assets);
-      for (let i = 0; i < NPCS_COUNT; i++) {
-        npcs.push(new npc_ts_1.Npc(i % 2 == 0 ? "npc1" : "npc2", assets));
-      }
-      characters.push(...npcs, p1, p2);
-      map_ts_1.default(playingBox, assets);
-      characters.forEach((c) => {
-        c.parent = playingBox;
-        c.x = random_ts_3.randomIntervalInt(
-          playingBox.tilemapsBounds.width / 2 - 100,
-          playingBox.tilemapsBounds.width / 2 + 100,
-        );
-        c.y = random_ts_3.randomIntervalInt(
-          playingBox.tilemapsBounds.height / 2 - 100,
-          playingBox.tilemapsBounds.height / 2 + 100,
-        );
-      });
-      function onKeyEvent(e) {
-        if (e.char) {
-          if (e.type === "down") {
-            keysDown.set(e.char, true);
-          } else if (e.type === "up") {
-            keysDown.set(e.char, false);
-          }
-        }
-      }
-      engine.addWidget(mainUI);
-      engine.onKeyEvent(onKeyEvent);
+      return { mainUI, map };
     }
-    exports_20("initGame", initGame);
-    function updateGame(engine) {
-      let running = true;
-      if (isKeyDown("a")) {
-        p1.move(-1, 0);
-      }
-      if (isKeyDown("d")) {
-        p1.move(1, 0);
-      }
-      if (isKeyDown("w")) {
-        p1.move(0, -1);
-      }
-      if (isKeyDown("s")) {
-        p1.move(0, 1);
-      }
-      if (isKeyDown("f")) {
-        p1.shoot();
-      }
-      if (isKeyDown("r")) {
-        p1.slash();
-      }
-      if (isKeyDown("j")) {
-        p2.move(-1, 0);
-      }
-      if (isKeyDown("l")) {
-        p2.move(1, 0);
-      }
-      if (isKeyDown("i")) {
-        p2.move(0, -1);
-      }
-      if (isKeyDown("k")) {
-        p2.move(0, 1);
-      }
-      if (isKeyDown(";")) {
-        p2.shoot();
-      }
-      if (isKeyDown("p")) {
-        p2.slash();
-      }
-      characters.forEach((char) => {
-        char.x = Math.max(Math.min(char.x, playingBox.tilemapsBounds.width), 0);
-        char.y = Math.max(
-          Math.min(char.y, playingBox.tilemapsBounds.height),
-          0,
-        );
-        char.update();
-      });
-      let newOffsetX = playingBox.offsetX;
-      let newOffsetY = playingBox.offsetY;
-      newOffsetX = -p1.x + Math.floor(playingBox.width * 0.5);
-      newOffsetY = -p1.y + Math.floor(playingBox.height * 0.5);
-      playingBox.setOffset(
-        Math.trunc(
-          Math.max(
-            Math.min(newOffsetX, 0),
-            -(playingBox.tilemapsBounds.width - playingBox.width),
-          ),
-        ),
-        Math.trunc(
-          Math.max(
-            Math.min(newOffsetY, 0),
-            -(playingBox.tilemapsBounds.height - playingBox.height),
-          ),
-        ),
-      );
-      return running;
-    }
-    exports_20("updateGame", updateGame);
+    exports_22("initUI", initUI);
     return {
       setters: [
         function (label_ts_1_1) {
@@ -2369,14 +2371,160 @@ System.register(
         function (split_panel_ts_1_1) {
           split_panel_ts_1 = split_panel_ts_1_1;
         },
+        function (tiles_container_ts_1_1) {
+          tiles_container_ts_1 = tiles_container_ts_1_1;
+        },
+      ],
+      execute: function () {
+      },
+    };
+  },
+);
+System.register(
+  "game/src/game",
+  [
+    "game/src/avatar",
+    "game/src/map",
+    "game/src/random",
+    "game/src/npc",
+    "game/src/utils",
+    "game/src/ui",
+  ],
+  function (exports_23, context_23) {
+    "use strict";
+    var avatar_ts_2,
+      map_ts_1,
+      random_ts_3,
+      npc_ts_1,
+      utils_ts_1,
+      ui_ts_1,
+      NPCS_COUNT;
+    var __moduleName = context_23 && context_23.id;
+    function onKeyEvent(game, e) {
+      if (e.char) {
+        if (e.type === "down") {
+          utils_ts_1.setKeyDown(game, e.char, true);
+        } else if (e.type === "up") {
+          utils_ts_1.setKeyDown(game, e.char, false);
+        }
+      } else if (e.code) {
+        if (e.type === "down") {
+          utils_ts_1.setSpecialKeyDown(game, e.code, true);
+        } else if (e.type === "up") {
+          utils_ts_1.setSpecialKeyDown(game, e.code, false);
+        }
+      }
+    }
+    function initGame(engine, assets) {
+      const { mainUI, map } = ui_ts_1.initUI(engine, assets);
+      const ui = mainUI.panel2;
+      const scrollable = map;
+      const p1 = new avatar_ts_2.Avatar("female1", assets);
+      const p2 = new avatar_ts_2.Avatar("female2", assets);
+      const npcs = [];
+      const avatars = [];
+      const updateables = [];
+      for (let i = 0; i < NPCS_COUNT; i++) {
+        npcs.push(new npc_ts_1.Npc(i % 2 == 0 ? "npc1" : "npc2", assets));
+      }
+      avatars.push(...npcs, p1, p2);
+      updateables.push(...avatars);
+      map_ts_1.default(map, assets);
+      avatars.forEach((c) => {
+        c.parent = map;
+        c.x = random_ts_3.randomIntervalInt(
+          map.tilemapsBounds.width / 2 - 100,
+          map.tilemapsBounds.width / 2 + 100,
+        );
+        c.y = random_ts_3.randomIntervalInt(
+          map.tilemapsBounds.height / 2 - 100,
+          map.tilemapsBounds.height / 2 + 100,
+        );
+      });
+      const game = {
+        ui,
+        scrollable,
+        avatars,
+        map,
+        npcs,
+        p1,
+        p2,
+        updateables,
+        keysDown: new Map(),
+        specialKeysDown: new Map(),
+      };
+      engine.addWidget(mainUI);
+      engine.onKeyEvent((e) => onKeyEvent(game, e));
+      engine.setMainScrollable(map);
+      return game;
+    }
+    exports_23("initGame", initGame);
+    function updateGame(engine, game) {
+      const { p1, p2, avatars, updateables, map } = game;
+      if (
+        utils_ts_1.isKeyDown(game, "a") ||
+        utils_ts_1.isSpecialKeyDown(game, 1 /* ArrowLeft */)
+      ) {
+        p1.move(-1, 0);
+      }
+      if (
+        utils_ts_1.isKeyDown(game, "d") ||
+        utils_ts_1.isSpecialKeyDown(game, 2 /* ArrowRight */)
+      ) {
+        p1.move(1, 0);
+      }
+      if (
+        utils_ts_1.isKeyDown(game, "w") ||
+        utils_ts_1.isSpecialKeyDown(game, 3 /* ArrowUp */)
+      ) {
+        p1.move(0, -1);
+      }
+      if (
+        utils_ts_1.isKeyDown(game, "s") ||
+        utils_ts_1.isSpecialKeyDown(game, 4 /* ArrowDown */)
+      ) {
+        p1.move(0, 1);
+      }
+      if (utils_ts_1.isKeyDown(game, "f") || utils_ts_1.isKeyDown(game, "z")) {
+        p1.shoot();
+      }
+      if (utils_ts_1.isKeyDown(game, "r") || utils_ts_1.isKeyDown(game, "x")) {
+        p1.slash();
+      }
+      if (utils_ts_1.isKeyDown(game, "j")) {
+        p2.move(-1, 0);
+      }
+      if (utils_ts_1.isKeyDown(game, "l")) {
+        p2.move(1, 0);
+      }
+      if (utils_ts_1.isKeyDown(game, "i")) {
+        p2.move(0, -1);
+      }
+      if (utils_ts_1.isKeyDown(game, "k")) {
+        p2.move(0, 1);
+      }
+      if (utils_ts_1.isKeyDown(game, ";")) {
+        p2.shoot();
+      }
+      if (utils_ts_1.isKeyDown(game, "p")) {
+        p2.slash();
+      }
+      avatars.forEach((avatar) => {
+        avatar.x = Math.max(Math.min(avatar.x, map.tilemapsBounds.width), 0);
+        avatar.y = Math.max(Math.min(avatar.y, map.tilemapsBounds.height), 0);
+      });
+      updateables.forEach((u) => u.update());
+      utils_ts_1.followAvatar(p1, map, engine);
+      return true;
+    }
+    exports_23("updateGame", updateGame);
+    return {
+      setters: [
         function (avatar_ts_2_1) {
           avatar_ts_2 = avatar_ts_2_1;
         },
         function (map_ts_1_1) {
           map_ts_1 = map_ts_1_1;
-        },
-        function (tiles_container_ts_1_1) {
-          tiles_container_ts_1 = tiles_container_ts_1_1;
         },
         function (random_ts_3_1) {
           random_ts_3 = random_ts_3_1;
@@ -2384,12 +2532,15 @@ System.register(
         function (npc_ts_1_1) {
           npc_ts_1 = npc_ts_1_1;
         },
+        function (utils_ts_1_1) {
+          utils_ts_1 = utils_ts_1_1;
+        },
+        function (ui_ts_1_1) {
+          ui_ts_1 = ui_ts_1_1;
+        },
       ],
       execute: function () {
         NPCS_COUNT = 10;
-        npcs = [];
-        characters = [];
-        keysDown = new Map();
       },
     };
   },
@@ -2397,10 +2548,10 @@ System.register(
 System.register(
   "web/src/native/web",
   ["engine/src/types"],
-  function (exports_21, context_21) {
+  function (exports_24, context_24) {
     "use strict";
     var types_ts_9, SCALE;
-    var __moduleName = context_21 && context_21.id;
+    var __moduleName = context_24 && context_24.id;
     function updateCanvasSize(canvas, width, height) {
       canvas.width = Math.floor(width / SCALE);
       canvas.height = Math.floor(height / SCALE);
@@ -2459,25 +2610,38 @@ System.register(
       const updateScreenSize = () => {
         screenSize.set(canvas.width, canvas.height);
       };
-      const handleKeyDown = (e) => {
+      const handleKey = (e, type) => {
         const key = e.key;
-        if (key.length === 1) {
-          disptachKeyEvent({ type: "down", char: key });
+        if (type === "down" && key === "f") {
+          if (globalThis.statsPaused) {
+            globalThis.resumeStats();
+          } else {
+            globalThis.pauseStats();
+          }
+        }
+        switch (key) {
+          case "ArrowLeft":
+            disptachKeyEvent({ type, code: 1 /* ArrowLeft */ });
+            break;
+          case "ArrowRight":
+            disptachKeyEvent({ type, code: 2 /* ArrowRight */ });
+            break;
+          case "ArrowUp":
+            disptachKeyEvent({ type, code: 3 /* ArrowUp */ });
+            break;
+          case "ArrowDown":
+            disptachKeyEvent({ type, code: 4 /* ArrowDown */ });
+            break;
+          default:
+            if (key.length === 1) {
+              disptachKeyEvent({ type, char: key });
+            }
+            break;
         }
       };
-      const handleKeyUp = (e) => {
-        const key = e.key;
-        if (key.length === 1) {
-          disptachKeyEvent({ type: "up", char: key });
-        }
-      };
-      const handleKeyPress = (e) => {
-        const key = e.key;
-        if (key.length === 1) {
-          disptachKeyEvent({ type: "press", char: key });
-        }
-      };
-      const handleMouseDown = (e) => {
+      let mouseKeyCode = null;
+      let mouseDown = false;
+      const mouseEventToKeyCode = (e) => {
         const dx = e.clientX < window.innerWidth / 3 ? -1
         : e.clientX > (window.innerWidth * 2) / 3
         ? 1
@@ -2487,18 +2651,50 @@ System.register(
           : e.clientY > (window.innerHeight * 2) / 3
           ? 1
           : 0;
-        const key = dx === -1
-          ? "a"
+        return dx === -1
+          ? 1 /* ArrowLeft */
           : dx === 1
-          ? "d"
+          ? 2 /* ArrowRight */
           : dy === -1
-          ? "w"
+          ? 3 /* ArrowUp */
           : dy === 1
-          ? "s"
-          : "";
-        if (key.length === 1) {
-          disptachKeyEvent({ type: "press", char: key });
+          ? 4 /* ArrowDown */
+          : null;
+      };
+      const handleMouseDown = (e) => {
+        mouseDown = true;
+        const code = mouseEventToKeyCode(e);
+        if (code !== mouseKeyCode) {
+          if (mouseKeyCode !== null) {
+            disptachKeyEvent({ type: "up", code: mouseKeyCode });
+          }
+          mouseKeyCode = code;
+          if (mouseKeyCode !== null) {
+            disptachKeyEvent({ type: "down", code: mouseKeyCode });
+          }
         }
+      };
+      const handleMouseMove = (e) => {
+        if (!mouseDown) {
+          return;
+        }
+        const code = mouseEventToKeyCode(e);
+        if (code !== mouseKeyCode) {
+          if (mouseKeyCode !== null) {
+            disptachKeyEvent({ type: "up", code: mouseKeyCode });
+          }
+          mouseKeyCode = code;
+          if (mouseKeyCode !== null) {
+            disptachKeyEvent({ type: "down", code: mouseKeyCode });
+          }
+        }
+      };
+      const handleMouseUp = (e) => {
+        mouseDown = false;
+        if (mouseKeyCode !== null) {
+          disptachKeyEvent({ type: "up", code: mouseKeyCode });
+        }
+        mouseKeyCode = null;
       };
       const handleResize = () => {
         updateCanvasSize(canvas, window.innerWidth, window.innerHeight);
@@ -2696,7 +2892,6 @@ System.register(
       const fillRect = (color, x, y, width, height) => {
         setDirty(x, y, width, height);
         let p = 0;
-        let f = 0;
         for (let py = 0; py < height; py++) {
           p = (y + py) * imageData.width + x;
           for (let px = 0; px < width; px++) {
@@ -2704,10 +2899,46 @@ System.register(
           }
         }
       };
-      window.addEventListener("keydown", handleKeyDown);
-      window.addEventListener("keyup", handleKeyUp);
-      window.addEventListener("keypress", handleKeyPress);
+      const scrollRect = (x, y, width, height, dx, dy) => {
+        setDirty(x, y, width, height);
+        const screenWidth = screenSize.width;
+        if (dy > 0) {
+          for (let i = y + height - dy; i >= y; i--) {
+            const toRowStart = (i + dy) * screenWidth + x;
+            const fromRowStart = i * screenWidth + x;
+            const fromRowEnd = fromRowStart + width;
+            imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
+          }
+        } else if (dy < 0) {
+          for (let i = y - dy; i < y + height; i++) {
+            const toRowStart = (i + dy) * screenWidth + x;
+            const fromRowStart = i * screenWidth + x;
+            const fromRowEnd = fromRowStart + width;
+            imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
+          }
+        }
+        if (dx > 0) {
+          for (let i = y; i < y + height; i++) {
+            const toRowStart = i * screenWidth + x + dx;
+            const fromRowStart = i * screenWidth + x;
+            const fromRowEnd = fromRowStart + width - dx;
+            imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
+          }
+        } else if (dx < 0) {
+          for (let i = y; i < y + height; i++) {
+            const toRowStart = i * screenWidth + x;
+            const fromRowStart = i * screenWidth + x - dx;
+            const fromRowEnd = fromRowStart + width + dx;
+            imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
+          }
+        }
+      };
+      window.addEventListener("keydown", (e) => handleKey(e, "down"));
+      window.addEventListener("keyup", (e) => handleKey(e, "up"));
+      window.addEventListener("keypress", (e) => handleKey(e, "press"));
       window.addEventListener("mousedown", handleMouseDown);
+      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("resize", handleResize);
       updateScreenSize();
       return {
@@ -2719,6 +2950,7 @@ System.register(
           tintTile,
           setTile,
           fillRect,
+          scrollRect,
           beginDraw: () => {
             dirty = false;
           },
@@ -2755,7 +2987,7 @@ System.register(
         destroy: () => {},
       };
     }
-    exports_21("getWebNativeContext", getWebNativeContext);
+    exports_24("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
         function (types_ts_9_1) {
@@ -2771,10 +3003,10 @@ System.register(
 System.register(
   "web/src/native/assets",
   ["engine/src/types"],
-  function (exports_22, context_22) {
+  function (exports_25, context_25) {
     "use strict";
     var types_ts_10;
-    var __moduleName = context_22 && context_22.id;
+    var __moduleName = context_25 && context_25.id;
     async function loadImage(src) {
       return new Promise((resolve, reject) => {
         const image = new Image();
@@ -3060,7 +3292,7 @@ System.register(
       };
       return assets;
     }
-    exports_22("initAssets", initAssets);
+    exports_25("initAssets", initAssets);
     return {
       setters: [
         function (types_ts_10_1) {
@@ -3082,7 +3314,7 @@ System.register(
     "web/src/native/web",
     "web/src/native/assets",
   ],
-  function (exports_23, context_23) {
+  function (exports_26, context_26) {
     "use strict";
     var types_ts_11,
       engine_ts_1,
@@ -3093,12 +3325,14 @@ System.register(
       TARGET_FPS,
       engine,
       fpsLabel,
+      game,
       totalRenderTime,
       frames,
       framesTime,
+      firstUpdate,
       lastUpdateTime,
       timeToNextUpdate;
-    var __moduleName = context_23 && context_23.id;
+    var __moduleName = context_26 && context_26.id;
     function updateFps() {
       const now = performance.now();
       frames++;
@@ -3120,15 +3354,15 @@ System.register(
       const assets = await assets_ts_1.initAssets();
       engine = await engine_ts_1.buildEngine(web_ts_1.getWebNativeContext());
       console.log("Engine Initialized");
-      game_ts_1.initGame(engine, assets);
+      game = game_ts_1.initGame(engine, assets);
       console.log("Game Initialized");
       fpsLabel = new label_ts_2.LabelWidget(
         assets.defaultFont,
         "FPS: 0.00\nRender: 0.00ms",
         types_ts_11.FixedColor.White,
-        game_ts_1.mainUI.panel2.backColor,
+        game.ui.backColor,
       );
-      fpsLabel.parent = game_ts_1.mainUI.panel2;
+      fpsLabel.parent = game.ui;
       return engine;
     }
     function update() {
@@ -3139,13 +3373,18 @@ System.register(
       if (timeToNextUpdate < -1000) {
         timeToNextUpdate = -1000;
       }
+      if (firstUpdate) {
+        firstUpdate = false;
+        timeToNextUpdate = 1000 / TARGET_FPS;
+        return;
+      }
       if (timeToNextUpdate > 0.1) {
         return;
       }
       timeToNextUpdate += 1000 / TARGET_FPS;
       updateFps();
       engine.update();
-      game_ts_1.updateGame(engine);
+      game_ts_1.updateGame(engine, game);
       engine.draw();
       const end = performance.now();
       const renderTime = end - updateTime;
@@ -3186,6 +3425,7 @@ System.register(
         totalRenderTime = 0;
         frames = 0;
         framesTime = performance.now();
+        firstUpdate = true;
         lastUpdateTime = performance.now();
         timeToNextUpdate = 0;
         run();

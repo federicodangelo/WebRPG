@@ -1,3 +1,5 @@
+import { ScrollableContainerWidget } from "./widgets/scrollable.ts";
+
 export const enum SpecialChar {
   //Block
   FullBlock,
@@ -410,12 +412,14 @@ export const enum KeyCode {
   None,
   ArrowLeft,
   ArrowRight,
-  ArrowTop,
-  ArrowBottom,
+  ArrowUp,
+  ArrowDown,
 }
 
+export type KeyEventType = "down" | "up" | "press";
+
 export type KeyEvent = {
-  type: "down" | "up" | "press";
+  type: KeyEventType;
   char?: string;
   code?: KeyCode;
 };
@@ -427,4 +431,6 @@ export interface Engine {
   removeWidget(widget: Widget): void;
   invalidateRect(rect: Rect): void;
   onKeyEvent(listener: (e: KeyEvent) => void): void;
+  setMainScrollable(scrollable: ScrollableContainerWidget): void;
+  setMainScroll(offsetX: number, offsetY: number): void;
 }
