@@ -2832,7 +2832,7 @@ System.register(
     function updateCanvasSize(canvas) {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      const devicePixelRatio = window.devicePixelRatio || 1;
+      const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = width * devicePixelRatio;
       canvas.height = height * devicePixelRatio;
       canvas.setAttribute(
