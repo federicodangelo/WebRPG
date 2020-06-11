@@ -2827,24 +2827,27 @@ System.register(
   ["engine/src/types"],
   function (exports_25, context_25) {
     "use strict";
-    var types_ts_9;
+    var types_ts_9, USE_DEVICE_PIXEL_RATION;
     var __moduleName = context_25 && context_25.id;
     function updateCanvasSize(canvas) {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const devicePixelRatio = USE_DEVICE_PIXEL_RATION
+        ? Math.min(window.devicePixelRatio || 1, 2) : 1;
       canvas.width = width * devicePixelRatio;
       canvas.height = height * devicePixelRatio;
-      canvas.setAttribute(
-        "style",
-        "width: " +
-          width +
-          "px;" +
-          "height: " +
-          height +
-          "px;" +
-          "image-rendering: pixelated;",
-      );
+      if (USE_DEVICE_PIXEL_RATION) {
+        canvas.setAttribute(
+          "style",
+          "width: " +
+            width +
+            "px;" +
+            "height: " +
+            height +
+            "px;" +
+            "image-rendering: pixelated;",
+        );
+      }
       return devicePixelRatio;
     }
     function createFullScreenCanvas() {
@@ -3267,6 +3270,7 @@ System.register(
         },
       ],
       execute: function () {
+        USE_DEVICE_PIXEL_RATION = false;
       },
     };
   },
