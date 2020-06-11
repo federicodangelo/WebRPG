@@ -141,7 +141,7 @@ export interface Widget {
   getBoundingBox(): Rect;
   invalidate(): void;
   getAt(x: number, y: number): Widget | null;
-  tapped(e: TapEvent): void;
+  mouse(e: EngineMouseEvent): void;
 }
 
 export class Point {
@@ -429,15 +429,17 @@ export const enum KeyCode {
   ArrowDown,
 }
 
-export type KeyEventType = "down" | "up" | "press";
+export type EngineKeyEventType = "down" | "up" | "press";
 
-export type KeyEvent = {
-  type: KeyEventType;
+export type EngineKeyEvent = {
+  type: EngineKeyEventType;
   char?: string;
   code?: KeyCode;
 };
 
-export type TapEvent = {
+export type EngineMouseEventType = "down" | "up" | "move";
+export type EngineMouseEvent = {
+  type: EngineMouseEventType;
   x: number;
   y: number;
 };
@@ -448,7 +450,10 @@ export interface Engine {
   addWidget(widget: Widget): void;
   removeWidget(widget: Widget): void;
   invalidateRect(rect: Rect): void;
-  onKeyEvent(listener: (e: KeyEvent) => void): void;
+  onKeyEvent(listener: (e: EngineKeyEvent) => void): void;
+  onMouseEvent(listener: (e: EngineMouseEvent) => void): void;
   setMainScrollable(scrollable: ScrollableContainerWidget): void;
   setMainScroll(offsetX: number, offsetY: number): void;
+  setFullscreen(fullscreen: boolean): void;
+  getWidgetAt(x: number, y: number): Widget | null;
 }

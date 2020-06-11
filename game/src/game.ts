@@ -1,7 +1,8 @@
 import {
   Engine,
   Assets,
-  KeyEvent,
+  EngineKeyEvent,
+  EngineMouseEvent,
   KeyCode,
 } from "engine/types.ts";
 import { Avatar } from "./avatar.ts";
@@ -20,7 +21,7 @@ import { initUI } from "./ui.ts";
 
 const NPCS_COUNT = 10;
 
-function onKeyEvent(game: Game, e: KeyEvent) {
+function onKeyEvent(game: Game, e: EngineKeyEvent) {
   if (e.char) {
     if (e.type === "down") {
       setKeyDown(game, e.char, true);
@@ -36,10 +37,94 @@ function onKeyEvent(game: Game, e: KeyEvent) {
   }
 }
 
-export function initGame(engine: Engine, assets: Assets): Game {
-  const { mainUI, map } = initUI(engine, assets);
+var movingWithMouse = false;
+let mouseKeyCodes: KeyCode[] = [];
 
-  const ui = mainUI.panel2;
+function mouseEventToKeyCodes(
+  engine: Engine,
+  game: Game,
+  e: EngineMouseEvent,
+): KeyCode[] {
+  const keyCodes: KeyCode[] = [];
+
+  let widgetAt = engine.getWidgetAt(e.x, e.y);
+
+  while (widgetAt !== null && widgetAt != game.map) {
+    widgetAt = widgetAt.parent;
+  }
+
+  if (widgetAt === null) return keyCodes;
+
+  const map = game.map;
+  const bounds = map.getBoundingBox();
+  const mapX = e.x - bounds.x;
+  const mapY = e.y - bounds.y;
+
+  const dx = mapX < map.width / 3 ? -1 : mapX > (map.width * 2) / 3 ? 1 : 0;
+  const dy = mapY < map.height / 3 ? -1 : mapY > (map.height * 2) / 3 ? 1 : 0;
+
+  if (dx === -1) {
+    keyCodes.push(KeyCode.ArrowLeft);
+  } else if (dx === 1) {
+    keyCodes.push(KeyCode.ArrowRight);
+  }
+
+  if (dy === -1) {
+    keyCodes.push(KeyCode.ArrowUp);
+  } else if (dy === 1) {
+    keyCodes.push(KeyCode.ArrowDown);
+  }
+
+  return keyCodes;
+}
+
+function keyCodesEqual(codes1: KeyCode[], codes2: KeyCode[]) {
+  if (codes1.length !== codes2.length) return false;
+  for (let i = 0; i < codes1.length; i++) {
+    if (codes1[i] !== codes2[i]) return false;
+  }
+  return true;
+}
+
+function onMouseEvent(engine: Engine, game: Game, e: EngineMouseEvent) {
+  switch (e.type) {
+    case "down":
+      {
+        const newCodes = mouseEventToKeyCodes(engine, game, e);
+        if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+          movingWithMouse = true;
+          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, false));
+          mouseKeyCodes = newCodes;
+          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, true));
+        }
+      }
+      break;
+
+    case "move":
+      {
+        if (!movingWithMouse) break;
+        const newCodes = mouseEventToKeyCodes(engine, game, e);
+        if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, false));
+          mouseKeyCodes = newCodes;
+          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, true));
+        }
+      }
+      break;
+
+    case "up":
+      if (!movingWithMouse) break;
+      movingWithMouse = false;
+      mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, false));
+      mouseKeyCodes.length = 0;
+      break;
+  }
+}
+
+export function initGame(engine: Engine, assets: Assets): Game {
+  const { mainUI, map, sidebar } = initUI(engine, assets);
+
+  const ui = sidebar.panel1;
   const scrollable = map;
   const p1 = new Avatar("female1", assets);
   const p2 = new Avatar("female2", assets);
@@ -84,6 +169,7 @@ export function initGame(engine: Engine, assets: Assets): Game {
 
   engine.addWidget(mainUI);
   engine.onKeyEvent((e) => onKeyEvent(game, e));
+  engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
   engine.setMainScrollable(map);
 
   return game;

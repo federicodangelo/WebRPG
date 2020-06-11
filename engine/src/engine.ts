@@ -3,14 +3,13 @@ import {
   Widget,
   Size,
   Rect,
-  KeyEvent,
+  EngineKeyEvent,
   Point,
-  TapEvent,
+  EngineMouseEvent,
 } from "./types.ts";
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
 import { ScrollableContainerWidget } from "./widgets/scrollable.ts";
-import { BaseWidgetContainer } from "./widgets/widget-container.ts";
 
 class EngineImpl implements Engine {
   private children: Widget[] = [];
@@ -24,7 +23,7 @@ class EngineImpl implements Engine {
   constructor(nativeContext: NativeContext) {
     this.nativeContext = nativeContext;
     this.context = new EngineContextImpl(this.nativeContext.screen);
-    this.nativeContext.input.onTapEvent((e) => this.onTapEvent(e));
+    this.nativeContext.input.onMouseEvent((e) => this.onMouseEventInternal(e));
   }
 
   async init() {
@@ -185,8 +184,12 @@ class EngineImpl implements Engine {
     this.invalidateRect(widget.getBoundingBox());
   }
 
-  public onKeyEvent(listener: (e: KeyEvent) => void): void {
+  public onKeyEvent(listener: (e: EngineKeyEvent) => void): void {
     this.nativeContext.input.onKeyEvent(listener);
+  }
+
+  public onMouseEvent(listener: (e: EngineMouseEvent) => void): void {
+    this.nativeContext.input.onMouseEvent(listener);
   }
 
   public invalidateRect(rect: Rect) {
@@ -225,12 +228,16 @@ class EngineImpl implements Engine {
     return null;
   }
 
-  private onTapEvent(e: TapEvent): void {
+  private onMouseEventInternal(e: EngineMouseEvent): void {
     const w = this.getWidgetAt(e.x, e.y);
     if (w !== null) {
       const bbox = w.getBoundingBox();
-      w.tapped({ x: e.x - bbox.x, y: e.y - bbox.y });
+      w.mouse({ type: e.type, x: e.x - bbox.x, y: e.y - bbox.y });
     }
+  }
+
+  public setFullscreen(fullscreen: boolean): void {
+    this.nativeContext.screen.setFullscreen(fullscreen);
   }
 }
 

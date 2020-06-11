@@ -1,8 +1,15 @@
-import { Color, Size, Tile, KeyEvent, TapEvent } from "./types.ts";
+import {
+  Color,
+  Size,
+  Tile,
+  EngineKeyEvent,
+  EngineMouseEvent,
+} from "./types.ts";
 
 export interface NativeContextScreen {
   getScreenSize(): Size | null;
   onScreenSizeChanged(listener: (size: Size) => void): void;
+  setFullscreen(fullscreen: boolean): void;
 
   beginDraw(): void;
 
@@ -49,8 +56,8 @@ export interface NativeContextScreen {
 }
 
 export interface NativeContextInput {
-  onKeyEvent(listener: (e: KeyEvent) => void): void;
-  onTapEvent(listener: (e: TapEvent) => void): void;
+  onKeyEvent(listener: (e: EngineKeyEvent) => void): void;
+  onMouseEvent(listener: (e: EngineMouseEvent) => void): void;
 }
 
 export interface NativeContext {

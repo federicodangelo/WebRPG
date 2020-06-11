@@ -8,6 +8,7 @@ import {
 } from "engine/types.ts";
 import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/tiles-container.ts";
+import { ButtonWidget } from "../../engine/src/widgets/button.ts";
 
 export function initUI(engine: Engine, assets: Assets) {
   const font = assets.defaultFont;
@@ -27,6 +28,22 @@ export function initUI(engine: Engine, assets: Assets) {
 
   mainUI.panel2.border = 2;
   mainUI.panel2.backColor = FixedColor.BrightBlack;
+
+  const sidebar = new SplitPanelContainerWidget(font);
+  sidebar.parent = mainUI.panel2;
+  sidebar.layout = {
+    widthPercent: 100,
+    heightPercent: 100,
+  };
+  sidebar.splitLayout = {
+    direction: "vertical",
+    fixed: {
+      panel: "panel2",
+      amount: 10 * font.tileWidth,
+    },
+  };
+  sidebar.panel1.border = 0;
+  sidebar.panel2.border = 0;
 
   const map = new ScrollableTilesContainerWidget();
 
@@ -71,8 +88,12 @@ export function initUI(engine: Engine, assets: Assets) {
     Intensity.I20,
     Intensity.I40,
   );
+
   mainUI.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
-  mainUI.panel2.childrenLayout = {
+  sidebar.panel1.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
+  sidebar.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
+
+  sidebar.panel1.childrenLayout = {
     type: "vertical",
     spacing: 1 * font.tileWidth,
   };
@@ -82,7 +103,16 @@ export function initUI(engine: Engine, assets: Assets) {
     "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
     FixedColor.White,
     mainUI.panel2.backColor,
-  ).parent = mainUI.panel2;
+  ).parent = sidebar.panel1;
 
-  return { mainUI, map };
+  new ButtonWidget(
+    font,
+    "Fullscreen",
+    FixedColor.White,
+    FixedColor.Green,
+    () => engine.setFullscreen(true),
+  ).setLayout({ horizontalSpacingPercent: 50, verticalSpacingPercent: 50 })
+    .parent = sidebar.panel2;
+
+  return { mainUI, sidebar, map };
 }

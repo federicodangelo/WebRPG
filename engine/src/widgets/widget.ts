@@ -6,7 +6,7 @@ import {
   Rect,
   DrawContext,
   EngineContext,
-  TapEvent,
+  EngineMouseEvent,
 } from "../types.ts";
 
 export abstract class BaseWidget implements Widget {
@@ -240,9 +240,7 @@ export abstract class BaseWidget implements Widget {
     engine?.invalidateRect(bbox);
   }
 
-  public tapped(e: TapEvent) {
-    console.log("tapped on", this, e);
-  }
+  public mouse(e: EngineMouseEvent) {}
 
   public getAt(x: number, y: number): Widget | null {
     if (!this.solid) return null;

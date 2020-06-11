@@ -332,9 +332,7 @@ System.register(
             const bbox = this.getBoundingBox();
             engine?.invalidateRect(bbox);
           }
-          tapped(e) {
-            console.log("tapped on", this, e);
-          }
+          mouse(e) {}
           getAt(x, y) {
             if (!this.solid) {
               return null;
@@ -1155,7 +1153,9 @@ System.register(
             this.context = new context_ts_1.EngineContextImpl(
               this.nativeContext.screen,
             );
-            this.nativeContext.input.onTapEvent((e) => this.onTapEvent(e));
+            this.nativeContext.input.onMouseEvent((e) =>
+              this.onMouseEventInternal(e)
+            );
           }
           async init() {
             await this.nativeContext.init();
@@ -1315,6 +1315,9 @@ System.register(
           onKeyEvent(listener) {
             this.nativeContext.input.onKeyEvent(listener);
           }
+          onMouseEvent(listener) {
+            this.nativeContext.input.onMouseEvent(listener);
+          }
           invalidateRect(rect) {
             let lastRect = this.invalidRects.length > 0
               ? this.invalidRects[this.invalidRects.length - 1] : null;
@@ -1344,12 +1347,15 @@ System.register(
             }
             return null;
           }
-          onTapEvent(e) {
+          onMouseEventInternal(e) {
             const w = this.getWidgetAt(e.x, e.y);
             if (w !== null) {
               const bbox = w.getBoundingBox();
-              w.tapped({ x: e.x - bbox.x, y: e.y - bbox.y });
+              w.mouse({ type: e.type, x: e.x - bbox.x, y: e.y - bbox.y });
             }
+          }
+          setFullscreen(fullscreen) {
+            this.nativeContext.screen.setFullscreen(fullscreen);
           }
         };
       },
@@ -2342,17 +2348,95 @@ System.register(
   },
 );
 System.register(
+  "engine/src/widgets/button",
+  ["engine/src/widgets/widget"],
+  function (exports_22, context_22) {
+    "use strict";
+    var widget_ts_6, ButtonWidget;
+    var __moduleName = context_22 && context_22.id;
+    return {
+      setters: [
+        function (widget_ts_6_1) {
+          widget_ts_6 = widget_ts_6_1;
+        },
+      ],
+      execute: function () {
+        ButtonWidget = class ButtonWidget extends widget_ts_6.BaseWidget {
+          constructor(font, text, foreColor, backColor, onTapped = null) {
+            super();
+            this.onTapped = null;
+            this._text = "";
+            this._lines = [];
+            this.down = false;
+            this.font = font;
+            this.height = font.tileHeight;
+            this.text = text;
+            this.foreColor = foreColor;
+            this.backColor = backColor;
+            this.onTapped = onTapped;
+          }
+          set text(val) {
+            if (val !== this._text) {
+              this._text = val;
+              this._lines = val.split("\n");
+              this.width =
+                (this._lines.map((s) => s.length).reduce(
+                  (max, c) => Math.max(max, c),
+                  0,
+                ) + 2) * this.font.tileWidth;
+              this.height = (this._lines.length + 2) * this.font.tileHeight;
+              this.invalidate();
+            }
+          }
+          get text() {
+            return this._text;
+          }
+          drawSelf(context) {
+            context.textColor(this.foreColor, this.backColor);
+            context.textBorder(this.font, 0, 0, this.width, this.height);
+            for (let i = 0; i < this._lines.length; i++) {
+              context.moveCursorTo(
+                this.font.tileWidth,
+                (i + 1) * this.font.tileHeight,
+              )
+                .text(this.font, this._lines[i]);
+            }
+          }
+          mouse(e) {
+            if (e.type === "down") {
+              this.down = true;
+            } else if (e.type === "up") {
+              if (this.down) {
+                this.down = false;
+                if (this.onTapped !== null) {
+                  this.onTapped();
+                }
+              }
+            }
+          }
+        };
+        exports_22("ButtonWidget", ButtonWidget);
+      },
+    };
+  },
+);
+System.register(
   "game/src/ui",
   [
     "engine/src/widgets/label",
     "engine/src/types",
     "engine/src/widgets/split-panel",
     "engine/src/widgets/tiles-container",
+    "engine/src/widgets/button",
   ],
-  function (exports_22, context_22) {
+  function (exports_23, context_23) {
     "use strict";
-    var label_ts_1, types_ts_8, split_panel_ts_1, tiles_container_ts_1;
-    var __moduleName = context_22 && context_22.id;
+    var label_ts_1,
+      types_ts_8,
+      split_panel_ts_1,
+      tiles_container_ts_1,
+      button_ts_1;
+    var __moduleName = context_23 && context_23.id;
     function initUI(engine, assets) {
       const font = assets.defaultFont;
       const mainUI = new split_panel_ts_1.SplitPanelContainerWidget(font);
@@ -2369,6 +2453,21 @@ System.register(
       };
       mainUI.panel2.border = 2;
       mainUI.panel2.backColor = types_ts_8.FixedColor.BrightBlack;
+      const sidebar = new split_panel_ts_1.SplitPanelContainerWidget(font);
+      sidebar.parent = mainUI.panel2;
+      sidebar.layout = {
+        widthPercent: 100,
+        heightPercent: 100,
+      };
+      sidebar.splitLayout = {
+        direction: "vertical",
+        fixed: {
+          panel: "panel2",
+          amount: 10 * font.tileWidth,
+        },
+      };
+      sidebar.panel1.border = 0;
+      sidebar.panel2.border = 0;
       const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
       map.setLayout({ heightPercent: 100, widthPercent: 100 });
       map.setChildrenLayout({ type: "none" });
@@ -2414,7 +2513,17 @@ System.register(
         51, /* I20 */
         102, /* I40 */
       );
-      mainUI.panel2.childrenLayout = {
+      sidebar.panel1.backColor = types_ts_8.rgb(
+        0, /* I0 */
+        51, /* I20 */
+        102, /* I40 */
+      );
+      sidebar.panel2.backColor = types_ts_8.rgb(
+        0, /* I0 */
+        51, /* I20 */
+        102, /* I40 */
+      );
+      sidebar.panel1.childrenLayout = {
         type: "vertical",
         spacing: 1 * font.tileWidth,
       };
@@ -2423,10 +2532,18 @@ System.register(
         "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
         types_ts_8.FixedColor.White,
         mainUI.panel2.backColor,
-      ).parent = mainUI.panel2;
-      return { mainUI, map };
+      ).parent = sidebar.panel1;
+      new button_ts_1.ButtonWidget(
+        font,
+        "Fullscreen",
+        types_ts_8.FixedColor.White,
+        types_ts_8.FixedColor.Green,
+        () => engine.setFullscreen(true),
+      ).setLayout({ horizontalSpacingPercent: 50, verticalSpacingPercent: 50 })
+        .parent = sidebar.panel2;
+      return { mainUI, sidebar, map };
     }
-    exports_22("initUI", initUI);
+    exports_23("initUI", initUI);
     return {
       setters: [
         function (label_ts_1_1) {
@@ -2440,6 +2557,9 @@ System.register(
         },
         function (tiles_container_ts_1_1) {
           tiles_container_ts_1 = tiles_container_ts_1_1;
+        },
+        function (button_ts_1_1) {
+          button_ts_1 = button_ts_1_1;
         },
       ],
       execute: function () {
@@ -2457,7 +2577,7 @@ System.register(
     "game/src/utils",
     "game/src/ui",
   ],
-  function (exports_23, context_23) {
+  function (exports_24, context_24) {
     "use strict";
     var avatar_ts_2,
       map_ts_1,
@@ -2465,8 +2585,10 @@ System.register(
       npc_ts_1,
       utils_ts_1,
       ui_ts_1,
-      NPCS_COUNT;
-    var __moduleName = context_23 && context_23.id;
+      NPCS_COUNT,
+      movingWithMouse,
+      mouseKeyCodes;
+    var __moduleName = context_24 && context_24.id;
     function onKeyEvent(game, e) {
       if (e.char) {
         if (e.type === "down") {
@@ -2482,9 +2604,94 @@ System.register(
         }
       }
     }
+    function mouseEventToKeyCodes(engine, game, e) {
+      const keyCodes = [];
+      let widgetAt = engine.getWidgetAt(e.x, e.y);
+      while (widgetAt !== null && widgetAt != game.map) {
+        widgetAt = widgetAt.parent;
+      }
+      if (widgetAt === null) {
+        return keyCodes;
+      }
+      const map = game.map;
+      const bounds = map.getBoundingBox();
+      const mapX = e.x - bounds.x;
+      const mapY = e.y - bounds.y;
+      const dx = mapX < map.width / 3 ? -1 : mapX > (map.width * 2) / 3 ? 1 : 0;
+      const dy = mapY < map.height / 3 ? -1
+      : mapY > (map.height * 2) / 3 ? 1 : 0;
+      if (dx === -1) {
+        keyCodes.push(1 /* ArrowLeft */);
+      } else if (dx === 1) {
+        keyCodes.push(2 /* ArrowRight */);
+      }
+      if (dy === -1) {
+        keyCodes.push(3 /* ArrowUp */);
+      } else if (dy === 1) {
+        keyCodes.push(4 /* ArrowDown */);
+      }
+      return keyCodes;
+    }
+    function keyCodesEqual(codes1, codes2) {
+      if (codes1.length !== codes2.length) {
+        return false;
+      }
+      for (let i = 0; i < codes1.length; i++) {
+        if (codes1[i] !== codes2[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+    function onMouseEvent(engine, game, e) {
+      switch (e.type) {
+        case "down":
+          {
+            const newCodes = mouseEventToKeyCodes(engine, game, e);
+            if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+              movingWithMouse = true;
+              mouseKeyCodes.forEach((code) =>
+                utils_ts_1.setSpecialKeyDown(game, code, false)
+              );
+              mouseKeyCodes = newCodes;
+              mouseKeyCodes.forEach((code) =>
+                utils_ts_1.setSpecialKeyDown(game, code, true)
+              );
+            }
+          }
+          break;
+        case "move":
+          {
+            if (!movingWithMouse) {
+              break;
+            }
+            const newCodes = mouseEventToKeyCodes(engine, game, e);
+            if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+              mouseKeyCodes.forEach((code) =>
+                utils_ts_1.setSpecialKeyDown(game, code, false)
+              );
+              mouseKeyCodes = newCodes;
+              mouseKeyCodes.forEach((code) =>
+                utils_ts_1.setSpecialKeyDown(game, code, true)
+              );
+            }
+          }
+          break;
+        case "up":
+          if (!movingWithMouse) {
+            break;
+          }
+          movingWithMouse = false;
+          mouseKeyCodes.forEach((code) =>
+            utils_ts_1.setSpecialKeyDown(game, code, false)
+          );
+          mouseKeyCodes.length = 0;
+          break;
+      }
+    }
     function initGame(engine, assets) {
-      const { mainUI, map } = ui_ts_1.initUI(engine, assets);
-      const ui = mainUI.panel2;
+      const { mainUI, map, sidebar } = ui_ts_1.initUI(engine, assets);
+      const ui = sidebar.panel1;
       const scrollable = map;
       const p1 = new avatar_ts_2.Avatar("female1", assets);
       const p2 = new avatar_ts_2.Avatar("female2", assets);
@@ -2522,10 +2729,11 @@ System.register(
       };
       engine.addWidget(mainUI);
       engine.onKeyEvent((e) => onKeyEvent(game, e));
+      engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
       engine.setMainScrollable(map);
       return game;
     }
-    exports_23("initGame", initGame);
+    exports_24("initGame", initGame);
     function updateGame(engine, game) {
       const { p1, p2, avatars, updateables, map } = game;
       if (
@@ -2584,7 +2792,7 @@ System.register(
       utils_ts_1.followAvatar(p1, map, engine);
       return true;
     }
-    exports_23("updateGame", updateGame);
+    exports_24("updateGame", updateGame);
     return {
       setters: [
         function (avatar_ts_2_1) {
@@ -2608,6 +2816,8 @@ System.register(
       ],
       execute: function () {
         NPCS_COUNT = 10;
+        movingWithMouse = false;
+        mouseKeyCodes = [];
       },
     };
   },
@@ -2615,10 +2825,10 @@ System.register(
 System.register(
   "web/src/native/web",
   ["engine/src/types"],
-  function (exports_24, context_24) {
+  function (exports_25, context_25) {
     "use strict";
     var types_ts_9, SCALE;
-    var __moduleName = context_24 && context_24.id;
+    var __moduleName = context_25 && context_25.id;
     function updateCanvasSize(canvas, width, height) {
       canvas.width = Math.floor(width / SCALE);
       canvas.height = Math.floor(height / SCALE);
@@ -2671,12 +2881,12 @@ System.register(
       ctx.imageSmoothingEnabled = false;
       let screenSizeChangedListeners = [];
       let keyListeners = [];
-      let tapListeners = [];
+      let mouseListeners = [];
       const disptachKeyEvent = (e) => {
         keyListeners.forEach((l) => l(e));
       };
-      const disptachTapEvent = (e) => {
-        tapListeners.forEach((l) => l(e));
+      const dispatchMouseEvent = (e) => {
+        mouseListeners.forEach((l) => l(e));
       };
       const updateScreenSize = () => {
         screenSize.set(canvas.width, canvas.height);
@@ -2710,89 +2920,29 @@ System.register(
             break;
         }
       };
-      let mouseKeyCodes = [];
-      let mouseDown = false;
-      let mouseDownPosition = new types_ts_9.Point();
-      let mouseDownTime = performance.now();
-      const mouseEventToKeyCodes = (e) => {
-        const keyCodes = [];
-        const dx = e.clientX < window.innerWidth / 3 ? -1
-        : e.clientX > (window.innerWidth * 2) / 3
-        ? 1
-        : 0;
-        const dy = e.clientY < window.innerHeight / 3
-          ? -1
-          : e.clientY > (window.innerHeight * 2) / 3
-          ? 1
-          : 0;
-        if (dx === -1) {
-          keyCodes.push(1 /* ArrowLeft */);
-        } else if (dx === 1) {
-          keyCodes.push(2 /* ArrowRight */);
-        }
-        if (dy === -1) {
-          keyCodes.push(3 /* ArrowUp */);
-        } else if (dy === 1) {
-          keyCodes.push(4 /* ArrowDown */);
-        }
-        return keyCodes;
-      };
-      const keyCodesEqual = (codes1, codes2) => {
-        if (codes1.length !== codes2.length) {
-          return false;
-        }
-        for (let i = 0; i < codes1.length; i++) {
-          if (codes1[i] !== codes2[i]) {
-            return false;
-          }
-        }
-        return true;
-      };
+      var mouseDown = false;
       const handleMouseDown = (e) => {
         mouseDown = true;
-        mouseDownPosition.set(Math.trunc(e.clientX), Math.trunc(e.clientY));
-        mouseDownTime = performance.now();
-        const newCodes = mouseEventToKeyCodes(e);
-        if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
-          mouseKeyCodes.forEach((code) =>
-            disptachKeyEvent({ type: "up", code })
-          );
-          mouseKeyCodes = newCodes;
-          mouseKeyCodes.forEach((code) =>
-            disptachKeyEvent({ type: "down", code })
-          );
-        }
+        dispatchMouseEvent(
+          { type: "down", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
+        );
       };
       const handleMouseMove = (e) => {
         if (!mouseDown) {
           return;
         }
-        const newCodes = mouseEventToKeyCodes(e);
-        if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
-          mouseKeyCodes.forEach((code) =>
-            disptachKeyEvent({ type: "up", code })
-          );
-          mouseKeyCodes = newCodes;
-          mouseKeyCodes.forEach((code) =>
-            disptachKeyEvent({ type: "down", code })
-          );
-        }
+        dispatchMouseEvent(
+          { type: "move", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
+        );
       };
       const handleMouseUp = (e) => {
         if (!mouseDown) {
           return;
         }
-        mouseDown = false;
-        mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "up", code }));
-        mouseKeyCodes.length = 0;
-        const dt = (performance.now() - mouseDownTime) / 1000;
-        const upPosition = new types_ts_9.Point(
-          Math.trunc(e.clientX),
-          Math.trunc(e.clientY),
+        dispatchMouseEvent(
+          { type: "up", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
         );
-        if (dt < 0.25 && upPosition.distanceTo(mouseDownPosition) < 100) {
-          disptachTapEvent({ x: mouseDownPosition.x, y: mouseDownPosition.y });
-        }
+        mouseDown = false;
       };
       const handleResize = () => {
         updateCanvasSize(canvas, window.innerWidth, window.innerHeight);
@@ -3047,6 +3197,14 @@ System.register(
           onScreenSizeChanged: (listener) => {
             screenSizeChangedListeners.push(listener);
           },
+          setFullscreen: (fullscreen) => {
+            const elem = document.documentElement;
+            if (fullscreen) {
+              elem.requestFullscreen();
+            } else {
+              document.exitFullscreen();
+            }
+          },
           tintTile,
           setTile,
           fillRect,
@@ -3080,17 +3238,18 @@ System.register(
           onKeyEvent: (listener) => {
             keyListeners.push(listener);
           },
-          onTapEvent: (listener) => {
-            tapListeners.push(listener);
+          onMouseEvent: (listener) => {
+            mouseListeners.push(listener);
           },
         },
         init: async () => {
           updateScreenSize();
+          globalThis.pauseStats();
         },
         destroy: () => {},
       };
     }
-    exports_24("getWebNativeContext", getWebNativeContext);
+    exports_25("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
         function (types_ts_9_1) {
@@ -3106,10 +3265,10 @@ System.register(
 System.register(
   "web/src/native/assets",
   ["engine/src/types"],
-  function (exports_25, context_25) {
+  function (exports_26, context_26) {
     "use strict";
     var types_ts_10;
-    var __moduleName = context_25 && context_25.id;
+    var __moduleName = context_26 && context_26.id;
     async function loadImage(src) {
       return new Promise((resolve, reject) => {
         const image = new Image();
@@ -3395,7 +3554,7 @@ System.register(
       };
       return assets;
     }
-    exports_25("initAssets", initAssets);
+    exports_26("initAssets", initAssets);
     return {
       setters: [
         function (types_ts_10_1) {
@@ -3417,7 +3576,7 @@ System.register(
     "web/src/native/web",
     "web/src/native/assets",
   ],
-  function (exports_26, context_26) {
+  function (exports_27, context_27) {
     "use strict";
     var types_ts_11,
       engine_ts_1,
@@ -3435,7 +3594,7 @@ System.register(
       firstUpdate,
       lastUpdateTime,
       timeToNextUpdate;
-    var __moduleName = context_26 && context_26.id;
+    var __moduleName = context_27 && context_27.id;
     function updateFps() {
       const now = performance.now();
       frames++;

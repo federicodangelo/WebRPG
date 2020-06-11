@@ -3,12 +3,11 @@ import {
   Size,
   Color,
   Tile,
-  KeyEvent,
+  EngineKeyEvent,
   AlphaType,
   KeyCode,
-  KeyEventType,
-  TapEvent,
-  Point,
+  EngineKeyEventType,
+  EngineMouseEvent,
 } from "engine/types.ts";
 
 const SCALE = 1;
@@ -75,22 +74,22 @@ export function getWebNativeContext(): NativeContext {
   ctx.imageSmoothingEnabled = false;
 
   let screenSizeChangedListeners: ((size: Size) => void)[] = [];
-  let keyListeners: ((e: KeyEvent) => void)[] = [];
-  let tapListeners: ((e: TapEvent) => void)[] = [];
+  let keyListeners: ((e: EngineKeyEvent) => void)[] = [];
+  let mouseListeners: ((e: EngineMouseEvent) => void)[] = [];
 
-  const disptachKeyEvent = (e: KeyEvent) => {
+  const disptachKeyEvent = (e: EngineKeyEvent) => {
     keyListeners.forEach((l) => l(e));
   };
 
-  const disptachTapEvent = (e: TapEvent) => {
-    tapListeners.forEach((l) => l(e));
+  const dispatchMouseEvent = (e: EngineMouseEvent) => {
+    mouseListeners.forEach((l) => l(e));
   };
 
   const updateScreenSize = () => {
     screenSize.set(canvas.width, canvas.height);
   };
 
-  const handleKey = (e: KeyboardEvent, type: KeyEventType) => {
+  const handleKey = (e: KeyboardEvent, type: EngineKeyEventType) => {
     const key = e.key;
 
     if (type === "down" && key === "f") {
@@ -122,83 +121,28 @@ export function getWebNativeContext(): NativeContext {
     }
   };
 
-  let mouseKeyCodes: KeyCode[] = [];
-  let mouseDown = false;
-  let mouseDownPosition = new Point();
-  let mouseDownTime = performance.now();
-
-  const mouseEventToKeyCodes = (e: MouseEvent): KeyCode[] => {
-    const keyCodes: KeyCode[] = [];
-    const dx = e.clientX < window.innerWidth / 3
-      ? -1
-      : e.clientX > (window.innerWidth * 2) / 3
-      ? 1
-      : 0;
-    const dy = e.clientY < window.innerHeight / 3
-      ? -1
-      : e.clientY > (window.innerHeight * 2) / 3
-      ? 1
-      : 0;
-
-    if (dx === -1) {
-      keyCodes.push(KeyCode.ArrowLeft);
-    } else if (dx === 1) {
-      keyCodes.push(KeyCode.ArrowRight);
-    }
-
-    if (dy === -1) {
-      keyCodes.push(KeyCode.ArrowUp);
-    } else if (dy === 1) {
-      keyCodes.push(KeyCode.ArrowDown);
-    }
-
-    return keyCodes;
-  };
-
-  const keyCodesEqual = (codes1: KeyCode[], codes2: KeyCode[]) => {
-    if (codes1.length !== codes2.length) return false;
-    for (let i = 0; i < codes1.length; i++) {
-      if (codes1[i] !== codes2[i]) return false;
-    }
-    return true;
-  };
+  var mouseDown = false;
 
   const handleMouseDown = (e: MouseEvent) => {
     mouseDown = true;
-    mouseDownPosition.set(Math.trunc(e.clientX), Math.trunc(e.clientY));
-    mouseDownTime = performance.now();
-    const newCodes = mouseEventToKeyCodes(e);
-
-    if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
-      mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "up", code }));
-      mouseKeyCodes = newCodes;
-      mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "down", code }));
-    }
+    dispatchMouseEvent(
+      { type: "down", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
+    );
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!mouseDown) return;
-    const newCodes = mouseEventToKeyCodes(e);
-
-    if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
-      mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "up", code }));
-      mouseKeyCodes = newCodes;
-      mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "down", code }));
-    }
+    dispatchMouseEvent(
+      { type: "move", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
+    );
   };
 
   const handleMouseUp = (e: MouseEvent) => {
     if (!mouseDown) return;
+    dispatchMouseEvent(
+      { type: "up", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
+    );
     mouseDown = false;
-    mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "up", code }));
-    mouseKeyCodes.length = 0;
-
-    const dt = (performance.now() - mouseDownTime) / 1000;
-    const upPosition = new Point(Math.trunc(e.clientX), Math.trunc(e.clientY));
-
-    if (dt < 0.25 && upPosition.distanceTo(mouseDownPosition) < 100) {
-      disptachTapEvent({ x: mouseDownPosition.x, y: mouseDownPosition.y });
-    }
   };
 
   const handleResize = () => {
@@ -505,6 +449,14 @@ export function getWebNativeContext(): NativeContext {
       onScreenSizeChanged: (listener) => {
         screenSizeChangedListeners.push(listener);
       },
+      setFullscreen: (fullscreen) => {
+        const elem = document.documentElement;
+        if (fullscreen) {
+          elem.requestFullscreen();
+        } else {
+          document.exitFullscreen();
+        }
+      },
       tintTile,
       setTile,
       fillRect,
@@ -535,12 +487,13 @@ export function getWebNativeContext(): NativeContext {
       onKeyEvent: (listener) => {
         keyListeners.push(listener);
       },
-      onTapEvent: (listener) => {
-        tapListeners.push(listener);
+      onMouseEvent: (listener) => {
+        mouseListeners.push(listener);
       },
     },
     init: async () => {
       updateScreenSize();
+      (globalThis as any).pauseStats();
     },
     destroy: () => {},
   };
