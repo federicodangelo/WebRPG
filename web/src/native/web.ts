@@ -464,13 +464,16 @@ export function getWebNativeContext(): NativeContext {
   window.addEventListener("keydown", (e) => handleKey(e, "down"));
   window.addEventListener("keyup", (e) => handleKey(e, "up"));
   window.addEventListener("keypress", (e) => handleKey(e, "press"));
-  //window.addEventListener("mousedown", handleMouseDown);
-  //window.addEventListener("mouseup", handleMouseUp);
-  //window.addEventListener("mousemove", handleMouseMove);
 
-  window.addEventListener("pointerdown", handleMouseDown);
-  window.addEventListener("pointerup", handleMouseUp);
-  window.addEventListener("pointermove", handleMouseMove);
+  if (window.PointerEvent) {
+    window.addEventListener("pointerdown", handleMouseDown);
+    window.addEventListener("pointerup", handleMouseUp);
+    window.addEventListener("pointermove", handleMouseMove);
+  } else {
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("mousemove", handleMouseMove);
+  }
 
   window.addEventListener("resize", handleResize);
   updateScreenSize();
