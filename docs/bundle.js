@@ -2827,27 +2827,28 @@ System.register(
   ["engine/src/types"],
   function (exports_25, context_25) {
     "use strict";
-    var types_ts_9, SCALE;
+    var types_ts_9;
     var __moduleName = context_25 && context_25.id;
-    function updateCanvasSize(canvas, width, height) {
-      canvas.width = Math.floor(width / SCALE);
-      canvas.height = Math.floor(height / SCALE);
-      if (SCALE !== 1) {
-        canvas.setAttribute(
-          "style",
-          "width: " +
-            canvas.width * SCALE +
-            "px;" +
-            "height: " +
-            canvas.height * SCALE +
-            "px;" +
-            "image-rendering: pixelated;",
-        );
-      }
+    function updateCanvasSize(canvas) {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const dpi = window.devicePixelRatio || 1;
+      canvas.width = width * dpi;
+      canvas.height = height * dpi;
+      canvas.setAttribute(
+        "style",
+        "width: " +
+          width +
+          "px;" +
+          "height: " +
+          height +
+          "px;" +
+          "image-rendering: pixelated;",
+      );
     }
     function createFullScreenCanvas() {
       const canvas = document.createElement("canvas");
-      updateCanvasSize(canvas, window.innerWidth, window.innerHeight);
+      updateCanvasSize(canvas);
       document.body.appendChild(canvas);
       return canvas;
     }
@@ -2945,7 +2946,7 @@ System.register(
         mouseDown = false;
       };
       const handleResize = () => {
-        updateCanvasSize(canvas, window.innerWidth, window.innerHeight);
+        updateCanvasSize(canvas);
         imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         imageDataPixels = imageData.data;
         imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
@@ -3153,7 +3154,7 @@ System.register(
         let to;
         let copyOffset;
         if (dy >= 0) {
-          to = (y + height) * screenWidth + x;
+          to = (y + height - 1) * screenWidth + x;
           copyOffset = -screenWidth;
         } else {
           to = y * screenWidth + x;
@@ -3257,7 +3258,6 @@ System.register(
         },
       ],
       execute: function () {
-        SCALE = 1;
       },
     };
   },

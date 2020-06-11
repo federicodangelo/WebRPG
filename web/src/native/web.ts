@@ -10,32 +10,30 @@ import {
   EngineMouseEvent,
 } from "engine/types.ts";
 
-const SCALE = 1;
-
 function updateCanvasSize(
   canvas: HTMLCanvasElement,
-  width: number,
-  height: number,
 ) {
-  canvas.width = Math.floor(width / SCALE);
-  canvas.height = Math.floor(height / SCALE);
-  if (SCALE !== 1) {
-    canvas.setAttribute(
-      "style",
-      "width: " +
-        canvas.width * SCALE +
-        "px;" +
-        "height: " +
-        canvas.height * SCALE +
-        "px;" +
-        "image-rendering: pixelated;",
-    );
-  }
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const dpi = window.devicePixelRatio || 1;
+
+  canvas.width = width * dpi;
+  canvas.height = height * dpi;
+  canvas.setAttribute(
+    "style",
+    "width: " +
+      width +
+      "px;" +
+      "height: " +
+      height +
+      "px;" +
+      "image-rendering: pixelated;",
+  );
 }
 
 function createFullScreenCanvas(): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
-  updateCanvasSize(canvas, window.innerWidth, window.innerHeight);
+  updateCanvasSize(canvas);
   document.body.appendChild(canvas);
   return canvas;
 }
@@ -146,7 +144,7 @@ export function getWebNativeContext(): NativeContext {
   };
 
   const handleResize = () => {
-    updateCanvasSize(canvas, window.innerWidth, window.innerHeight);
+    updateCanvasSize(canvas);
     imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     imageDataPixels = imageData.data;
     imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
@@ -398,7 +396,7 @@ export function getWebNativeContext(): NativeContext {
     let copyOffset: number;
 
     if (dy >= 0) {
-      to = (y + height) * screenWidth + x;
+      to = (y + height - 1) * screenWidth + x;
       copyOffset = -screenWidth;
     } else {
       to = y * screenWidth + x;
