@@ -2448,10 +2448,9 @@ System.register(
         direction: "horizontal",
         fixed: {
           panel: "panel2",
-          amount: 19 * font.tileWidth,
+          amount: 12 * font.tileWidth,
         },
       };
-      mainUI.panel2.border = 2;
       mainUI.panel2.backColor = types_ts_8.FixedColor.BrightBlack;
       const sidebar = new split_panel_ts_1.SplitPanelContainerWidget(font);
       sidebar.parent = mainUI.panel2;
@@ -2491,6 +2490,7 @@ System.register(
       );
       mainUI.panel1.backColor = types_ts_8.FixedColor.Black;
       mainUI.panel1.fillChar = "";
+      mainUI.panel1.border = 0;
       mainUI.panel2.title = " Stats ";
       mainUI.panel2.titleForeColor = types_ts_8.FixedColor.BrightWhite;
       mainUI.panel2.titleBackColor = types_ts_8.rgb(
@@ -2535,7 +2535,7 @@ System.register(
       ).parent = sidebar.panel1;
       new button_ts_1.ButtonWidget(
         font,
-        "Fullscreen",
+        " Full ",
         types_ts_8.FixedColor.White,
         types_ts_8.FixedColor.Green,
         () => engine.setFullscreen(true),
@@ -3613,9 +3613,9 @@ System.register(
       frames++;
       if (now - framesTime > 1000) {
         const fps = frames / ((now - framesTime) / 1000);
-        const stats = "FPS: " +
+        const stats = "FPS:\n " +
           fps.toFixed(2) +
-          "\nRender: " +
+          "\nRender:\n " +
           (totalRenderTime / frames).toFixed(2) +
           "ms";
         fpsLabel.text = stats;
@@ -3633,7 +3633,7 @@ System.register(
       console.log("Game Initialized");
       fpsLabel = new label_ts_2.LabelWidget(
         assets.defaultFont,
-        "FPS: 0.00\nRender: 0.00ms",
+        "FPS:\n 0.00\nRender:\n 0.00ms",
         types_ts_11.FixedColor.White,
         game.ui.backColor,
       );

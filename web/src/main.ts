@@ -21,9 +21,9 @@ function updateFps() {
   frames++;
   if (now - framesTime > 1000) {
     const fps = frames / ((now - framesTime) / 1000);
-    const stats = "FPS: " +
+    const stats = "FPS:\n " +
       fps.toFixed(2) +
-      "\nRender: " +
+      "\nRender:\n " +
       (totalRenderTime / frames).toFixed(2) +
       "ms";
     fpsLabel.text = stats;
@@ -48,7 +48,7 @@ async function init() {
 
   fpsLabel = new LabelWidget(
     assets.defaultFont,
-    "FPS: 0.00\nRender: 0.00ms",
+    "FPS:\n 0.00\nRender:\n 0.00ms",
     FixedColor.White,
     game.ui.backColor,
   );

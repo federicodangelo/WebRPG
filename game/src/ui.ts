@@ -22,11 +22,10 @@ export function initUI(engine: Engine, assets: Assets) {
     direction: "horizontal",
     fixed: {
       panel: "panel2",
-      amount: 19 * font.tileWidth,
+      amount: 12 * font.tileWidth,
     },
   };
 
-  mainUI.panel2.border = 2;
   mainUI.panel2.backColor = FixedColor.BrightBlack;
 
   const sidebar = new SplitPanelContainerWidget(font);
@@ -70,6 +69,7 @@ export function initUI(engine: Engine, assets: Assets) {
   );
   mainUI.panel1.backColor = FixedColor.Black;
   mainUI.panel1.fillChar = "";
+  mainUI.panel1.border = 0;
 
   mainUI.panel2.title = " Stats ";
   mainUI.panel2.titleForeColor = FixedColor.BrightWhite;
@@ -107,7 +107,7 @@ export function initUI(engine: Engine, assets: Assets) {
 
   new ButtonWidget(
     font,
-    "Fullscreen",
+    " Full ",
     FixedColor.White,
     FixedColor.Green,
     () => engine.setFullscreen(true),
