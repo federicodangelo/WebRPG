@@ -115,10 +115,11 @@ export function getWebNativeContext(): NativeContext {
     }
   };
 
-  let mouseKeyCode: KeyCode | null = null;
+  let mouseKeyCodes: KeyCode[] = [];
   let mouseDown = false;
 
-  const mouseEventToKeyCode = (e: MouseEvent): KeyCode | null => {
+  const mouseEventToKeyCodes = (e: MouseEvent): KeyCode[] => {
+    const keyCodes: KeyCode[] = [];
     const dx = e.clientX < window.innerWidth / 3
       ? -1
       : e.clientX > (window.innerWidth * 2) / 3
@@ -130,53 +131,55 @@ export function getWebNativeContext(): NativeContext {
       ? 1
       : 0;
 
-    return dx === -1
-      ? KeyCode.ArrowLeft
-      : dx === 1
-      ? KeyCode.ArrowRight
-      : dy === -1
-      ? KeyCode.ArrowUp
-      : dy === 1
-      ? KeyCode.ArrowDown
-      : null;
+    if (dx === -1) {
+      keyCodes.push(KeyCode.ArrowLeft);
+    } else if (dx === 1) {
+      keyCodes.push(KeyCode.ArrowRight);
+    }
+
+    if (dy === -1) {
+      keyCodes.push(KeyCode.ArrowUp);
+    } else if (dy === 1) {
+      keyCodes.push(KeyCode.ArrowDown);
+    }
+
+    return keyCodes;
+  };
+
+  const keyCodesEqual = (codes1: KeyCode[], codes2: KeyCode[]) => {
+    if (codes1.length !== codes2.length) return false;
+    for (let i = 0; i < codes1.length; i++) {
+      if (codes1[i] !== codes2[i]) return false;
+    }
+    return true;
   };
 
   const handleMouseDown = (e: MouseEvent) => {
     mouseDown = true;
-    const code = mouseEventToKeyCode(e);
+    const newCodes = mouseEventToKeyCodes(e);
 
-    if (code !== mouseKeyCode) {
-      if (mouseKeyCode !== null) {
-        disptachKeyEvent({ type: "up", code: mouseKeyCode });
-      }
-      mouseKeyCode = code;
-      if (mouseKeyCode !== null) {
-        disptachKeyEvent({ type: "down", code: mouseKeyCode });
-      }
+    if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+      mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "up", code }));
+      mouseKeyCodes = newCodes;
+      mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "down", code }));
     }
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!mouseDown) return;
-    const code = mouseEventToKeyCode(e);
+    const newCodes = mouseEventToKeyCodes(e);
 
-    if (code !== mouseKeyCode) {
-      if (mouseKeyCode !== null) {
-        disptachKeyEvent({ type: "up", code: mouseKeyCode });
-      }
-      mouseKeyCode = code;
-      if (mouseKeyCode !== null) {
-        disptachKeyEvent({ type: "down", code: mouseKeyCode });
-      }
+    if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+      mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "up", code }));
+      mouseKeyCodes = newCodes;
+      mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "down", code }));
     }
   };
 
   const handleMouseUp = (e: MouseEvent) => {
     mouseDown = false;
-    if (mouseKeyCode !== null) {
-      disptachKeyEvent({ type: "up", code: mouseKeyCode });
-    }
-    mouseKeyCode = null;
+    mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "up", code }));
+    mouseKeyCodes.length = 0;
   };
 
   const handleResize = () => {
