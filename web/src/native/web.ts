@@ -15,10 +15,10 @@ function updateCanvasSize(
 ) {
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const dpi = window.devicePixelRatio || 1;
+  const devicePixelRatio = window.devicePixelRatio || 1;
 
-  canvas.width = width * dpi;
-  canvas.height = height * dpi;
+  canvas.width = width * devicePixelRatio;
+  canvas.height = height * devicePixelRatio;
   canvas.setAttribute(
     "style",
     "width: " +
@@ -29,18 +29,25 @@ function updateCanvasSize(
       "px;" +
       "image-rendering: pixelated;",
   );
+
+  return devicePixelRatio;
 }
 
-function createFullScreenCanvas(): HTMLCanvasElement {
+function createFullScreenCanvas() {
   const canvas = document.createElement("canvas");
-  updateCanvasSize(canvas);
+  const multiplier = updateCanvasSize(canvas);
   document.body.appendChild(canvas);
-  return canvas;
+  return { canvas, multiplier };
 }
 
 export function getWebNativeContext(): NativeContext {
-  const canvas = createFullScreenCanvas();
+  const tmp = createFullScreenCanvas();
+
+  const canvas = tmp.canvas;
   const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+
+  let screenMultiplier = tmp.multiplier;
+
   const screenSize = new Size(256, 256);
 
   let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -124,27 +131,39 @@ export function getWebNativeContext(): NativeContext {
   const handleMouseDown = (e: MouseEvent) => {
     mouseDown = true;
     dispatchMouseEvent(
-      { type: "down", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
+      {
+        type: "down",
+        x: Math.trunc(e.clientX * screenMultiplier),
+        y: Math.trunc(e.clientY * screenMultiplier),
+      },
     );
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!mouseDown) return;
     dispatchMouseEvent(
-      { type: "move", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
+      {
+        type: "move",
+        x: Math.trunc(e.clientX * screenMultiplier),
+        y: Math.trunc(e.clientY * screenMultiplier),
+      },
     );
   };
 
   const handleMouseUp = (e: MouseEvent) => {
     if (!mouseDown) return;
     dispatchMouseEvent(
-      { type: "up", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
+      {
+        type: "up",
+        x: Math.trunc(e.clientX * screenMultiplier),
+        y: Math.trunc(e.clientY * screenMultiplier),
+      },
     );
     mouseDown = false;
   };
 
   const handleResize = () => {
-    updateCanvasSize(canvas);
+    screenMultiplier = updateCanvasSize(canvas);
     imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     imageDataPixels = imageData.data;
     imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);

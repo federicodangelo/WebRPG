@@ -2832,9 +2832,9 @@ System.register(
     function updateCanvasSize(canvas) {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      const dpi = window.devicePixelRatio || 1;
-      canvas.width = width * dpi;
-      canvas.height = height * dpi;
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      canvas.width = width * devicePixelRatio;
+      canvas.height = height * devicePixelRatio;
       canvas.setAttribute(
         "style",
         "width: " +
@@ -2845,16 +2845,19 @@ System.register(
           "px;" +
           "image-rendering: pixelated;",
       );
+      return devicePixelRatio;
     }
     function createFullScreenCanvas() {
       const canvas = document.createElement("canvas");
-      updateCanvasSize(canvas);
+      const multiplier = updateCanvasSize(canvas);
       document.body.appendChild(canvas);
-      return canvas;
+      return { canvas, multiplier };
     }
     function getWebNativeContext() {
-      const canvas = createFullScreenCanvas();
+      const tmp = createFullScreenCanvas();
+      const canvas = tmp.canvas;
       const ctx = canvas.getContext("2d");
+      let screenMultiplier = tmp.multiplier;
       const screenSize = new types_ts_9.Size(256, 256);
       let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       let imageDataPixels = imageData.data;
@@ -2924,29 +2927,35 @@ System.register(
       var mouseDown = false;
       const handleMouseDown = (e) => {
         mouseDown = true;
-        dispatchMouseEvent(
-          { type: "down", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
-        );
+        dispatchMouseEvent({
+          type: "down",
+          x: Math.trunc(e.clientX * screenMultiplier),
+          y: Math.trunc(e.clientY * screenMultiplier),
+        });
       };
       const handleMouseMove = (e) => {
         if (!mouseDown) {
           return;
         }
-        dispatchMouseEvent(
-          { type: "move", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
-        );
+        dispatchMouseEvent({
+          type: "move",
+          x: Math.trunc(e.clientX * screenMultiplier),
+          y: Math.trunc(e.clientY * screenMultiplier),
+        });
       };
       const handleMouseUp = (e) => {
         if (!mouseDown) {
           return;
         }
-        dispatchMouseEvent(
-          { type: "up", x: Math.trunc(e.clientX), y: Math.trunc(e.clientY) },
-        );
+        dispatchMouseEvent({
+          type: "up",
+          x: Math.trunc(e.clientX * screenMultiplier),
+          y: Math.trunc(e.clientY * screenMultiplier),
+        });
         mouseDown = false;
       };
       const handleResize = () => {
-        updateCanvasSize(canvas);
+        screenMultiplier = updateCanvasSize(canvas);
         imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         imageDataPixels = imageData.data;
         imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
