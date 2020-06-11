@@ -6,6 +6,7 @@ import {
   Rect,
   DrawContext,
   EngineContext,
+  TapEvent,
 } from "../types.ts";
 
 export abstract class BaseWidget implements Widget {
@@ -19,6 +20,7 @@ export abstract class BaseWidget implements Widget {
   private _parent: WidgetContainer | null = null;
   private _engine: Engine | null = null;
   private _boundingBox: Rect = new Rect();
+  private _solid: boolean = true;
 
   public layout: WidgetLayout | null = null;
 
@@ -34,6 +36,16 @@ export abstract class BaseWidget implements Widget {
   public set engine(val: Engine | null) {
     if (val !== this._engine) {
       this._engine = val;
+    }
+  }
+
+  public get solid() {
+    return this._solid;
+  }
+
+  public set solid(val: boolean) {
+    if (val !== this._solid) {
+      this._solid = val;
     }
   }
 
@@ -228,5 +240,13 @@ export abstract class BaseWidget implements Widget {
     engine?.invalidateRect(bbox);
   }
 
-  public tapped() {}
+  public tapped(e: TapEvent) {
+    console.log("tapped on", this, e);
+  }
+
+  public getAt(x: number, y: number): Widget | null {
+    if (!this.solid) return null;
+    if (x < 0 || y < 0 || x > this.width || y > this.height) return null;
+    return this;
+  }
 }

@@ -131,15 +131,17 @@ export interface Widget {
   pivotY: number;
   readonly visibleY: number;
   readonly visibleX: number;
+  solid: boolean;
   layer: number;
   parent: WidgetContainer | null;
-  updateLayout(parentWidth: number, parentHeight: number): void;
   draw(context: EngineContext): void;
   layout: WidgetLayout | null;
   setLayout(layout: WidgetLayout | null): Widget;
+  updateLayout(parentWidth: number, parentHeight: number): void;
   getBoundingBox(): Rect;
   invalidate(): void;
-  tapped(): void;
+  getAt(x: number, y: number): Widget | null;
+  tapped(e: TapEvent): void;
 }
 
 export class Point {
@@ -286,6 +288,10 @@ export class Rect {
     this.width += amount * 2;
     this.height += amount * 2;
     return this;
+  }
+
+  public contains(x: number, y: number) {
+    return x >= this.x && y >= this.y && x <= this.x1 && y <= this.y1;
   }
 
   public clone() {

@@ -196,7 +196,7 @@ export function getWebNativeContext(): NativeContext {
     const dt = (performance.now() - mouseDownTime) / 1000;
     const upPosition = new Point(Math.trunc(e.clientX), Math.trunc(e.clientY));
 
-    if (dt < 0.1 && upPosition.distanceTo(mouseDownPosition) < 100) {
+    if (dt < 0.25 && upPosition.distanceTo(mouseDownPosition) < 100) {
       disptachTapEvent({ x: mouseDownPosition.x, y: mouseDownPosition.y });
     }
   };

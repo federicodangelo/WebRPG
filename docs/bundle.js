@@ -133,6 +133,7 @@ System.register(
             this._parent = null;
             this._engine = null;
             this._boundingBox = new types_ts_1.Rect();
+            this._solid = true;
             this.layout = null;
           }
           setLayout(layout) {
@@ -145,6 +146,14 @@ System.register(
           set engine(val) {
             if (val !== this._engine) {
               this._engine = val;
+            }
+          }
+          get solid() {
+            return this._solid;
+          }
+          set solid(val) {
+            if (val !== this._solid) {
+              this._solid = val;
             }
           }
           get x() {
@@ -323,7 +332,18 @@ System.register(
             const bbox = this.getBoundingBox();
             engine?.invalidateRect(bbox);
           }
-          tapped() {}
+          tapped(e) {
+            console.log("tapped on", this, e);
+          }
+          getAt(x, y) {
+            if (!this.solid) {
+              return null;
+            }
+            if (x < 0 || y < 0 || x > this.width || y > this.height) {
+              return null;
+            }
+            return this;
+          }
         };
         exports_1("BaseWidget", BaseWidget);
       },
@@ -419,6 +439,25 @@ System.register(
               }
             }
             //The last option is "none".. so we don't do anything
+          }
+          getAt(x, y) {
+            if (!this.solid) {
+              return null;
+            }
+            if (x < 0 || y < 0 || x > this.width || y > this.height) {
+              return null;
+            }
+            for (let i = this._children.length - 1; i >= 0; i--) {
+              const child = this._children[i];
+              const w = child.getAt(
+                x - this.innerX - child.visibleX,
+                y - this.innerY - child.visibleY,
+              );
+              if (w !== null) {
+                return w;
+              }
+            }
+            return this;
           }
           draw(context) {
             if (
@@ -661,6 +700,9 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
           this.width += amount * 2;
           this.height += amount * 2;
           return this;
+        }
+        contains(x, y) {
+          return x >= this.x && y >= this.y && x <= this.x1 && y <= this.y1;
         }
         clone() {
           return new Rect(this.x, this.y, this.width, this.height);
@@ -1113,9 +1155,7 @@ System.register(
             this.context = new context_ts_1.EngineContextImpl(
               this.nativeContext.screen,
             );
-            this.nativeContext.input.onTapEvent((e) =>
-              console.log("tap at " + e.x + "," + e.y)
-            );
+            this.nativeContext.input.onTapEvent((e) => this.onTapEvent(e));
           }
           async init() {
             await this.nativeContext.init();
@@ -1294,6 +1334,23 @@ System.register(
             this.mainScrollableOffset.x = offsetX;
             this.mainScrollableOffset.y = offsetY;
           }
+          getWidgetAt(x, y) {
+            for (let i = this.children.length - 1; i >= 0; i--) {
+              const child = this.children[i];
+              const w = child.getAt(x - child.visibleX, y - child.visibleY);
+              if (w !== null) {
+                return w;
+              }
+            }
+            return null;
+          }
+          onTapEvent(e) {
+            const w = this.getWidgetAt(e.x, e.y);
+            if (w !== null) {
+              const bbox = w.getBoundingBox();
+              w.tapped({ x: e.x - bbox.x, y: e.y - bbox.y });
+            }
+          }
         };
       },
     };
@@ -1323,6 +1380,7 @@ System.register(
             this.text = text;
             this.foreColor = foreColor;
             this.backColor = backColor;
+            this.solid = false;
           }
           set text(val) {
             if (val !== this._text) {
@@ -2732,7 +2790,7 @@ System.register(
           Math.trunc(e.clientX),
           Math.trunc(e.clientY),
         );
-        if (dt < 0.1 && upPosition.distanceTo(mouseDownPosition) < 100) {
+        if (dt < 0.25 && upPosition.distanceTo(mouseDownPosition) < 100) {
           disptachTapEvent({ x: mouseDownPosition.x, y: mouseDownPosition.y });
         }
       };

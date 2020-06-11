@@ -10,6 +10,7 @@ import {
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
 import { ScrollableContainerWidget } from "./widgets/scrollable.ts";
+import { BaseWidgetContainer } from "./widgets/widget-container.ts";
 
 class EngineImpl implements Engine {
   private children: Widget[] = [];
@@ -23,9 +24,7 @@ class EngineImpl implements Engine {
   constructor(nativeContext: NativeContext) {
     this.nativeContext = nativeContext;
     this.context = new EngineContextImpl(this.nativeContext.screen);
-    this.nativeContext.input.onTapEvent((e) =>
-      console.log("tap at " + e.x + "," + e.y)
-    );
+    this.nativeContext.input.onTapEvent((e) => this.onTapEvent(e));
   }
 
   async init() {
@@ -214,6 +213,24 @@ class EngineImpl implements Engine {
   public setMainScroll(offsetX: number, offsetY: number): void {
     this.mainScrollableOffset.x = offsetX;
     this.mainScrollableOffset.y = offsetY;
+  }
+
+  public getWidgetAt(x: number, y: number): Widget | null {
+    for (let i = this.children.length - 1; i >= 0; i--) {
+      const child = this.children[i];
+      const w = child.getAt(x - child.visibleX, y - child.visibleY);
+      if (w !== null) return w;
+    }
+
+    return null;
+  }
+
+  private onTapEvent(e: TapEvent): void {
+    const w = this.getWidgetAt(e.x, e.y);
+    if (w !== null) {
+      const bbox = w.getBoundingBox();
+      w.tapped({ x: e.x - bbox.x, y: e.y - bbox.y });
+    }
   }
 }
 

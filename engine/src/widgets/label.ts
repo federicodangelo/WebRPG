@@ -33,6 +33,7 @@ export class LabelWidget extends BaseWidget {
     this.text = text;
     this.foreColor = foreColor;
     this.backColor = backColor;
+    this.solid = false;
   }
 
   protected drawSelf(context: DrawContext) {

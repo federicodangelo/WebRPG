@@ -83,6 +83,20 @@ export abstract class BaseWidgetContainer extends BaseWidget
     //The last option is "none".. so we don't do anything
   }
 
+  public getAt(x: number, y: number): Widget | null {
+    if (!this.solid) return null;
+    if (x < 0 || y < 0 || x > this.width || y > this.height) return null;
+    for (let i = this._children.length - 1; i >= 0; i--) {
+      const child = this._children[i];
+      const w = child.getAt(
+        x - this.innerX - child.visibleX,
+        y - this.innerY - child.visibleY,
+      );
+      if (w !== null) return w;
+    }
+    return this;
+  }
+
   public draw(context: EngineContext): void {
     if (
       !context.isVisible(this.visibleX, this.visibleY, this.width, this.height)
