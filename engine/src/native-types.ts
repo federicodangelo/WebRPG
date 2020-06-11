@@ -1,4 +1,4 @@
-import { Color, Size, Tile, KeyEvent } from "./types.ts";
+import { Color, Size, Tile, KeyEvent, TapEvent } from "./types.ts";
 
 export interface NativeContextScreen {
   getScreenSize(): Size | null;
@@ -50,6 +50,7 @@ export interface NativeContextScreen {
 
 export interface NativeContextInput {
   onKeyEvent(listener: (e: KeyEvent) => void): void;
+  onTapEvent(listener: (e: TapEvent) => void): void;
 }
 
 export interface NativeContext {

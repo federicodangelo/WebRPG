@@ -323,6 +323,7 @@ System.register(
             const bbox = this.getBoundingBox();
             engine?.invalidateRect(bbox);
           }
+          tapped() {}
         };
         exports_1("BaseWidget", BaseWidget);
       },
@@ -574,6 +575,11 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
         }
         clone() {
           return new Point(this.x, this.y);
+        }
+        distanceTo(point) {
+          const dx = point.x - this.x;
+          const dy = point.y - this.y;
+          return Math.trunc(Math.sqrt(dx * dx + dy * dy));
         }
       };
       exports_4("Point", Point);
@@ -1106,6 +1112,9 @@ System.register(
             this.nativeContext = nativeContext;
             this.context = new context_ts_1.EngineContextImpl(
               this.nativeContext.screen,
+            );
+            this.nativeContext.input.onTapEvent((e) =>
+              console.log("tap at " + e.x + "," + e.y)
             );
           }
           async init() {
@@ -2603,9 +2612,13 @@ System.register(
       };
       ctx.imageSmoothingEnabled = false;
       let screenSizeChangedListeners = [];
-      let inputListeners = [];
+      let keyListeners = [];
+      let tapListeners = [];
       const disptachKeyEvent = (e) => {
-        inputListeners.forEach((l) => l(e));
+        keyListeners.forEach((l) => l(e));
+      };
+      const disptachTapEvent = (e) => {
+        tapListeners.forEach((l) => l(e));
       };
       const updateScreenSize = () => {
         screenSize.set(canvas.width, canvas.height);
@@ -2641,6 +2654,8 @@ System.register(
       };
       let mouseKeyCodes = [];
       let mouseDown = false;
+      let mouseDownPosition = new types_ts_9.Point();
+      let mouseDownTime = performance.now();
       const mouseEventToKeyCodes = (e) => {
         const keyCodes = [];
         const dx = e.clientX < window.innerWidth / 3 ? -1
@@ -2677,6 +2692,8 @@ System.register(
       };
       const handleMouseDown = (e) => {
         mouseDown = true;
+        mouseDownPosition.set(Math.trunc(e.clientX), Math.trunc(e.clientY));
+        mouseDownTime = performance.now();
         const newCodes = mouseEventToKeyCodes(e);
         if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
           mouseKeyCodes.forEach((code) =>
@@ -2704,9 +2721,20 @@ System.register(
         }
       };
       const handleMouseUp = (e) => {
+        if (!mouseDown) {
+          return;
+        }
         mouseDown = false;
         mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "up", code }));
         mouseKeyCodes.length = 0;
+        const dt = (performance.now() - mouseDownTime) / 1000;
+        const upPosition = new types_ts_9.Point(
+          Math.trunc(e.clientX),
+          Math.trunc(e.clientY),
+        );
+        if (dt < 0.1 && upPosition.distanceTo(mouseDownPosition) < 100) {
+          disptachTapEvent({ x: mouseDownPosition.x, y: mouseDownPosition.y });
+        }
       };
       const handleResize = () => {
         updateCanvasSize(canvas, window.innerWidth, window.innerHeight);
@@ -2992,7 +3020,10 @@ System.register(
         },
         input: {
           onKeyEvent: (listener) => {
-            inputListeners.push(listener);
+            keyListeners.push(listener);
+          },
+          onTapEvent: (listener) => {
+            tapListeners.push(listener);
           },
         },
         init: async () => {

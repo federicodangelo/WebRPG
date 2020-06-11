@@ -139,6 +139,7 @@ export interface Widget {
   setLayout(layout: WidgetLayout | null): Widget;
   getBoundingBox(): Rect;
   invalidate(): void;
+  tapped(): void;
 }
 
 export class Point {
@@ -168,6 +169,12 @@ export class Point {
 
   public clone() {
     return new Point(this.x, this.y);
+  }
+
+  public distanceTo(point: Point) {
+    const dx = point.x - this.x;
+    const dy = point.y - this.y;
+    return Math.trunc(Math.sqrt(dx * dx + dy * dy));
   }
 }
 
@@ -422,6 +429,11 @@ export type KeyEvent = {
   type: KeyEventType;
   char?: string;
   code?: KeyCode;
+};
+
+export type TapEvent = {
+  x: number;
+  y: number;
 };
 
 export interface Engine {

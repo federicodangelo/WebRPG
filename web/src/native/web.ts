@@ -7,6 +7,8 @@ import {
   AlphaType,
   KeyCode,
   KeyEventType,
+  TapEvent,
+  Point,
 } from "engine/types.ts";
 
 const SCALE = 1;
@@ -73,10 +75,15 @@ export function getWebNativeContext(): NativeContext {
   ctx.imageSmoothingEnabled = false;
 
   let screenSizeChangedListeners: ((size: Size) => void)[] = [];
-  let inputListeners: ((e: KeyEvent) => void)[] = [];
+  let keyListeners: ((e: KeyEvent) => void)[] = [];
+  let tapListeners: ((e: TapEvent) => void)[] = [];
 
   const disptachKeyEvent = (e: KeyEvent) => {
-    inputListeners.forEach((l) => l(e));
+    keyListeners.forEach((l) => l(e));
+  };
+
+  const disptachTapEvent = (e: TapEvent) => {
+    tapListeners.forEach((l) => l(e));
   };
 
   const updateScreenSize = () => {
@@ -117,6 +124,8 @@ export function getWebNativeContext(): NativeContext {
 
   let mouseKeyCodes: KeyCode[] = [];
   let mouseDown = false;
+  let mouseDownPosition = new Point();
+  let mouseDownTime = performance.now();
 
   const mouseEventToKeyCodes = (e: MouseEvent): KeyCode[] => {
     const keyCodes: KeyCode[] = [];
@@ -156,6 +165,8 @@ export function getWebNativeContext(): NativeContext {
 
   const handleMouseDown = (e: MouseEvent) => {
     mouseDown = true;
+    mouseDownPosition.set(Math.trunc(e.clientX), Math.trunc(e.clientY));
+    mouseDownTime = performance.now();
     const newCodes = mouseEventToKeyCodes(e);
 
     if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
@@ -177,9 +188,17 @@ export function getWebNativeContext(): NativeContext {
   };
 
   const handleMouseUp = (e: MouseEvent) => {
+    if (!mouseDown) return;
     mouseDown = false;
     mouseKeyCodes.forEach((code) => disptachKeyEvent({ type: "up", code }));
     mouseKeyCodes.length = 0;
+
+    const dt = (performance.now() - mouseDownTime) / 1000;
+    const upPosition = new Point(Math.trunc(e.clientX), Math.trunc(e.clientY));
+
+    if (dt < 0.1 && upPosition.distanceTo(mouseDownPosition) < 100) {
+      disptachTapEvent({ x: mouseDownPosition.x, y: mouseDownPosition.y });
+    }
   };
 
   const handleResize = () => {
@@ -514,7 +533,10 @@ export function getWebNativeContext(): NativeContext {
     },
     input: {
       onKeyEvent: (listener) => {
-        inputListeners.push(listener);
+        keyListeners.push(listener);
+      },
+      onTapEvent: (listener) => {
+        tapListeners.push(listener);
       },
     },
     init: async () => {

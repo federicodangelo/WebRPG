@@ -1,4 +1,12 @@
-import { Engine, Widget, Size, Rect, KeyEvent, Point } from "./types.ts";
+import {
+  Engine,
+  Widget,
+  Size,
+  Rect,
+  KeyEvent,
+  Point,
+  TapEvent,
+} from "./types.ts";
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
 import { ScrollableContainerWidget } from "./widgets/scrollable.ts";
@@ -15,6 +23,9 @@ class EngineImpl implements Engine {
   constructor(nativeContext: NativeContext) {
     this.nativeContext = nativeContext;
     this.context = new EngineContextImpl(this.nativeContext.screen);
+    this.nativeContext.input.onTapEvent((e) =>
+      console.log("tap at " + e.x + "," + e.y)
+    );
   }
 
   async init() {

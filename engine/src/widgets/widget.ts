@@ -227,4 +227,6 @@ export abstract class BaseWidget implements Widget {
     const bbox = this.getBoundingBox();
     engine?.invalidateRect(bbox);
   }
+
+  public tapped() {}
 }
