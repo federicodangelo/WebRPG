@@ -428,36 +428,35 @@ export function getWebNativeContext(): NativeContext {
 
     const screenWidth = screenSize.width;
 
-    if (dy > 0) {
-      for (let i = y + height - dy; i >= y; i--) {
-        const toRowStart = (i + dy) * screenWidth + x;
-        const fromRowStart = i * screenWidth + x;
-        const fromRowEnd = fromRowStart + width;
-        imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
-      }
-    } else if (dy < 0) {
-      for (let i = y - dy; i < y + height; i++) {
-        const toRowStart = (i + dy) * screenWidth + x;
-        const fromRowStart = i * screenWidth + x;
-        const fromRowEnd = fromRowStart + width;
-        imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
-      }
+    let to: number;
+    let copyOffset: number;
+
+    if (dy >= 0) {
+      to = (y + height) * screenWidth + x;
+      copyOffset = -screenWidth;
+    } else {
+      to = y * screenWidth + x;
+      copyOffset = screenWidth;
     }
 
-    if (dx > 0) {
-      for (let i = y; i < y + height; i++) {
-        const toRowStart = i * screenWidth + x + dx;
-        const fromRowStart = i * screenWidth + x;
-        const fromRowEnd = fromRowStart + width - dx;
-        imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
-      }
-    } else if (dx < 0) {
-      for (let i = y; i < y + height; i++) {
-        const toRowStart = i * screenWidth + x;
-        const fromRowStart = i * screenWidth + x - dx;
-        const fromRowEnd = fromRowStart + width + dx;
-        imageDataPixels32.copyWithin(toRowStart, fromRowStart, fromRowEnd);
-      }
+    let fromStartOffset = -dy * screenWidth;
+    let fromEndOffset = -dy * screenWidth + width;
+
+    if (dx >= 0) {
+      to += dx;
+      fromStartOffset -= dx;
+      fromEndOffset -= dx + dx;
+    } else {
+      fromStartOffset -= dx;
+    }
+
+    for (let i = height - Math.abs(dy); i >= 0; i--) {
+      imageDataPixels32.copyWithin(
+        to,
+        to + fromStartOffset,
+        to + fromEndOffset,
+      );
+      to += copyOffset;
     }
   };
 
