@@ -3083,6 +3083,12 @@ System.register(
               this.dirty = false;
             }
           }
+          willDispatch() {
+            return this.dirty;
+          }
+          readyForNextFrame() {
+            return true;
+          }
         };
         exports_25("DrawingReal", DrawingReal);
       },
@@ -3122,6 +3128,7 @@ System.register(
             this.queue = [];
             this.tileMappings = new Map();
             this.nextTileId = 0;
+            this.pendingFrames = 0;
             this.worker = new Worker("./worker.js", { type: "module" });
             this.worker.onmessage = (e) => this.onMessage(e.data);
             this.pixels = pixels;
@@ -3168,6 +3175,7 @@ System.register(
                 this.dispatch();
                 break;
               case "result":
+                this.pendingFrames--;
                 if (this.size.equals(response.size)) {
                   new Uint8ClampedArray(this.pixels).set(
                     new Uint8ClampedArray(response.pixels),
@@ -3176,6 +3184,9 @@ System.register(
                     new types_ts_10.Rect().copyFrom(response.dirtyRect),
                   );
                 }
+                break;
+              case "result-empty":
+                this.pendingFrames--;
                 break;
             }
           }
@@ -3248,6 +3259,10 @@ System.register(
             };
             this.queue = [];
             this.worker.postMessage(batch);
+            this.pendingFrames++;
+          }
+          readyForNextFrame() {
+            return this.pendingFrames < 2;
           }
         };
         exports_27("DrawingWorker", DrawingWorker);
@@ -3435,6 +3450,7 @@ System.register(
               globalThis.pauseStats();
             }
           },
+          readyForNextFrame: drawing.readyForNextFrame.bind(drawing),
           tintTile: drawing.tintTile.bind(drawing),
           setTile: drawing.setTile.bind(drawing),
           fillRect: drawing.fillRect.bind(drawing),
@@ -3807,6 +3823,7 @@ System.register(
       assets_ts_1,
       TARGET_FPS,
       engine,
+      nativeContext,
       fpsLabel,
       game,
       totalRenderTime,
@@ -3846,7 +3863,8 @@ System.register(
     async function init() {
       console.log("Initializing Engine");
       const assets = await assets_ts_1.initAssets();
-      engine = await engine_ts_1.buildEngine(web_ts_1.getWebNativeContext());
+      nativeContext = web_ts_1.getWebNativeContext();
+      engine = await engine_ts_1.buildEngine(nativeContext);
       console.log("Engine Initialized");
       game = game_ts_1.initGame(engine, assets);
       console.log("Game Initialized");
@@ -3860,6 +3878,9 @@ System.register(
       return engine;
     }
     function update() {
+      if (!nativeContext.screen.readyForNextFrame()) {
+        return;
+      }
       const preUpdateTime = performance.now();
       const delta = preUpdateTime - lastUpdateTime;
       lastUpdateTime = preUpdateTime;

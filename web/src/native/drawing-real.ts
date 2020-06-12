@@ -359,7 +359,7 @@ export class DrawingReal implements Drawing {
     }
   }
 
-  public getDirtyRect(): Rect {
+  private getDirtyRect(): Rect {
     const dirtyLeft = Math.max(
       Math.min(this.dirtyLeft, this.pixelsSize.width),
       0,
@@ -390,5 +390,13 @@ export class DrawingReal implements Drawing {
       this.applyDirtyRect(this.getDirtyRect());
       this.dirty = false;
     }
+  }
+
+  public willDispatch() {
+    return this.dirty;
+  }
+
+  public readyForNextFrame() {
+    return true;
   }
 }

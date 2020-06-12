@@ -1053,6 +1053,12 @@ System.register(
               this.dirty = false;
             }
           }
+          willDispatch() {
+            return this.dirty;
+          }
+          readyForNextFrame() {
+            return true;
+          }
         };
         exports_6("DrawingReal", DrawingReal);
       },
@@ -1174,7 +1180,11 @@ System.register(
         self.onmessage = (e) => {
           const command = e.data;
           handleCommand(command);
-          drawing.dispatch();
+          if (drawing.willDispatch()) {
+            drawing.dispatch();
+          } else {
+            sendResponse({ type: "result-empty" });
+          }
         };
         sendResponse({ type: "ready" });
       },

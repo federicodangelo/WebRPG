@@ -16,6 +16,8 @@ export type DrawingTile = {
 };
 
 export type Drawing = {
+  readyForNextFrame(): boolean;
+
   setPixels(pixels: ArrayBuffer, size: Size): void;
 
   tintTile(

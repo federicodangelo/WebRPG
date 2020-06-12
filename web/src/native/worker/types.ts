@@ -83,8 +83,12 @@ export type DrawingResult = {
   dirtyRect: Rect;
 };
 
+export type DrawingResultEmpty = {
+  type: "result-empty";
+};
+
 export type DrawingReady = {
   type: "ready";
 };
 
-export type DrawingResponse = DrawingResult | DrawingReady;
+export type DrawingResponse = DrawingResult | DrawingReady | DrawingResultEmpty;

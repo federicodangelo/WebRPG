@@ -211,6 +211,7 @@ export function getWebNativeContext(): NativeContext {
           (globalThis as any).pauseStats();
         }
       },
+      readyForNextFrame: drawing.readyForNextFrame.bind(drawing),
       tintTile: drawing.tintTile.bind(drawing),
       setTile: drawing.setTile.bind(drawing),
       fillRect: drawing.fillRect.bind(drawing),

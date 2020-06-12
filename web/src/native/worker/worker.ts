@@ -95,7 +95,11 @@ function handleCommand(command: DrawingCommand) {
 self.onmessage = (e) => {
   const command: DrawingCommand = e.data;
   handleCommand(command);
-  drawing.dispatch();
+  if (drawing.willDispatch()) {
+    drawing.dispatch();
+  } else {
+    sendResponse({ type: "result-empty" });
+  }
 };
 
 sendResponse({ type: "ready" });

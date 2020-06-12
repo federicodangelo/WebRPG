@@ -5,10 +5,12 @@ import { initGame, updateGame } from "game/game.ts";
 import { getWebNativeContext } from "./native/web.ts";
 import { initAssets } from "./native/assets.ts";
 import { Game } from "../../game/src/types.ts";
+import { NativeContext } from "../../engine/src/native-types.ts";
 
 const TARGET_FPS = 30;
 
 let engine: Engine;
+let nativeContext: NativeContext;
 let fpsLabel: LabelWidget;
 let game: Game;
 
@@ -50,7 +52,9 @@ async function init() {
 
   const assets = await initAssets();
 
-  engine = await buildEngine(getWebNativeContext());
+  nativeContext = getWebNativeContext();
+
+  engine = await buildEngine(nativeContext);
 
   console.log("Engine Initialized");
 
@@ -75,6 +79,8 @@ let lastUpdateTime = performance.now();
 let timeToNextUpdate = 0;
 
 function update() {
+  if (!nativeContext.screen.readyForNextFrame()) return;
+
   const preUpdateTime = performance.now();
   const delta = preUpdateTime - lastUpdateTime;
   lastUpdateTime = preUpdateTime;

@@ -24,6 +24,7 @@ export class DrawingWorker implements Drawing {
   private nextTileId = 0;
 
   private applyDirtyRect: ApplyDirtyRectFn;
+  private pendingFrames = 0;
 
   public constructor(
     pixels: ArrayBuffer,
@@ -82,12 +83,17 @@ export class DrawingWorker implements Drawing {
         break;
 
       case "result":
+        this.pendingFrames--;
         if (this.size.equals(response.size)) {
           new Uint8ClampedArray(this.pixels).set(
             new Uint8ClampedArray(response.pixels),
           );
           this.applyDirtyRect(new Rect().copyFrom(response.dirtyRect));
         }
+        break;
+
+      case "result-empty":
+        this.pendingFrames--;
         break;
     }
   }
@@ -195,5 +201,10 @@ export class DrawingWorker implements Drawing {
     };
     this.queue = [];
     this.worker.postMessage(batch);
+    this.pendingFrames++;
+  }
+
+  public readyForNextFrame() {
+    return this.pendingFrames < 2;
   }
 }
