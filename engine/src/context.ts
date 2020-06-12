@@ -249,12 +249,17 @@ export class EngineContextImpl implements EngineContext {
       return this;
     }
 
-    if (x0 !== x && x0 !== x + width && y0 !== y && y0 !== y + height) {
-      return this;
-    }
-
     const fontWidth = font.tileWidth;
     const fontHeight = font.tileHeight;
+
+    if (
+      x0 > x + fontWidth &&
+      y0 > y + fontHeight &&
+      x1 < x + width - fontWidth &&
+      y1 < y + height - fontHeight
+    ) {
+      return this;
+    }
 
     this.moveCursorTo(x, y);
     this.specialChar(font, SpecialChar.CornerTopLeft);
@@ -424,7 +429,7 @@ export class EngineContextImpl implements EngineContext {
     return this;
   }
 
-  fillRect(
+  public fillRect(
     x: number,
     y: number,
     width: number,

@@ -56,7 +56,7 @@ class EngineImpl implements Engine {
     var pendingLayout = true;
 
     const clip = new Rect();
-    const consoleSize = this.screenSize;
+    const screenSize = this.screenSize;
 
     for (let i = 0; i < this.invalidRects.length; i++) {
       clip.copyFrom(this.invalidRects[i]);
@@ -71,16 +71,16 @@ class EngineImpl implements Engine {
       if (
         clip.width <= 0 ||
         clip.height <= 0 ||
-        clip.x > consoleSize.width ||
-        clip.y > consoleSize.height
+        clip.x > screenSize.width ||
+        clip.y > screenSize.height
       ) {
         continue;
       }
-      if (clip.x + clip.width > consoleSize.width) {
-        clip.width = consoleSize.width - clip.x;
+      if (clip.x + clip.width > screenSize.width) {
+        clip.width = screenSize.width - clip.x;
       }
-      if (clip.y + clip.height > consoleSize.height) {
-        clip.height = consoleSize.height - clip.y;
+      if (clip.y + clip.height > screenSize.height) {
+        clip.height = screenSize.height - clip.y;
       }
 
       if (pendingLayout) {

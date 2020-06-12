@@ -932,11 +932,16 @@ System.register(
             if (x1 <= x0 || y1 <= y0) {
               return this;
             }
-            if (x0 !== x && x0 !== x + width && y0 !== y && y0 !== y + height) {
-              return this;
-            }
             const fontWidth = font.tileWidth;
             const fontHeight = font.tileHeight;
+            if (
+              x0 > x + fontWidth &&
+              y0 > y + fontHeight &&
+              x1 < x + width - fontWidth &&
+              y1 < y + height - fontHeight
+            ) {
+              return this;
+            }
             this.moveCursorTo(x, y);
             this.specialChar(font, 10 /* CornerTopLeft */);
             this.specialCharTimes(
@@ -1191,7 +1196,7 @@ System.register(
             }
             var pendingLayout = true;
             const clip = new types_ts_4.Rect();
-            const consoleSize = this.screenSize;
+            const screenSize = this.screenSize;
             for (let i = 0; i < this.invalidRects.length; i++) {
               clip.copyFrom(this.invalidRects[i]);
               if (clip.x < 0) {
@@ -1205,16 +1210,16 @@ System.register(
               if (
                 clip.width <= 0 ||
                 clip.height <= 0 ||
-                clip.x > consoleSize.width ||
-                clip.y > consoleSize.height
+                clip.x > screenSize.width ||
+                clip.y > screenSize.height
               ) {
                 continue;
               }
-              if (clip.x + clip.width > consoleSize.width) {
-                clip.width = consoleSize.width - clip.x;
+              if (clip.x + clip.width > screenSize.width) {
+                clip.width = screenSize.width - clip.x;
               }
-              if (clip.y + clip.height > consoleSize.height) {
-                clip.height = consoleSize.height - clip.y;
+              if (clip.y + clip.height > screenSize.height) {
+                clip.height = screenSize.height - clip.y;
               }
               if (pendingLayout) {
                 pendingLayout = false;
