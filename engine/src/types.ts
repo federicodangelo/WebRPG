@@ -445,7 +445,7 @@ export type EngineMouseEvent = {
 };
 
 export interface Engine {
-  draw(): void;
+  draw(): boolean;
   update(): void;
   addWidget(widget: Widget): void;
   removeWidget(widget: Widget): void;

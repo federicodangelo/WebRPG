@@ -53,7 +53,7 @@ export interface NativeContextScreen {
     dy: number,
   ): void;
 
-  endDraw(): void;
+  endDraw(): boolean;
 }
 
 export interface NativeContextInput {

@@ -13,23 +13,35 @@ let fpsLabel: LabelWidget;
 let game: Game;
 
 let totalRenderTime = 0;
+let totalUpdateTime = 0;
+let totalRenderFrames = 0;
 let frames = 0;
-let framesTime = performance.now();
+let updateFpsTime = performance.now();
 
 function updateFps() {
   const now = performance.now();
   frames++;
-  if (now - framesTime > 1000) {
-    const fps = frames / ((now - framesTime) / 1000);
-    const stats = "FPS:\n " +
-      fps.toFixed(2) +
-      "\nRender:\n " +
-      (totalRenderTime / frames).toFixed(2) +
-      "ms";
+  if (now - updateFpsTime > 1000) {
+    const deltaTime = now - updateFpsTime;
+    const fps = frames / (deltaTime / 1000);
+    const updateTime = totalUpdateTime / frames;
+    const renderTime = totalRenderFrames > 0
+      ? (totalRenderTime / totalRenderFrames)
+      : 0;
+    const busyTime = (totalUpdateTime + totalRenderTime);
+    const idleTime = deltaTime - busyTime;
+    const idlePercent = idleTime * 100 / deltaTime;
+
+    const stats = `FPS:\n ${fps.toFixed(1)}\nRen ${totalRenderFrames}:\n ${
+      renderTime.toFixed(1)
+    }ms\nUpd:\n ${updateTime.toFixed(1)}ms\nIdle:\n ${idlePercent.toFixed(1)}%`;
+
     fpsLabel.text = stats;
-    framesTime = now;
+    updateFpsTime = now;
     frames = 0;
+    totalRenderFrames = 0;
     totalRenderTime = 0;
+    totalUpdateTime = 0;
   }
 }
 
@@ -63,9 +75,9 @@ let lastUpdateTime = performance.now();
 let timeToNextUpdate = 0;
 
 function update() {
-  const updateTime = performance.now();
-  const delta = updateTime - lastUpdateTime;
-  lastUpdateTime = updateTime;
+  const preUpdateTime = performance.now();
+  const delta = preUpdateTime - lastUpdateTime;
+  lastUpdateTime = preUpdateTime;
   timeToNextUpdate -= delta;
   if (timeToNextUpdate < -1000) timeToNextUpdate = -1000;
 
@@ -85,13 +97,17 @@ function update() {
 
   updateGame(engine, game);
 
-  engine.draw();
+  const postUpdateTime = performance.now();
+  const preRenderTime = postUpdateTime;
 
-  const end = performance.now();
+  if (engine.draw()) {
+    totalRenderFrames++;
+  }
 
-  const renderTime = end - updateTime;
+  const postRenderTime = performance.now();
 
-  totalRenderTime += renderTime;
+  totalUpdateTime += postUpdateTime - preUpdateTime;
+  totalRenderTime += postRenderTime - preRenderTime;
 }
 
 async function run() {

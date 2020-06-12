@@ -812,7 +812,7 @@ System.register(
           }
           endClip() {}
           endDraw() {
-            this.nativeContext.endDraw();
+            return this.nativeContext.endDraw();
           }
           pushTransform(x, y) {
             this.transformsStack.push(new types_ts_3.Point(this.tx, this.ty));
@@ -1301,7 +1301,7 @@ System.register(
                 this.drawInvalidRects();
               }
             }
-            this.context.endDraw();
+            return this.context.endDraw();
           }
           updateLayout() {
             for (let i = 0; i < this.children.length; i++) {
@@ -2347,7 +2347,6 @@ System.register(
 System.register(
   "game/src/ui2",
   [
-    "engine/src/widgets/label",
     "engine/src/types",
     "engine/src/widgets/tiles-container",
     "engine/src/widgets/button",
@@ -2355,7 +2354,7 @@ System.register(
   ],
   function (exports_22, context_22) {
     "use strict";
-    var label_ts_1, types_ts_8, tiles_container_ts_1, button_ts_1, box_ts_1;
+    var types_ts_8, tiles_container_ts_1, button_ts_1, box_ts_1;
     var __moduleName = context_22 && context_22.id;
     function initUI(engine, assets) {
       const font = assets.defaultFont;
@@ -2417,12 +2416,6 @@ System.register(
         type: "vertical",
         spacing: font.tileHeight,
       };
-      new label_ts_1.LabelWidget(
-        font,
-        "Move P1:\n W/S/A/D\nMove P2:\n I/J/K/L",
-        types_ts_8.FixedColor.White,
-        statsContainer.backColor,
-      ).parent = statsContainer;
       new button_ts_1.ButtonWidget(
         font,
         "Full",
@@ -2442,9 +2435,6 @@ System.register(
     exports_22("initUI", initUI);
     return {
       setters: [
-        function (label_ts_1_1) {
-          label_ts_1 = label_ts_1_1;
-        },
         function (types_ts_8_1) {
           types_ts_8 = types_ts_8_1;
         },
@@ -2482,6 +2472,7 @@ System.register(
       utils_ts_1,
       ui2_ts_1,
       NPCS_COUNT,
+      ENABLE_P2,
       movingWithMouse,
       mouseKeyCodes;
     var __moduleName = context_23 && context_23.id;
@@ -2599,7 +2590,11 @@ System.register(
       for (let i = 0; i < NPCS_COUNT; i++) {
         npcs.push(new npc_ts_1.Npc(i % 2 == 0 ? "npc1" : "npc2", assets));
       }
-      avatars.push(...npcs, p1, p2);
+      if (ENABLE_P2) {
+        avatars.push(...npcs, p1, p2);
+      } else {
+        avatars.push(...npcs, p1);
+      }
       updateables.push(...avatars);
       map_ts_1.default(map, assets);
       avatars.forEach((c) => {
@@ -2715,6 +2710,7 @@ System.register(
       ],
       execute: function () {
         NPCS_COUNT = 10;
+        ENABLE_P2 = true;
         movingWithMouse = false;
         mouseKeyCodes = [];
       },
@@ -3068,6 +3064,9 @@ System.register(
             imageDataPixels32.copyWithin(0, -dy * screenWidth);
           }
           dy = 0;
+          if (dx === 0) {
+            return;
+          }
         }
         let to;
         let copyOffset;
@@ -3157,7 +3156,9 @@ System.register(
                 dirtyBottom - dirtyTop,
               );
               dirty = false;
+              return true;
             }
+            return false;
           },
         },
         input: {
@@ -3505,7 +3506,7 @@ System.register(
     "use strict";
     var types_ts_11,
       engine_ts_1,
-      label_ts_2,
+      label_ts_1,
       game_ts_1,
       web_ts_1,
       assets_ts_1,
@@ -3514,8 +3515,10 @@ System.register(
       fpsLabel,
       game,
       totalRenderTime,
+      totalUpdateTime,
+      totalRenderFrames,
       frames,
-      framesTime,
+      updateFpsTime,
       firstUpdate,
       lastUpdateTime,
       timeToNextUpdate;
@@ -3523,17 +3526,26 @@ System.register(
     function updateFps() {
       const now = performance.now();
       frames++;
-      if (now - framesTime > 1000) {
-        const fps = frames / ((now - framesTime) / 1000);
-        const stats = "FPS:\n " +
-          fps.toFixed(2) +
-          "\nRender:\n " +
-          (totalRenderTime / frames).toFixed(2) +
-          "ms";
+      if (now - updateFpsTime > 1000) {
+        const deltaTime = now - updateFpsTime;
+        const fps = frames / (deltaTime / 1000);
+        const updateTime = totalUpdateTime / frames;
+        const renderTime = totalRenderFrames > 0
+          ? (totalRenderTime / totalRenderFrames) : 0;
+        const busyTime = (totalUpdateTime + totalRenderTime);
+        const idleTime = deltaTime - busyTime;
+        const idlePercent = idleTime * 100 / deltaTime;
+        const stats = `FPS:\n ${fps.toFixed(1)}\nRen ${totalRenderFrames}:\n ${
+          renderTime.toFixed(1)
+        }ms\nUpd:\n ${updateTime.toFixed(1)}ms\nIdle:\n ${
+          idlePercent.toFixed(1)
+        }%`;
         fpsLabel.text = stats;
-        framesTime = now;
+        updateFpsTime = now;
         frames = 0;
+        totalRenderFrames = 0;
         totalRenderTime = 0;
+        totalUpdateTime = 0;
       }
     }
     async function init() {
@@ -3543,7 +3555,7 @@ System.register(
       console.log("Engine Initialized");
       game = game_ts_1.initGame(engine, assets);
       console.log("Game Initialized");
-      fpsLabel = new label_ts_2.LabelWidget(
+      fpsLabel = new label_ts_1.LabelWidget(
         assets.defaultFont,
         "FPS:\n 0.00\nRender:\n 0.00ms",
         types_ts_11.FixedColor.White,
@@ -3553,9 +3565,9 @@ System.register(
       return engine;
     }
     function update() {
-      const updateTime = performance.now();
-      const delta = updateTime - lastUpdateTime;
-      lastUpdateTime = updateTime;
+      const preUpdateTime = performance.now();
+      const delta = preUpdateTime - lastUpdateTime;
+      lastUpdateTime = preUpdateTime;
       timeToNextUpdate -= delta;
       if (timeToNextUpdate < -1000) {
         timeToNextUpdate = -1000;
@@ -3572,10 +3584,14 @@ System.register(
       updateFps();
       engine.update();
       game_ts_1.updateGame(engine, game);
-      engine.draw();
-      const end = performance.now();
-      const renderTime = end - updateTime;
-      totalRenderTime += renderTime;
+      const postUpdateTime = performance.now();
+      const preRenderTime = postUpdateTime;
+      if (engine.draw()) {
+        totalRenderFrames++;
+      }
+      const postRenderTime = performance.now();
+      totalUpdateTime += postUpdateTime - preUpdateTime;
+      totalRenderTime += postRenderTime - preRenderTime;
     }
     async function run() {
       const engine = await init();
@@ -3594,8 +3610,8 @@ System.register(
         function (engine_ts_1_1) {
           engine_ts_1 = engine_ts_1_1;
         },
-        function (label_ts_2_1) {
-          label_ts_2 = label_ts_2_1;
+        function (label_ts_1_1) {
+          label_ts_1 = label_ts_1_1;
         },
         function (game_ts_1_1) {
           game_ts_1 = game_ts_1_1;
@@ -3610,8 +3626,10 @@ System.register(
       execute: function () {
         TARGET_FPS = 30;
         totalRenderTime = 0;
+        totalUpdateTime = 0;
+        totalRenderFrames = 0;
         frames = 0;
-        framesTime = performance.now();
+        updateFpsTime = performance.now();
         firstUpdate = true;
         lastUpdateTime = performance.now();
         timeToNextUpdate = 0;

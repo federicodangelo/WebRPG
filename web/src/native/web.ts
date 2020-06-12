@@ -422,6 +422,7 @@ export function getWebNativeContext(): NativeContext {
         imageDataPixels32.copyWithin(0, -dy * screenWidth);
       }
       dy = 0;
+      if (dx === 0) return;
     }
 
     let to: number;
@@ -517,7 +518,9 @@ export function getWebNativeContext(): NativeContext {
             dirtyBottom - dirtyTop,
           );
           dirty = false;
+          return true;
         }
+        return false;
       },
     },
     input: {

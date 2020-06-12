@@ -72,13 +72,6 @@ export function initUI(engine: Engine, assets: Assets) {
     spacing: font.tileHeight,
   };
 
-  new LabelWidget(
-    font,
-    "Move P1:\n W/S/A/D\nMove P2:\n I/J/K/L",
-    FixedColor.White,
-    statsContainer.backColor,
-  ).parent = statsContainer;
-
   new ButtonWidget(
     font,
     "Full",

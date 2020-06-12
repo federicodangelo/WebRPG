@@ -100,8 +100,8 @@ export class EngineContextImpl implements EngineContext {
 
   public endClip() {}
 
-  public endDraw() {
-    this.nativeContext.endDraw();
+  public endDraw(): boolean {
+    return this.nativeContext.endDraw();
   }
 
   pushTransform(x: number, y: number) {

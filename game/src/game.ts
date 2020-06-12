@@ -20,6 +20,7 @@ import {
 import { initUI } from "./ui2.ts";
 
 const NPCS_COUNT = 10;
+const ENABLE_P2 = true;
 
 function onKeyEvent(game: Game, e: EngineKeyEvent) {
   if (e.char) {
@@ -138,7 +139,11 @@ export function initGame(engine: Engine, assets: Assets): Game {
     npcs.push(new Npc(i % 2 == 0 ? "npc1" : "npc2", assets));
   }
 
-  avatars.push(...npcs, p1, p2);
+  if (ENABLE_P2) {
+    avatars.push(...npcs, p1, p2);
+  } else {
+    avatars.push(...npcs, p1);
+  }
 
   updateables.push(...avatars);
 

@@ -100,7 +100,7 @@ class EngineImpl implements Engine {
     this.invalidRects.length = 0;
   }
 
-  public draw() {
+  public draw(): boolean {
     this.context.beginDraw();
 
     this.drawInvalidRects();
@@ -165,7 +165,7 @@ class EngineImpl implements Engine {
       }
     }
 
-    this.context.endDraw();
+    return this.context.endDraw();
   }
 
   private updateLayout() {
