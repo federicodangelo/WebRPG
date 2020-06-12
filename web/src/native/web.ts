@@ -9,6 +9,7 @@ import {
   EngineKeyEventType,
   EngineMouseEvent,
 } from "engine/types.ts";
+import { NativeDrawStats } from "../../../engine/src/native-types.ts";
 
 const USE_DEVICE_PIXEL_RATION = false;
 
@@ -503,11 +504,13 @@ export function getWebNativeContext(): NativeContext {
         dirty = false;
       },
       endDraw: () => {
+        let drawnPixels = 0;
         if (dirty) {
           dirtyLeft = Math.max(Math.min(dirtyLeft, screenSize.width), 0);
           dirtyRight = Math.max(Math.min(dirtyRight, screenSize.width), 0);
           dirtyTop = Math.max(Math.min(dirtyTop, screenSize.height), 0);
           dirtyBottom = Math.max(Math.min(dirtyBottom, screenSize.height), 0);
+          drawnPixels += (dirtyRight - dirtyLeft) * (dirtyBottom - dirtyTop);
           ctx.putImageData(
             imageData,
             0,
@@ -518,9 +521,10 @@ export function getWebNativeContext(): NativeContext {
             dirtyBottom - dirtyTop,
           );
           dirty = false;
-          return true;
         }
-        return false;
+        return {
+          drawnPixels,
+        };
       },
     },
     input: {

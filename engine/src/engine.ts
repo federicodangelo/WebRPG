@@ -6,6 +6,7 @@ import {
   EngineKeyEvent,
   Point,
   EngineMouseEvent,
+  DrawStats,
 } from "./types.ts";
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
@@ -50,60 +51,71 @@ class EngineImpl implements Engine {
     }
   }
 
-  private drawInvalidRects(): void {
-    if (this.invalidRects.length == 0) return;
+  private drawInvalidRects() {
+    let drawnRects = 0;
+    let drawnArea = 0;
 
-    var pendingLayout = true;
+    if (this.invalidRects.length > 0) {
+      let pendingLayout = true;
 
-    const clip = new Rect();
-    const screenSize = this.screenSize;
+      const clip = new Rect();
+      const screenSize = this.screenSize;
 
-    for (let i = 0; i < this.invalidRects.length; i++) {
-      clip.copyFrom(this.invalidRects[i]);
-      if (clip.x < 0) {
-        clip.width += clip.x;
-        clip.x = 0;
-      }
-      if (clip.y < 0) {
-        clip.height += clip.y;
-        clip.y = 0;
-      }
-      if (
-        clip.width <= 0 ||
-        clip.height <= 0 ||
-        clip.x > screenSize.width ||
-        clip.y > screenSize.height
-      ) {
-        continue;
-      }
-      if (clip.x + clip.width > screenSize.width) {
-        clip.width = screenSize.width - clip.x;
-      }
-      if (clip.y + clip.height > screenSize.height) {
-        clip.height = screenSize.height - clip.y;
+      for (let i = 0; i < this.invalidRects.length; i++) {
+        clip.copyFrom(this.invalidRects[i]);
+        if (clip.x < 0) {
+          clip.width += clip.x;
+          clip.x = 0;
+        }
+        if (clip.y < 0) {
+          clip.height += clip.y;
+          clip.y = 0;
+        }
+        if (
+          clip.width <= 0 ||
+          clip.height <= 0 ||
+          clip.x > screenSize.width ||
+          clip.y > screenSize.height
+        ) {
+          continue;
+        }
+
+        if (clip.x + clip.width > screenSize.width) {
+          clip.width = screenSize.width - clip.x;
+        }
+        if (clip.y + clip.height > screenSize.height) {
+          clip.height = screenSize.height - clip.y;
+        }
+
+        if (pendingLayout) {
+          pendingLayout = false;
+          this.updateLayout();
+        }
+
+        drawnRects++;
+        drawnArea += clip.width * clip.height;
+
+        this.context.beginClip(clip.x, clip.y, clip.width, clip.height);
+
+        for (let i = 0; i < this.children.length; i++) {
+          this.children[i].draw(this.context);
+        }
+
+        this.context.endClip();
       }
 
-      if (pendingLayout) {
-        pendingLayout = false;
-        this.updateLayout();
-      }
-
-      this.context.beginClip(clip.x, clip.y, clip.width, clip.height);
-
-      for (let i = 0; i < this.children.length; i++) {
-        this.children[i].draw(this.context);
-      }
-
-      this.context.endClip();
+      this.invalidRects.length = 0;
     }
 
-    this.invalidRects.length = 0;
+    return { drawnRects, drawnArea };
   }
 
-  public draw(): boolean {
+  public draw(): DrawStats {
+    const startTime = performance.now();
+
     this.context.beginDraw();
 
-    this.drawInvalidRects();
+    let { drawnRects } = this.drawInvalidRects();
 
     if (this.mainScrollable !== null) {
       const dx = this.mainScrollableOffset.x - this.mainScrollable.offsetX;
@@ -161,11 +173,21 @@ class EngineImpl implements Engine {
           );
         }
 
-        this.drawInvalidRects();
+        const { drawnRects: drawnRects2 } = this.drawInvalidRects();
+
+        drawnRects += drawnRects2;
       }
     }
 
-    return this.context.endDraw();
+    const nativeStats = this.context.endDraw();
+
+    const endTime = performance.now();
+
+    return {
+      time: endTime - startTime,
+      rects: drawnRects,
+      pixels: nativeStats.drawnPixels,
+    };
   }
 
   private updateLayout() {

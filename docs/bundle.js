@@ -1191,51 +1191,56 @@ System.register(
             }
           }
           drawInvalidRects() {
-            if (this.invalidRects.length == 0) {
-              return;
+            let drawnRects = 0;
+            let drawnArea = 0;
+            if (this.invalidRects.length > 0) {
+              let pendingLayout = true;
+              const clip = new types_ts_4.Rect();
+              const screenSize = this.screenSize;
+              for (let i = 0; i < this.invalidRects.length; i++) {
+                clip.copyFrom(this.invalidRects[i]);
+                if (clip.x < 0) {
+                  clip.width += clip.x;
+                  clip.x = 0;
+                }
+                if (clip.y < 0) {
+                  clip.height += clip.y;
+                  clip.y = 0;
+                }
+                if (
+                  clip.width <= 0 ||
+                  clip.height <= 0 ||
+                  clip.x > screenSize.width ||
+                  clip.y > screenSize.height
+                ) {
+                  continue;
+                }
+                if (clip.x + clip.width > screenSize.width) {
+                  clip.width = screenSize.width - clip.x;
+                }
+                if (clip.y + clip.height > screenSize.height) {
+                  clip.height = screenSize.height - clip.y;
+                }
+                if (pendingLayout) {
+                  pendingLayout = false;
+                  this.updateLayout();
+                }
+                drawnRects++;
+                drawnArea += clip.width * clip.height;
+                this.context.beginClip(clip.x, clip.y, clip.width, clip.height);
+                for (let i = 0; i < this.children.length; i++) {
+                  this.children[i].draw(this.context);
+                }
+                this.context.endClip();
+              }
+              this.invalidRects.length = 0;
             }
-            var pendingLayout = true;
-            const clip = new types_ts_4.Rect();
-            const screenSize = this.screenSize;
-            for (let i = 0; i < this.invalidRects.length; i++) {
-              clip.copyFrom(this.invalidRects[i]);
-              if (clip.x < 0) {
-                clip.width += clip.x;
-                clip.x = 0;
-              }
-              if (clip.y < 0) {
-                clip.height += clip.y;
-                clip.y = 0;
-              }
-              if (
-                clip.width <= 0 ||
-                clip.height <= 0 ||
-                clip.x > screenSize.width ||
-                clip.y > screenSize.height
-              ) {
-                continue;
-              }
-              if (clip.x + clip.width > screenSize.width) {
-                clip.width = screenSize.width - clip.x;
-              }
-              if (clip.y + clip.height > screenSize.height) {
-                clip.height = screenSize.height - clip.y;
-              }
-              if (pendingLayout) {
-                pendingLayout = false;
-                this.updateLayout();
-              }
-              this.context.beginClip(clip.x, clip.y, clip.width, clip.height);
-              for (let i = 0; i < this.children.length; i++) {
-                this.children[i].draw(this.context);
-              }
-              this.context.endClip();
-            }
-            this.invalidRects.length = 0;
+            return { drawnRects, drawnArea };
           }
           draw() {
+            const startTime = performance.now();
             this.context.beginDraw();
-            this.drawInvalidRects();
+            let { drawnRects } = this.drawInvalidRects();
             if (this.mainScrollable !== null) {
               const dx = this.mainScrollableOffset.x -
                 this.mainScrollable.offsetX;
@@ -1298,10 +1303,17 @@ System.register(
                     this.mainScrollableOffset.y,
                   );
                 }
-                this.drawInvalidRects();
+                const { drawnRects: drawnRects2 } = this.drawInvalidRects();
+                drawnRects += drawnRects2;
               }
             }
-            return this.context.endDraw();
+            const nativeStats = this.context.endDraw();
+            const endTime = performance.now();
+            return {
+              time: endTime - startTime,
+              rects: drawnRects,
+              pixels: nativeStats.drawnPixels,
+            };
           }
           updateLayout() {
             for (let i = 0; i < this.children.length; i++) {
@@ -1478,7 +1490,7 @@ System.register(
             super();
             this.tile = null;
             this.frame = 0;
-            this.lastTimeoutCB = -1;
+            this.lastSetIntervalHandle = null;
             this.animationFinishedCb = null;
             this.animation = animation;
             this.updateCurrentTile();
@@ -1487,7 +1499,24 @@ System.register(
             if (animation !== this.animation) {
               this.animation = animation;
               this.frame = 0;
-              this.updateCurrentTile();
+              this.updateCurrentAnimation();
+            }
+          }
+          updateCurrentAnimation() {
+            if (this.lastSetIntervalHandle !== null) {
+              clearInterval(this.lastSetIntervalHandle);
+              this.lastSetIntervalHandle = null;
+            }
+            const animation = this.animation;
+            if (animation === null) {
+              return;
+            }
+            this.updateCurrentTile();
+            if (animation.delay > 0 && animation.tiles.length > 1) {
+              this.lastSetIntervalHandle = setInterval(
+                this.updateCurrentTile.bind(this),
+                animation.delay,
+              );
             }
           }
           updateCurrentTile() {
@@ -1502,13 +1531,6 @@ System.register(
                   ? this.frame
                   : animation.tiles.length - 1
               ];
-            if (
-              !this.animation.loops &&
-              this.frame === animation.tiles.length &&
-              this.animationFinishedCb !== null
-            ) {
-              this.animationFinishedCb();
-            }
             if (newTile !== this.tile) {
               this.tile = newTile;
               this.width = newTile.width;
@@ -1516,15 +1538,17 @@ System.register(
               this.invalidate();
             }
             this.frame++;
-            if (this.lastTimeoutCB >= 0) {
-              clearTimeout(this.lastTimeoutCB);
-              this.lastTimeoutCB = -1;
-            }
-            if (animation.delay > 0) {
-              this.lastTimeoutCB = setTimeout(() => {
-                this.lastTimeoutCB = -1;
-                this.updateCurrentTile();
-              }, animation.delay);
+            if (
+              !this.animation.loops &&
+              this.frame === animation.tiles.length
+            ) {
+              if (this.lastSetIntervalHandle !== null) {
+                clearInterval(this.lastSetIntervalHandle);
+                this.lastSetIntervalHandle = null;
+              }
+              if (this.animationFinishedCb !== null) {
+                this.animationFinishedCb();
+              }
             }
           }
           drawSelf(context) {
@@ -2709,7 +2733,7 @@ System.register(
         },
       ],
       execute: function () {
-        NPCS_COUNT = 10;
+        NPCS_COUNT = 0;
         ENABLE_P2 = true;
         movingWithMouse = false;
         mouseKeyCodes = [];
@@ -3138,6 +3162,7 @@ System.register(
             dirty = false;
           },
           endDraw: () => {
+            let drawnPixels = 0;
             if (dirty) {
               dirtyLeft = Math.max(Math.min(dirtyLeft, screenSize.width), 0);
               dirtyRight = Math.max(Math.min(dirtyRight, screenSize.width), 0);
@@ -3146,6 +3171,8 @@ System.register(
                 Math.min(dirtyBottom, screenSize.height),
                 0,
               );
+              drawnPixels += (dirtyRight - dirtyLeft) *
+                (dirtyBottom - dirtyTop);
               ctx.putImageData(
                 imageData,
                 0,
@@ -3156,9 +3183,10 @@ System.register(
                 dirtyBottom - dirtyTop,
               );
               dirty = false;
-              return true;
             }
-            return false;
+            return {
+              drawnPixels,
+            };
           },
         },
         input: {
@@ -3585,13 +3613,13 @@ System.register(
       engine.update();
       game_ts_1.updateGame(engine, game);
       const postUpdateTime = performance.now();
-      const preRenderTime = postUpdateTime;
-      if (engine.draw()) {
-        totalRenderFrames++;
-      }
-      const postRenderTime = performance.now();
       totalUpdateTime += postUpdateTime - preUpdateTime;
-      totalRenderTime += postRenderTime - preRenderTime;
+      const drawStats = engine.draw();
+      if (drawStats.pixels > 0) {
+        totalRenderFrames++;
+        totalRenderTime += drawStats.time;
+        //console.debug(drawStats);
+      }
     }
     async function run() {
       const engine = await init();

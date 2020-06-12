@@ -6,6 +6,10 @@ import {
   EngineMouseEvent,
 } from "./types.ts";
 
+export type NativeDrawStats = {
+  drawnPixels: number;
+};
+
 export interface NativeContextScreen {
   getScreenSize(): Size | null;
   onScreenSizeChanged(listener: (size: Size) => void): void;
@@ -53,7 +57,7 @@ export interface NativeContextScreen {
     dy: number,
   ): void;
 
-  endDraw(): boolean;
+  endDraw(): NativeDrawStats;
 }
 
 export interface NativeContextInput {

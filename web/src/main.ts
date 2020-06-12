@@ -98,16 +98,16 @@ function update() {
   updateGame(engine, game);
 
   const postUpdateTime = performance.now();
-  const preRenderTime = postUpdateTime;
-
-  if (engine.draw()) {
-    totalRenderFrames++;
-  }
-
-  const postRenderTime = performance.now();
 
   totalUpdateTime += postUpdateTime - preUpdateTime;
-  totalRenderTime += postRenderTime - preRenderTime;
+
+  const drawStats = engine.draw();
+
+  if (drawStats.pixels > 0) {
+    totalRenderFrames++;
+    totalRenderTime += drawStats.time;
+    //console.debug(drawStats);
+  }
 }
 
 async function run() {

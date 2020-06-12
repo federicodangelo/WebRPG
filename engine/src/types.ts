@@ -444,8 +444,14 @@ export type EngineMouseEvent = {
   y: number;
 };
 
+export type DrawStats = {
+  time: number;
+  rects: number;
+  pixels: number;
+};
+
 export interface Engine {
-  draw(): boolean;
+  draw(): DrawStats;
   update(): void;
   addWidget(widget: Widget): void;
   removeWidget(widget: Widget): void;

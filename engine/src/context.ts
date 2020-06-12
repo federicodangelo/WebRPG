@@ -9,7 +9,7 @@ import {
   Tilemap,
   Font,
 } from "./types.ts";
-import { NativeContextScreen } from "./native-types.ts";
+import { NativeContextScreen, NativeDrawStats } from "./native-types.ts";
 
 const useCp437 = true;
 
@@ -100,7 +100,7 @@ export class EngineContextImpl implements EngineContext {
 
   public endClip() {}
 
-  public endDraw(): boolean {
+  public endDraw(): NativeDrawStats {
     return this.nativeContext.endDraw();
   }
 
