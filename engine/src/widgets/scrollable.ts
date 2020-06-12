@@ -3,11 +3,13 @@ import {
   Color,
   DrawContext,
   EngineContext,
+  Widget,
 } from "../types.ts";
 import { BaseWidgetContainer } from "./widget-container.ts";
 
 export class ScrollableContainerWidget extends BaseWidgetContainer {
   public backColor: Color = FixedColor.Black;
+  public overlappingFixedWidgets: Widget[] = [];
 
   private _offsetX: number = 0;
   private _offsetY: number = 0;

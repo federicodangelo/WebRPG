@@ -512,6 +512,7 @@ System.register(
           constructor() {
             super(...arguments);
             this.backColor = types_ts_2.FixedColor.Black;
+            this.overlappingFixedWidgets = [];
             this._offsetX = 0;
             this._offsetY = 0;
           }
@@ -1279,6 +1280,13 @@ System.register(
                       ),
                     );
                   }
+                  this.mainScrollable.overlappingFixedWidgets.forEach((w) => {
+                    this.invalidRects.push(
+                      w.getBoundingBox().clone().expand(
+                        Math.max(Math.abs(dx), Math.abs(dy)),
+                      ),
+                    );
+                  });
                 } else {
                   this.mainScrollable.setOffset(
                     this.mainScrollableOffset.x,
@@ -2259,104 +2267,12 @@ System.register("game/src/utils", [], function (exports_20, context_20) {
   };
 });
 System.register(
-  "engine/src/widgets/split-panel",
-  ["engine/src/widgets/widget-container", "engine/src/widgets/box"],
-  function (exports_21, context_21) {
-    "use strict";
-    var widget_container_ts_4, box_ts_1, SplitPanelContainerWidget;
-    var __moduleName = context_21 && context_21.id;
-    return {
-      setters: [
-        function (widget_container_ts_4_1) {
-          widget_container_ts_4 = widget_container_ts_4_1;
-        },
-        function (box_ts_1_1) {
-          box_ts_1 = box_ts_1_1;
-        },
-      ],
-      execute: function () {
-        SplitPanelContainerWidget = class SplitPanelContainerWidget
-          extends widget_container_ts_4.BaseWidgetContainer {
-          constructor(font, sl = null) {
-            super();
-            this.splitLayout = null;
-            this.font = font;
-            this.panel1 = new box_ts_1.BoxContainerWidget(this.font, 1);
-            this.panel2 = new box_ts_1.BoxContainerWidget(this.font, 1);
-            this.panel1.parent = this;
-            this.panel2.parent = this;
-            this.splitLayout = sl;
-            this.panel1.layout = {
-              customSizeFn: (widget, parentWidth, parentHeight) => {
-                const splitPercent = this.splitLayout?.splitPercent || 50;
-                const direction = this.splitLayout?.direction || "horizontal";
-                const fixedPanel = this.splitLayout?.fixed?.panel;
-                const fixedAmount = this.splitLayout?.fixed?.amount || 0;
-                if (direction === "horizontal") {
-                  widget.height = parentHeight;
-                  widget.width = fixedPanel === undefined
-                    ? Math.floor(parentWidth * splitPercent / 100)
-                    : fixedPanel === "panel1"
-                    ? fixedAmount
-                    : parentWidth - fixedAmount;
-                } else {
-                  widget.width = parentWidth;
-                  widget.height = fixedPanel === undefined
-                    ? Math.floor(parentHeight * splitPercent / 100)
-                    : fixedPanel === "panel1"
-                    ? fixedAmount
-                    : parentHeight - fixedAmount;
-                }
-              },
-            };
-            this.panel2.layout = {
-              heightPercent: 100,
-              customSizeFn: (widget, parentWidth, parentHeight) => {
-                const splitPercent = this.splitLayout?.splitPercent || 50;
-                const direction = this.splitLayout?.direction || "horizontal";
-                const fixedPanel = this.splitLayout?.fixed?.panel;
-                const fixedAmount = this.splitLayout?.fixed?.amount || 0;
-                if (direction === "horizontal") {
-                  widget.height = parentHeight;
-                  widget.width = fixedPanel === undefined
-                    ? Math.ceil(parentWidth * (100 - splitPercent) / 100)
-                    : fixedPanel === "panel2"
-                    ? fixedAmount
-                    : parentWidth - fixedAmount;
-                } else {
-                  widget.width = parentWidth;
-                  widget.height = fixedPanel === undefined
-                    ? Math.ceil(parentHeight * (100 - splitPercent) / 100)
-                    : fixedPanel === "panel2"
-                    ? fixedAmount
-                    : parentHeight - fixedAmount;
-                }
-              },
-              customPositionFn: (widget) => {
-                const direction = this.splitLayout?.direction || "horizontal";
-                if (direction === "horizontal") {
-                  widget.x = this.width - widget.width;
-                } else {
-                  widget.y = this.height - widget.height;
-                }
-              },
-            };
-          }
-          drawSelf() {
-          }
-        };
-        exports_21("SplitPanelContainerWidget", SplitPanelContainerWidget);
-      },
-    };
-  },
-);
-System.register(
   "engine/src/widgets/button",
   ["engine/src/widgets/widget"],
-  function (exports_22, context_22) {
+  function (exports_21, context_21) {
     "use strict";
     var widget_ts_6, ButtonWidget;
-    var __moduleName = context_22 && context_22.id;
+    var __moduleName = context_21 && context_21.id;
     return {
       setters: [
         function (widget_ts_6_1) {
@@ -2418,101 +2334,63 @@ System.register(
             }
           }
         };
-        exports_22("ButtonWidget", ButtonWidget);
+        exports_21("ButtonWidget", ButtonWidget);
       },
     };
   },
 );
 System.register(
-  "game/src/ui",
+  "game/src/ui2",
   [
     "engine/src/widgets/label",
     "engine/src/types",
-    "engine/src/widgets/split-panel",
     "engine/src/widgets/tiles-container",
     "engine/src/widgets/button",
+    "engine/src/widgets/box",
   ],
-  function (exports_23, context_23) {
+  function (exports_22, context_22) {
     "use strict";
-    var label_ts_1,
-      types_ts_8,
-      split_panel_ts_1,
-      tiles_container_ts_1,
-      button_ts_1;
-    var __moduleName = context_23 && context_23.id;
+    var label_ts_1, types_ts_8, tiles_container_ts_1, button_ts_1, box_ts_1;
+    var __moduleName = context_22 && context_22.id;
     function initUI(engine, assets) {
       const font = assets.defaultFont;
-      const mainUI = new split_panel_ts_1.SplitPanelContainerWidget(font);
-      mainUI.layout = {
-        widthPercent: 100,
-        heightPercent: 100,
+      const mainUI = new box_ts_1.BoxContainerWidget(font, 0);
+      mainUI.layout = { widthPercent: 100, heightPercent: 100 };
+      mainUI.fillChar = "";
+      const statsContainer = new box_ts_1.BoxContainerWidget(font, 1);
+      statsContainer.width = 12 * font.tileWidth;
+      statsContainer.height = 11 * font.tileHeight;
+      statsContainer.layout = {
+        verticalSpacingPercent: 0,
+        horizontalSpacingPercent: 100,
       };
-      mainUI.splitLayout = {
-        direction: "horizontal",
-        fixed: {
-          panel: "panel2",
-          amount: 12 * font.tileWidth,
-        },
+      const buttonsContainer = new box_ts_1.BoxContainerWidget(font, 1);
+      buttonsContainer.width = 12 * font.tileWidth;
+      buttonsContainer.height = 9 * font.tileHeight;
+      buttonsContainer.layout = {
+        verticalSpacingPercent: 100,
+        horizontalSpacingPercent: 100,
       };
-      mainUI.panel2.backColor = types_ts_8.FixedColor.BrightBlack;
-      const sidebar = new split_panel_ts_1.SplitPanelContainerWidget(font);
-      sidebar.parent = mainUI.panel2;
-      sidebar.layout = {
-        widthPercent: 100,
-        heightPercent: 100,
-      };
-      sidebar.splitLayout = {
-        direction: "vertical",
-        fixed: {
-          panel: "panel2",
-          amount: 10 * font.tileWidth,
-        },
-      };
-      sidebar.panel1.border = 0;
-      sidebar.panel2.border = 0;
-      const statsContainer = sidebar.panel1;
-      const buttonsContainer = sidebar.panel2;
       const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
-      map.setLayout({ heightPercent: 100, widthPercent: 100 });
+      map.layout = { heightPercent: 100, widthPercent: 100 };
       map.setChildrenLayout({ type: "none" });
-      map.parent = mainUI.panel1;
-      mainUI.panel1.titleForeColor = types_ts_8.FixedColor.BrightWhite;
-      mainUI.panel1.titleBackColor = types_ts_8.rgb(
-        51, /* I20 */
-        0, /* I0 */
-        51, /* I20 */
-      );
-      mainUI.panel1.borderForeColor = types_ts_8.rgb(
-        153, /* I60 */
-        0, /* I0 */
-        153, /* I60 */
-      );
-      mainUI.panel1.borderBackColor = types_ts_8.rgb(
-        51, /* I20 */
-        0, /* I0 */
-        51, /* I20 */
-      );
-      mainUI.panel1.backColor = types_ts_8.FixedColor.Black;
-      mainUI.panel1.fillChar = "";
-      mainUI.panel1.border = 0;
-      mainUI.panel2.title = " Stats ";
-      mainUI.panel2.titleForeColor = types_ts_8.FixedColor.BrightWhite;
-      mainUI.panel2.titleBackColor = types_ts_8.rgb(
+      map.parent = mainUI;
+      statsContainer.parent = mainUI;
+      buttonsContainer.parent = mainUI;
+      map.overlappingFixedWidgets.push(statsContainer, buttonsContainer);
+      statsContainer.title = " Stats ";
+      statsContainer.titleForeColor = types_ts_8.FixedColor.BrightWhite;
+      statsContainer.titleBackColor = types_ts_8.rgb(
         0, /* I0 */
         51, /* I20 */
         102, /* I40 */
       );
-      mainUI.panel2.borderForeColor = types_ts_8.rgb(
+      statsContainer.borderForeColor = types_ts_8.rgb(
         0, /* I0 */
         0, /* I0 */
         153, /* I60 */
       );
-      mainUI.panel2.borderBackColor = types_ts_8.rgb(
-        0, /* I0 */
-        51, /* I20 */
-        102, /* I40 */
-      );
-      mainUI.panel2.backColor = types_ts_8.rgb(
+      statsContainer.borderBackColor = types_ts_8.rgb(
         0, /* I0 */
         51, /* I20 */
         102, /* I40 */
@@ -2539,7 +2417,7 @@ System.register(
         font,
         "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
         types_ts_8.FixedColor.White,
-        mainUI.panel2.backColor,
+        statsContainer.backColor,
       ).parent = statsContainer;
       new button_ts_1.ButtonWidget(
         font,
@@ -2557,7 +2435,7 @@ System.register(
       ).parent = buttonsContainer;
       return { mainUI, statsContainer, buttonsContainer, map };
     }
-    exports_23("initUI", initUI);
+    exports_22("initUI", initUI);
     return {
       setters: [
         function (label_ts_1_1) {
@@ -2566,14 +2444,14 @@ System.register(
         function (types_ts_8_1) {
           types_ts_8 = types_ts_8_1;
         },
-        function (split_panel_ts_1_1) {
-          split_panel_ts_1 = split_panel_ts_1_1;
-        },
         function (tiles_container_ts_1_1) {
           tiles_container_ts_1 = tiles_container_ts_1_1;
         },
         function (button_ts_1_1) {
           button_ts_1 = button_ts_1_1;
+        },
+        function (box_ts_1_1) {
+          box_ts_1 = box_ts_1_1;
         },
       ],
       execute: function () {
@@ -2589,20 +2467,20 @@ System.register(
     "game/src/random",
     "game/src/npc",
     "game/src/utils",
-    "game/src/ui",
+    "game/src/ui2",
   ],
-  function (exports_24, context_24) {
+  function (exports_23, context_23) {
     "use strict";
     var avatar_ts_2,
       map_ts_1,
       random_ts_3,
       npc_ts_1,
       utils_ts_1,
-      ui_ts_1,
+      ui2_ts_1,
       NPCS_COUNT,
       movingWithMouse,
       mouseKeyCodes;
-    var __moduleName = context_24 && context_24.id;
+    var __moduleName = context_23 && context_23.id;
     function onKeyEvent(game, e) {
       if (e.char) {
         if (e.type === "down") {
@@ -2704,7 +2582,7 @@ System.register(
       }
     }
     function initGame(engine, assets) {
-      const { mainUI, map, statsContainer, buttonsContainer } = ui_ts_1.initUI(
+      const { mainUI, map, statsContainer, buttonsContainer } = ui2_ts_1.initUI(
         engine,
         assets,
       );
@@ -2750,7 +2628,7 @@ System.register(
       engine.setMainScrollable(map);
       return game;
     }
-    exports_24("initGame", initGame);
+    exports_23("initGame", initGame);
     function updateGame(engine, game) {
       const { p1, p2, avatars, updateables, map } = game;
       if (
@@ -2809,7 +2687,7 @@ System.register(
       utils_ts_1.followAvatar(p1, map, engine);
       return true;
     }
-    exports_24("updateGame", updateGame);
+    exports_23("updateGame", updateGame);
     return {
       setters: [
         function (avatar_ts_2_1) {
@@ -2827,8 +2705,8 @@ System.register(
         function (utils_ts_1_1) {
           utils_ts_1 = utils_ts_1_1;
         },
-        function (ui_ts_1_1) {
-          ui_ts_1 = ui_ts_1_1;
+        function (ui2_ts_1_1) {
+          ui2_ts_1 = ui2_ts_1_1;
         },
       ],
       execute: function () {
@@ -2842,10 +2720,10 @@ System.register(
 System.register(
   "web/src/native/web",
   ["engine/src/types"],
-  function (exports_25, context_25) {
+  function (exports_24, context_24) {
     "use strict";
     var types_ts_9, USE_DEVICE_PIXEL_RATION;
-    var __moduleName = context_25 && context_25.id;
+    var __moduleName = context_24 && context_24.id;
     function updateCanvasSize(canvas) {
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -3173,12 +3051,26 @@ System.register(
       const scrollRect = (x, y, width, height, dx, dy) => {
         setDirty(x, y, width, height);
         const screenWidth = screenSize.width;
+        const screenHeight = screenSize.height;
+        if (
+          dy !== 0 && x == 0 &&
+          width === screenWidth &&
+          height === screenHeight
+        ) {
+          //Optimized "vertical scrolling" path for fullscreen scrolling
+          if (dy > 0) {
+            imageDataPixels32.copyWithin(dy * screenWidth, 0);
+          } else { //dy < 0
+            imageDataPixels32.copyWithin(0, -dy * screenWidth);
+          }
+          dy = 0;
+        }
         let to;
         let copyOffset;
-        if (dy >= 0) {
+        if (dy > 0) {
           to = (y + height - 1) * screenWidth + x;
           copyOffset = -screenWidth;
-        } else {
+        } else { //dy <= 0
           to = y * screenWidth + x;
           copyOffset = screenWidth;
         }
@@ -3188,7 +3080,7 @@ System.register(
           to += dx;
           fromStartOffset -= dx;
           fromEndOffset -= dx + dx;
-        } else {
+        } else { //dx < 0
           fromStartOffset -= dx;
         }
         for (let i = height - Math.abs(dy); i >= 0; i--) {
@@ -3278,7 +3170,7 @@ System.register(
         destroy: () => {},
       };
     }
-    exports_25("getWebNativeContext", getWebNativeContext);
+    exports_24("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
         function (types_ts_9_1) {
@@ -3294,10 +3186,10 @@ System.register(
 System.register(
   "web/src/native/assets",
   ["engine/src/types"],
-  function (exports_26, context_26) {
+  function (exports_25, context_25) {
     "use strict";
     var types_ts_10;
-    var __moduleName = context_26 && context_26.id;
+    var __moduleName = context_25 && context_25.id;
     async function loadImage(src) {
       return new Promise((resolve, reject) => {
         const image = new Image();
@@ -3583,7 +3475,7 @@ System.register(
       };
       return assets;
     }
-    exports_26("initAssets", initAssets);
+    exports_25("initAssets", initAssets);
     return {
       setters: [
         function (types_ts_10_1) {
@@ -3605,7 +3497,7 @@ System.register(
     "web/src/native/web",
     "web/src/native/assets",
   ],
-  function (exports_27, context_27) {
+  function (exports_26, context_26) {
     "use strict";
     var types_ts_11,
       engine_ts_1,
@@ -3623,7 +3515,7 @@ System.register(
       firstUpdate,
       lastUpdateTime,
       timeToNextUpdate;
-    var __moduleName = context_27 && context_27.id;
+    var __moduleName = context_26 && context_26.id;
     function updateFps() {
       const now = performance.now();
       frames++;

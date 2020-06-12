@@ -17,7 +17,7 @@ import {
   setSpecialKeyDown,
   isSpecialKeyDown,
 } from "./utils.ts";
-import { initUI } from "./ui.ts";
+import { initUI } from "./ui2.ts";
 
 const NPCS_COUNT = 10;
 

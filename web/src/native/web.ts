@@ -408,14 +408,29 @@ export function getWebNativeContext(): NativeContext {
     setDirty(x, y, width, height);
 
     const screenWidth = screenSize.width;
+    const screenHeight = screenSize.height;
+
+    if (
+      dy !== 0 && x == 0 &&
+      width === screenWidth &&
+      height === screenHeight
+    ) {
+      //Optimized "vertical scrolling" path for fullscreen scrolling
+      if (dy > 0) {
+        imageDataPixels32.copyWithin(dy * screenWidth, 0);
+      } else { //dy < 0
+        imageDataPixels32.copyWithin(0, -dy * screenWidth);
+      }
+      dy = 0;
+    }
 
     let to: number;
     let copyOffset: number;
 
-    if (dy >= 0) {
+    if (dy > 0) {
       to = (y + height - 1) * screenWidth + x;
       copyOffset = -screenWidth;
-    } else {
+    } else { //dy <= 0
       to = y * screenWidth + x;
       copyOffset = screenWidth;
     }
@@ -427,7 +442,7 @@ export function getWebNativeContext(): NativeContext {
       to += dx;
       fromStartOffset -= dx;
       fromEndOffset -= dx + dx;
-    } else {
+    } else { //dx < 0
       fromStartOffset -= dx;
     }
 

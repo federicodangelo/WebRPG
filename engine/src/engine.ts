@@ -146,6 +146,14 @@ class EngineImpl implements Engine {
               new Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height),
             );
           }
+
+          this.mainScrollable.overlappingFixedWidgets.forEach((w) => {
+            this.invalidRects.push(
+              w.getBoundingBox().clone().expand(
+                Math.max(Math.abs(dx), Math.abs(dy)),
+              ),
+            );
+          });
         } else {
           this.mainScrollable.setOffset(
             this.mainScrollableOffset.x,
