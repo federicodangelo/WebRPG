@@ -8,7 +8,6 @@ import {
 import { DrawingTile } from "../types.ts";
 
 function sendResponse(response: DrawingResponse) {
-  console.log("WORKER: send response", response);
   //@ts-ignore
   self.postMessage(response);
 }
@@ -95,7 +94,6 @@ function handleCommand(command: DrawingCommand) {
 //@ts-ignore
 self.onmessage = (e) => {
   const command: DrawingCommand = e.data;
-  console.log("WORKER: received commands", command);
   handleCommand(command);
   drawing.dispatch();
 };

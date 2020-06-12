@@ -1080,7 +1080,6 @@ System.register(
     var drawing_real_ts_1, types_ts_4, pixels, size, drawing, tilesMapping;
     var __moduleName = context_8 && context_8.id;
     function sendResponse(response) {
-      console.log("WORKER: send response", response);
       //@ts-ignore
       self.postMessage(response);
     }
@@ -1174,7 +1173,6 @@ System.register(
         //@ts-ignore
         self.onmessage = (e) => {
           const command = e.data;
-          console.log("WORKER: received commands", command);
           handleCommand(command);
           drawing.dispatch();
         };
