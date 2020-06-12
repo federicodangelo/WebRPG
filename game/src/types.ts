@@ -8,7 +8,8 @@ export interface Updateable {
 }
 
 export type Game = {
-  ui: BoxContainerWidget;
+  statsContainer: BoxContainerWidget;
+  buttonsContainer: BoxContainerWidget;
   scrollable: ScrollableTilesContainerWidget;
 
   avatars: Avatar[];

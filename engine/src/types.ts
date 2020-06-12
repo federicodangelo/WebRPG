@@ -455,5 +455,6 @@ export interface Engine {
   setMainScrollable(scrollable: ScrollableContainerWidget): void;
   setMainScroll(offsetX: number, offsetY: number): void;
   setFullscreen(fullscreen: boolean): void;
+  toggleStats(): void;
   getWidgetAt(x: number, y: number): Widget | null;
 }

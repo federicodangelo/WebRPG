@@ -122,9 +122,11 @@ function onMouseEvent(engine: Engine, game: Game, e: EngineMouseEvent) {
 }
 
 export function initGame(engine: Engine, assets: Assets): Game {
-  const { mainUI, map, sidebar } = initUI(engine, assets);
+  const { mainUI, map, statsContainer, buttonsContainer } = initUI(
+    engine,
+    assets,
+  );
 
-  const ui = sidebar.panel1;
   const scrollable = map;
   const p1 = new Avatar("female1", assets);
   const p2 = new Avatar("female2", assets);
@@ -155,7 +157,8 @@ export function initGame(engine: Engine, assets: Assets): Game {
   });
 
   const game: Game = {
-    ui,
+    statsContainer,
+    buttonsContainer,
     scrollable,
     avatars,
     map,

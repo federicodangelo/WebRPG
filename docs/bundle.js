@@ -1357,6 +1357,9 @@ System.register(
           setFullscreen(fullscreen) {
             this.nativeContext.screen.setFullscreen(fullscreen);
           }
+          toggleStats() {
+            this.nativeContext.screen.toggleStats();
+          }
         };
       },
     };
@@ -2467,11 +2470,12 @@ System.register(
       };
       sidebar.panel1.border = 0;
       sidebar.panel2.border = 0;
+      const statsContainer = sidebar.panel1;
+      const buttonsContainer = sidebar.panel2;
       const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
       map.setLayout({ heightPercent: 100, widthPercent: 100 });
       map.setChildrenLayout({ type: "none" });
       map.parent = mainUI.panel1;
-      mainUI.panel1.title = " Map ";
       mainUI.panel1.titleForeColor = types_ts_8.FixedColor.BrightWhite;
       mainUI.panel1.titleBackColor = types_ts_8.rgb(
         51, /* I20 */
@@ -2513,17 +2517,21 @@ System.register(
         51, /* I20 */
         102, /* I40 */
       );
-      sidebar.panel1.backColor = types_ts_8.rgb(
+      statsContainer.backColor = types_ts_8.rgb(
         0, /* I0 */
         51, /* I20 */
         102, /* I40 */
       );
-      sidebar.panel2.backColor = types_ts_8.rgb(
+      buttonsContainer.backColor = types_ts_8.rgb(
         0, /* I0 */
         51, /* I20 */
         102, /* I40 */
       );
-      sidebar.panel1.childrenLayout = {
+      statsContainer.childrenLayout = {
+        type: "vertical",
+        spacing: 1 * font.tileWidth,
+      };
+      buttonsContainer.childrenLayout = {
         type: "vertical",
         spacing: 1 * font.tileWidth,
       };
@@ -2532,16 +2540,22 @@ System.register(
         "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
         types_ts_8.FixedColor.White,
         mainUI.panel2.backColor,
-      ).parent = sidebar.panel1;
+      ).parent = statsContainer;
       new button_ts_1.ButtonWidget(
         font,
-        " Full ",
+        "  Full  ",
         types_ts_8.FixedColor.White,
         types_ts_8.FixedColor.Green,
         () => engine.setFullscreen(true),
-      ).setLayout({ horizontalSpacingPercent: 50, verticalSpacingPercent: 50 })
-        .parent = sidebar.panel2;
-      return { mainUI, sidebar, map };
+      ).parent = buttonsContainer;
+      new button_ts_1.ButtonWidget(
+        font,
+        "  Stat  ",
+        types_ts_8.FixedColor.White,
+        types_ts_8.FixedColor.Green,
+        () => engine.toggleStats(),
+      ).parent = buttonsContainer;
+      return { mainUI, statsContainer, buttonsContainer, map };
     }
     exports_23("initUI", initUI);
     return {
@@ -2690,8 +2704,10 @@ System.register(
       }
     }
     function initGame(engine, assets) {
-      const { mainUI, map, sidebar } = ui_ts_1.initUI(engine, assets);
-      const ui = sidebar.panel1;
+      const { mainUI, map, statsContainer, buttonsContainer } = ui_ts_1.initUI(
+        engine,
+        assets,
+      );
       const scrollable = map;
       const p1 = new avatar_ts_2.Avatar("female1", assets);
       const p2 = new avatar_ts_2.Avatar("female2", assets);
@@ -2716,7 +2732,8 @@ System.register(
         );
       });
       const game = {
-        ui,
+        statsContainer,
+        buttonsContainer,
         scrollable,
         avatars,
         map,
@@ -2900,13 +2917,6 @@ System.register(
       };
       const handleKey = (e, type) => {
         const key = e.key;
-        if (type === "down" && key === "f") {
-          if (globalThis.statsPaused) {
-            globalThis.resumeStats();
-          } else {
-            globalThis.pauseStats();
-          }
-        }
         switch (key) {
           case "ArrowLeft":
             disptachKeyEvent({ type, code: 1 /* ArrowLeft */ });
@@ -3218,6 +3228,13 @@ System.register(
               document.exitFullscreen();
             }
           },
+          toggleStats: () => {
+            if (globalThis.statsPaused) {
+              globalThis.resumeStats();
+            } else {
+              globalThis.pauseStats();
+            }
+          },
           tintTile,
           setTile,
           fillRect,
@@ -3257,7 +3274,6 @@ System.register(
         },
         init: async () => {
           updateScreenSize();
-          globalThis.pauseStats();
         },
         destroy: () => {},
       };
@@ -3635,9 +3651,9 @@ System.register(
         assets.defaultFont,
         "FPS:\n 0.00\nRender:\n 0.00ms",
         types_ts_11.FixedColor.White,
-        game.ui.backColor,
+        game.statsContainer.backColor,
       );
-      fpsLabel.parent = game.ui;
+      fpsLabel.parent = game.statsContainer;
       return engine;
     }
     function update() {

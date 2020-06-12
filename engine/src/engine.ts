@@ -239,6 +239,10 @@ class EngineImpl implements Engine {
   public setFullscreen(fullscreen: boolean): void {
     this.nativeContext.screen.setFullscreen(fullscreen);
   }
+
+  public toggleStats(): void {
+    this.nativeContext.screen.toggleStats();
+  }
 }
 
 export async function buildEngine(nativeContext: NativeContext) {

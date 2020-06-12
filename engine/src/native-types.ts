@@ -10,6 +10,7 @@ export interface NativeContextScreen {
   getScreenSize(): Size | null;
   onScreenSizeChanged(listener: (size: Size) => void): void;
   setFullscreen(fullscreen: boolean): void;
+  toggleStats(): void;
 
   beginDraw(): void;
 

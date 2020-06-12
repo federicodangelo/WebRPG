@@ -103,14 +103,6 @@ export function getWebNativeContext(): NativeContext {
   const handleKey = (e: KeyboardEvent, type: EngineKeyEventType) => {
     const key = e.key;
 
-    if (type === "down" && key === "f") {
-      if ((globalThis as any).statsPaused) {
-        (globalThis as any).resumeStats();
-      } else {
-        (globalThis as any).pauseStats();
-      }
-    }
-
     switch (key) {
       case "ArrowLeft":
         disptachKeyEvent({ type, code: KeyCode.ArrowLeft });
@@ -480,6 +472,13 @@ export function getWebNativeContext(): NativeContext {
           document.exitFullscreen();
         }
       },
+      toggleStats: () => {
+        if ((globalThis as any).statsPaused) {
+          (globalThis as any).resumeStats();
+        } else {
+          (globalThis as any).pauseStats();
+        }
+      },
       tintTile,
       setTile,
       fillRect,
@@ -516,7 +515,6 @@ export function getWebNativeContext(): NativeContext {
     },
     init: async () => {
       updateScreenSize();
-      (globalThis as any).pauseStats();
     },
     destroy: () => {},
   };

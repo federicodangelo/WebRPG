@@ -44,13 +44,15 @@ export function initUI(engine: Engine, assets: Assets) {
   sidebar.panel1.border = 0;
   sidebar.panel2.border = 0;
 
+  const statsContainer = sidebar.panel1;
+  const buttonsContainer = sidebar.panel2;
+
   const map = new ScrollableTilesContainerWidget();
 
   map.setLayout({ heightPercent: 100, widthPercent: 100 });
   map.setChildrenLayout({ type: "none" });
   map.parent = mainUI.panel1;
 
-  mainUI.panel1.title = " Map ";
   mainUI.panel1.titleForeColor = FixedColor.BrightWhite;
   mainUI.panel1.titleBackColor = rgb(
     Intensity.I20,
@@ -90,10 +92,15 @@ export function initUI(engine: Engine, assets: Assets) {
   );
 
   mainUI.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
-  sidebar.panel1.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
-  sidebar.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
+  statsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
+  buttonsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
 
-  sidebar.panel1.childrenLayout = {
+  statsContainer.childrenLayout = {
+    type: "vertical",
+    spacing: 1 * font.tileWidth,
+  };
+
+  buttonsContainer.childrenLayout = {
     type: "vertical",
     spacing: 1 * font.tileWidth,
   };
@@ -103,16 +110,23 @@ export function initUI(engine: Engine, assets: Assets) {
     "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
     FixedColor.White,
     mainUI.panel2.backColor,
-  ).parent = sidebar.panel1;
+  ).parent = statsContainer;
 
   new ButtonWidget(
     font,
-    " Full ",
+    "  Full  ",
     FixedColor.White,
     FixedColor.Green,
     () => engine.setFullscreen(true),
-  ).setLayout({ horizontalSpacingPercent: 50, verticalSpacingPercent: 50 })
-    .parent = sidebar.panel2;
+  ).parent = buttonsContainer;
 
-  return { mainUI, sidebar, map };
+  new ButtonWidget(
+    font,
+    "  Stat  ",
+    FixedColor.White,
+    FixedColor.Green,
+    () => engine.toggleStats(),
+  ).parent = buttonsContainer;
+
+  return { mainUI, statsContainer, buttonsContainer, map };
 }

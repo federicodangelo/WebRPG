@@ -50,10 +50,10 @@ async function init() {
     assets.defaultFont,
     "FPS:\n 0.00\nRender:\n 0.00ms",
     FixedColor.White,
-    game.ui.backColor,
+    game.statsContainer.backColor,
   );
 
-  fpsLabel.parent = game.ui;
+  fpsLabel.parent = game.statsContainer;
 
   return engine;
 }

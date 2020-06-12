@@ -22,29 +22,31 @@
     <script type="module" src="bundle.js"></script>
     <script type="module">
         var script = document.createElement('script');
-        globalThis.statsPaused = false;
+        var reqHandler = -1;
+
+        globalThis.statsPaused = true;
         script.onload = function() {
             var stats = new Stats();
-            
+
+            function loop() {
+                stats.update();
+                reqHandler = requestAnimationFrame(loop);
+            }            
+
             globalThis.pauseStats = () => {
                 if (!globalThis.statsPaused) {
                     globalThis.statsPaused = true;
                     document.body.removeChild(stats.dom);
+                    cancelAnimationFrame(reqHandler);
                 }
             }
             globalThis.resumeStats = () => {
                 if (globalThis.statsPaused) {
                     globalThis.statsPaused = false;
                     document.body.appendChild(stats.dom);
+                    reqHandler = requestAnimationFrame(loop);
                 }
             }
-            
-            document.body.appendChild(stats.dom);
-
-            requestAnimationFrame(function loop() {
-                if (!globalThis.statsPaused) stats.update();
-                requestAnimationFrame(loop);
-            });
         };
         script.src = '//mrdoob.github.io/stats.js/build/stats.min.js';
         document.head.appendChild(script);
