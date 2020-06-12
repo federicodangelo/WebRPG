@@ -2363,14 +2363,14 @@ System.register(
       mainUI.layout = { widthPercent: 100, heightPercent: 100 };
       mainUI.fillChar = "";
       const statsContainer = new box_ts_1.BoxContainerWidget(font, 1);
-      statsContainer.width = 12 * font.tileWidth;
-      statsContainer.height = 11 * font.tileHeight;
+      statsContainer.width = 10 * font.tileWidth;
+      statsContainer.height = 10 * font.tileHeight;
       statsContainer.layout = {
         verticalSpacingPercent: 0,
         horizontalSpacingPercent: 100,
       };
       const buttonsContainer = new box_ts_1.BoxContainerWidget(font, 1);
-      buttonsContainer.width = 12 * font.tileWidth;
+      buttonsContainer.width = 8 * font.tileWidth;
       buttonsContainer.height = 9 * font.tileHeight;
       buttonsContainer.layout = {
         verticalSpacingPercent: 100,
@@ -2383,7 +2383,6 @@ System.register(
       statsContainer.parent = mainUI;
       buttonsContainer.parent = mainUI;
       map.overlappingFixedWidgets.push(statsContainer, buttonsContainer);
-      statsContainer.title = " Stats ";
       statsContainer.titleForeColor = types_ts_8.FixedColor.BrightWhite;
       statsContainer.titleBackColor = types_ts_8.rgb(
         0, /* I0 */
@@ -2412,28 +2411,28 @@ System.register(
       );
       statsContainer.childrenLayout = {
         type: "vertical",
-        spacing: 1 * font.tileWidth,
+        spacing: 0,
       };
       buttonsContainer.childrenLayout = {
         type: "vertical",
-        spacing: 1 * font.tileWidth,
+        spacing: font.tileHeight,
       };
       new label_ts_1.LabelWidget(
         font,
-        "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
+        "Move P1:\n W/S/A/D\nMove P2:\n I/J/K/L",
         types_ts_8.FixedColor.White,
         statsContainer.backColor,
       ).parent = statsContainer;
       new button_ts_1.ButtonWidget(
         font,
-        "  Full  ",
+        "Full",
         types_ts_8.FixedColor.White,
         types_ts_8.FixedColor.Green,
         () => engine.setFullscreen(true),
       ).parent = buttonsContainer;
       new button_ts_1.ButtonWidget(
         font,
-        "  Stat  ",
+        "Stat",
         types_ts_8.FixedColor.White,
         types_ts_8.FixedColor.Green,
         () => engine.toggleStats(),

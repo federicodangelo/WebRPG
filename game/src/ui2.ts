@@ -18,15 +18,15 @@ export function initUI(engine: Engine, assets: Assets) {
   mainUI.fillChar = "";
 
   const statsContainer = new BoxContainerWidget(font, 1);
-  statsContainer.width = 12 * font.tileWidth;
-  statsContainer.height = 11 * font.tileHeight;
+  statsContainer.width = 10 * font.tileWidth;
+  statsContainer.height = 10 * font.tileHeight;
   statsContainer.layout = {
     verticalSpacingPercent: 0,
     horizontalSpacingPercent: 100,
   };
 
   const buttonsContainer = new BoxContainerWidget(font, 1);
-  buttonsContainer.width = 12 * font.tileWidth;
+  buttonsContainer.width = 8 * font.tileWidth;
   buttonsContainer.height = 9 * font.tileHeight;
   buttonsContainer.layout = {
     verticalSpacingPercent: 100,
@@ -42,7 +42,6 @@ export function initUI(engine: Engine, assets: Assets) {
 
   map.overlappingFixedWidgets.push(statsContainer, buttonsContainer);
 
-  statsContainer.title = " Stats ";
   statsContainer.titleForeColor = FixedColor.BrightWhite;
   statsContainer.titleBackColor = rgb(
     Intensity.I0,
@@ -65,24 +64,24 @@ export function initUI(engine: Engine, assets: Assets) {
 
   statsContainer.childrenLayout = {
     type: "vertical",
-    spacing: 1 * font.tileWidth,
+    spacing: 0,
   };
 
   buttonsContainer.childrenLayout = {
     type: "vertical",
-    spacing: 1 * font.tileWidth,
+    spacing: font.tileHeight,
   };
 
   new LabelWidget(
     font,
-    "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
+    "Move P1:\n W/S/A/D\nMove P2:\n I/J/K/L",
     FixedColor.White,
     statsContainer.backColor,
   ).parent = statsContainer;
 
   new ButtonWidget(
     font,
-    "  Full  ",
+    "Full",
     FixedColor.White,
     FixedColor.Green,
     () => engine.setFullscreen(true),
@@ -90,7 +89,7 @@ export function initUI(engine: Engine, assets: Assets) {
 
   new ButtonWidget(
     font,
-    "  Stat  ",
+    "Stat",
     FixedColor.White,
     FixedColor.Green,
     () => engine.toggleStats(),
