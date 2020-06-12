@@ -301,7 +301,7 @@ export class Rect {
 
 export type TileSetType = "color" | "blackandwhite";
 
-export type Tilemap = {
+export type TilemapData = {
   id: string;
   tiles: Tile[];
   tilesById: Map<string, Tile>;
@@ -310,6 +310,9 @@ export type Tilemap = {
   tileHeight: number;
   widthInTiles: number;
   heightInTiles: number;
+};
+
+export type Tilemap = TilemapData & {
   getTile(id: string): Tile;
   getTileByXY(x: number, y: number): Tile;
   getTileIndexByXY(x: number, y: number): number;
@@ -324,7 +327,7 @@ export const enum AlphaType {
 
 export type Tile = {
   id: string;
-  tilemap: Tilemap;
+  tilemap: TilemapData;
   index: number;
   width: number;
   height: number;

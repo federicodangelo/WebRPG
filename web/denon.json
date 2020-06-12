@@ -10,6 +10,10 @@
     "bundle": {
       "tsconfig": "../tsconfig.json",
       "cmd": "deno bundle src/main.ts ../docs/bundle.js"
+    },
+    "bundle-worker": {
+      "tsconfig": "../tsconfig.json",
+      "cmd": "deno bundle src/native/worker/worker.ts ../docs/worker.js"
     }
   },
   "watcher": {

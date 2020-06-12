@@ -2733,7 +2733,7 @@ System.register(
         },
       ],
       execute: function () {
-        NPCS_COUNT = 0;
+        NPCS_COUNT = 10;
         ENABLE_P2 = true;
         movingWithMouse = false;
         mouseKeyCodes = [];
@@ -2741,13 +2741,535 @@ System.register(
     };
   },
 );
+System.register("web/src/native/types", [], function (exports_24, context_24) {
+  "use strict";
+  var __moduleName = context_24 && context_24.id;
+  return {
+    setters: [],
+    execute: function () {
+    },
+  };
+});
+System.register(
+  "web/src/native/drawing-real",
+  ["engine/src/types"],
+  function (exports_25, context_25) {
+    "use strict";
+    var types_ts_9, DrawingReal;
+    var __moduleName = context_25 && context_25.id;
+    return {
+      setters: [
+        function (types_ts_9_1) {
+          types_ts_9 = types_ts_9_1;
+        },
+      ],
+      execute: function () {
+        DrawingReal = class DrawingReal {
+          constructor(pixels, size, applyDirtyRect) {
+            this.pixelsSize = new types_ts_9.Size();
+            this.colorsRGB = new Uint32Array(2);
+            this.dirty = false;
+            this.dirtyLeft = 0;
+            this.dirtyRight = 0;
+            this.dirtyTop = 0;
+            this.dirtyBottom = 0;
+            this.applyDirtyRect = applyDirtyRect;
+            this.pixelsSize.copyFrom(size);
+            this.pixels = pixels;
+            this.imageDataPixels8 = new Uint8ClampedArray(pixels);
+            this.imageDataPixels32 = new Uint32Array(pixels);
+          }
+          setPixels(pixels, size) {
+            this.pixelsSize.copyFrom(size);
+            this.pixels = pixels;
+            this.imageDataPixels8 = new Uint8ClampedArray(pixels);
+            this.imageDataPixels32 = new Uint32Array(pixels);
+          }
+          setDirty(x, y, width, height) {
+            if (!this.dirty) {
+              this.dirty = true;
+              this.dirtyLeft = x;
+              this.dirtyTop = y;
+              this.dirtyRight = x + width;
+              this.dirtyBottom = y + height;
+            } else {
+              this.dirtyLeft = Math.min(this.dirtyLeft, x);
+              this.dirtyTop = Math.min(this.dirtyTop, y);
+              this.dirtyRight = Math.max(this.dirtyRight, x + width);
+              this.dirtyBottom = Math.max(this.dirtyBottom, y + height);
+            }
+          }
+          tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
+            this.setDirty(x, y, t.width, t.height);
+            const colorsRGB = this.colorsRGB;
+            const imageDataPixels32 = this.imageDataPixels32;
+            const screenWidth = this.pixelsSize.width;
+            colorsRGB[1] = foreColor;
+            colorsRGB[0] = backColor;
+            const tilePixels = t.pixels32;
+            const tileWidth = t.width;
+            const tileHeight = t.height;
+            const backTransparent = backColor >> 24 == 0;
+            let p = 0;
+            let f = 0;
+            if (cfx <= 0 && cfy <= 0 && ctx >= tileWidth && cty >= tileHeight) {
+              if (backTransparent) {
+                for (let py = 0; py < tileHeight; py++) {
+                  p = (y + py) * screenWidth + x;
+                  f = py * tileWidth;
+                  for (let px = 0; px < tileWidth; px++) {
+                    const cp = tilePixels[f++];
+                    if (cp == 1) {
+                      imageDataPixels32[p++] = colorsRGB[cp];
+                    } else {
+                      p++;
+                    }
+                  }
+                }
+              } else {
+                for (let py = 0; py < tileHeight; py++) {
+                  p = (y + py) * screenWidth + x;
+                  f = py * tileWidth;
+                  for (let px = 0; px < tileWidth; px++) {
+                    imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
+                  }
+                }
+              }
+            } else {
+              if (backTransparent) {
+                for (let py = 0; py < tileHeight; py++) {
+                  p = (y + py) * screenWidth + x;
+                  f = py * tileWidth;
+                  for (let px = 0; px < tileWidth; px++) {
+                    if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                      const cp = tilePixels[f++];
+                      if (cp == 1) {
+                        imageDataPixels32[p++] = colorsRGB[cp];
+                      } else {
+                        p++;
+                      }
+                    } else {
+                      p++;
+                      f++;
+                    }
+                  }
+                }
+              } else {
+                for (let py = 0; py < tileHeight; py++) {
+                  p = (y + py) * screenWidth + x;
+                  f = py * tileWidth;
+                  for (let px = 0; px < tileWidth; px++) {
+                    if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                      imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
+                    } else {
+                      p++;
+                      f++;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          setTile(t, x, y, cfx, cfy, ctx, cty) {
+            this.setDirty(x, y, t.width, t.height);
+            const imageDataPixels8 = this.imageDataPixels8;
+            const imageDataPixels32 = this.imageDataPixels32;
+            const screenWidth = this.pixelsSize.width;
+            const tileWidth = t.width;
+            const tileHeight = t.height;
+            let p = 0;
+            let f = 0;
+            const tilePixels32 = t.pixels32;
+            const tilePixels8 = t.pixels;
+            switch (t.alphaType) {
+              case 0 /* None */:
+                if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+                  for (let py = 0; py < tileHeight; py++) {
+                    p = (y + py) * screenWidth + x;
+                    f = py * tileWidth;
+                    for (let px = 0; px < tileWidth; px++) {
+                      imageDataPixels32[p++] = tilePixels32[f++];
+                    }
+                  }
+                } else {
+                  for (let py = 0; py < tileHeight; py++) {
+                    p = (y + py) * screenWidth + x;
+                    f = py * tileWidth;
+                    for (let px = 0; px < tileWidth; px++) {
+                      if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                        imageDataPixels32[p++] = tilePixels32[f++];
+                      } else {
+                        p++;
+                        f++;
+                      }
+                    }
+                  }
+                }
+                break;
+              case 1 /* Solid */:
+                if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+                  for (let py = 0; py < tileHeight; py++) {
+                    p = (y + py) * screenWidth + x;
+                    f = py * tileWidth;
+                    for (let px = 0; px < tileWidth; px++) {
+                      const pixel = tilePixels32[f++];
+                      if (pixel >> 24 !== 0) {
+                        imageDataPixels32[p++] = pixel;
+                      } else {
+                        p++;
+                      }
+                    }
+                  }
+                } else {
+                  for (let py = 0; py < tileHeight; py++) {
+                    p = (y + py) * screenWidth + x;
+                    f = py * tileWidth;
+                    for (let px = 0; px < tileWidth; px++) {
+                      if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                        const pixel = tilePixels32[f++];
+                        if (pixel >> 24 !== 0) {
+                          imageDataPixels32[p++] = pixel;
+                        } else {
+                          p++;
+                        }
+                      } else {
+                        p++;
+                        f++;
+                      }
+                    }
+                  }
+                }
+                break;
+              case 2 /* Alpha */:
+                if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+                  for (let py = 0; py < tileHeight; py++) {
+                    p = ((y + py) * screenWidth + x) << 2;
+                    f = (py * tileWidth) << 2;
+                    for (let px = 0; px < tileWidth; px++) {
+                      const r = tilePixels8[f++];
+                      const g = tilePixels8[f++];
+                      const b = tilePixels8[f++];
+                      const a = tilePixels8[f++] / 255;
+                      const invA = 1 - a;
+                      imageDataPixels8[p + 0] = imageDataPixels8[p + 0] * invA +
+                        r * a;
+                      imageDataPixels8[p + 1] = imageDataPixels8[p + 1] * invA +
+                        g * a;
+                      imageDataPixels8[p + 2] = imageDataPixels8[p + 2] * invA +
+                        b * a;
+                      imageDataPixels8[p + 3] = 255; //a
+                      p += 4;
+                    }
+                  }
+                } else {
+                  for (let py = 0; py < tileHeight; py++) {
+                    p = ((y + py) * screenWidth + x) << 2;
+                    f = (py * tileWidth) << 2;
+                    for (let px = 0; px < tileWidth; px++) {
+                      if (px >= cfx && px < ctx && py >= cfy && py < cty) {
+                        const r = tilePixels8[f++];
+                        const g = tilePixels8[f++];
+                        const b = tilePixels8[f++];
+                        const a = tilePixels8[f++] / 255;
+                        const invA = 1 - a;
+                        imageDataPixels8[p + 0] =
+                          imageDataPixels8[p + 0] * invA +
+                          r * a;
+                        imageDataPixels8[p + 1] =
+                          imageDataPixels8[p + 1] * invA +
+                          g * a;
+                        imageDataPixels8[p + 2] =
+                          imageDataPixels8[p + 2] * invA +
+                          b * a;
+                        imageDataPixels8[p + 3] = 255; //a
+                        p += 4;
+                      } else {
+                        p += 4;
+                        f += 4;
+                      }
+                    }
+                  }
+                }
+                break;
+            }
+          }
+          fillRect(color, x, y, width, height) {
+            this.setDirty(x, y, width, height);
+            const imageDataPixels32 = this.imageDataPixels32;
+            const screenWidth = this.pixelsSize.width;
+            let p = 0;
+            for (let py = 0; py < height; py++) {
+              p = (y + py) * screenWidth + x;
+              for (let px = 0; px < width; px++) {
+                imageDataPixels32[p++] = color;
+              }
+            }
+          }
+          scrollRect(x, y, width, height, dx, dy) {
+            this.setDirty(x, y, width, height);
+            const imageDataPixels32 = this.imageDataPixels32;
+            const screenWidth = this.pixelsSize.width;
+            const screenHeight = this.pixelsSize.height;
+            if (
+              dy !== 0 && x == 0 &&
+              width === screenWidth &&
+              height === screenHeight
+            ) {
+              //Optimized "vertical scrolling" path for fullscreen scrolling
+              if (dy > 0) {
+                imageDataPixels32.copyWithin(dy * screenWidth, 0);
+              } else { //dy < 0
+                imageDataPixels32.copyWithin(0, -dy * screenWidth);
+              }
+              dy = 0;
+              if (dx === 0) {
+                return;
+              }
+            }
+            let to;
+            let copyOffset;
+            if (dy > 0) {
+              to = (y + height - 1) * screenWidth + x;
+              copyOffset = -screenWidth;
+            } else { //dy <= 0
+              to = y * screenWidth + x;
+              copyOffset = screenWidth;
+            }
+            let fromStartOffset = -dy * screenWidth;
+            let fromEndOffset = -dy * screenWidth + width;
+            if (dx >= 0) {
+              to += dx;
+              fromStartOffset -= dx;
+              fromEndOffset -= dx + dx;
+            } else { //dx < 0
+              fromStartOffset -= dx;
+            }
+            for (let i = height - Math.abs(dy); i >= 0; i--) {
+              imageDataPixels32.copyWithin(
+                to,
+                to + fromStartOffset,
+                to + fromEndOffset,
+              );
+              to += copyOffset;
+            }
+          }
+          getDirtyRect() {
+            const dirtyLeft = Math.max(
+              Math.min(this.dirtyLeft, this.pixelsSize.width),
+              0,
+            );
+            const dirtyRight = Math.max(
+              Math.min(this.dirtyRight, this.pixelsSize.width),
+              0,
+            );
+            const dirtyTop = Math.max(
+              Math.min(this.dirtyTop, this.pixelsSize.height),
+              0,
+            );
+            const dirtyBottom = Math.max(
+              Math.min(this.dirtyBottom, this.pixelsSize.height),
+              0,
+            );
+            return new types_ts_9.Rect(
+              dirtyLeft,
+              dirtyTop,
+              dirtyRight - dirtyLeft,
+              dirtyBottom - dirtyTop,
+            );
+          }
+          dispatch() {
+            if (this.dirty) {
+              this.applyDirtyRect(this.getDirtyRect());
+              this.dirty = false;
+            }
+          }
+        };
+        exports_25("DrawingReal", DrawingReal);
+      },
+    };
+  },
+);
+System.register(
+  "web/src/native/worker/types",
+  [],
+  function (exports_26, context_26) {
+    "use strict";
+    var __moduleName = context_26 && context_26.id;
+    return {
+      setters: [],
+      execute: function () {
+      },
+    };
+  },
+);
+System.register(
+  "web/src/native/drawing-worker",
+  ["engine/src/types"],
+  function (exports_27, context_27) {
+    "use strict";
+    var types_ts_10, DrawingWorker;
+    var __moduleName = context_27 && context_27.id;
+    return {
+      setters: [
+        function (types_ts_10_1) {
+          types_ts_10 = types_ts_10_1;
+        },
+      ],
+      execute: function () {
+        DrawingWorker = class DrawingWorker {
+          constructor(pixels, size, applyDirtyRect) {
+            this.ready = false;
+            this.queue = [];
+            this.tileMappings = new Map();
+            this.nextTileId = 0;
+            this.worker = new Worker("./worker.js", { type: "module" });
+            this.worker.onmessage = (e) => this.onMessage(e.data);
+            this.pixels = pixels;
+            this.size = size.clone();
+            this.applyDirtyRect = applyDirtyRect;
+          }
+          dispatchCommand(command) {
+            this.queue.push(command);
+          }
+          getTileId(tile) {
+            const tileId = this.tileMappings.get(tile);
+            if (tileId !== undefined) {
+              return tileId;
+            }
+            const id = this.nextTileId++;
+            this.tileMappings.set(tile, id);
+            this.dispatchCommand({
+              type: "addTile",
+              id,
+              tile: {
+                width: tile.width,
+                height: tile.height,
+                alphaType: tile.alphaType,
+                pixels: tile.pixels,
+                pixels32: tile.pixels32,
+              },
+            });
+            return id;
+          }
+          isReady() {
+            return this.ready;
+          }
+          onMessage(response) {
+            switch (response.type) {
+              case "ready":
+                this.ready = true;
+                const setPixelsCmd = {
+                  type: "setPixels",
+                  pixels: this.pixels,
+                  size: this.size,
+                };
+                //Send first in the queue
+                this.queue.unshift(setPixelsCmd);
+                this.dispatch();
+                break;
+              case "result":
+                if (this.size.equals(response.size)) {
+                  new Uint8ClampedArray(this.pixels).set(
+                    new Uint8ClampedArray(response.pixels),
+                  );
+                  this.applyDirtyRect(
+                    new types_ts_10.Rect().copyFrom(response.dirtyRect),
+                  );
+                }
+                break;
+            }
+          }
+          setPixels(pixels, size) {
+            this.pixels = pixels;
+            this.size.copyFrom(size);
+            this.dispatchCommand({
+              type: "setPixels",
+              pixels,
+              size,
+            });
+          }
+          tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
+            this.dispatchCommand({
+              type: "tintTile",
+              t: this.getTileId(t),
+              foreColor,
+              backColor,
+              x,
+              y,
+              cfx,
+              cfy,
+              ctx,
+              cty,
+            });
+          }
+          setTile(t, x, y, cfx, cfy, ctx, cty) {
+            this.dispatchCommand({
+              type: "setTile",
+              t: this.getTileId(t),
+              x,
+              y,
+              cfx,
+              cfy,
+              ctx,
+              cty,
+            });
+          }
+          fillRect(color, x, y, width, height) {
+            this.dispatchCommand({
+              type: "fillRect",
+              color,
+              x,
+              y,
+              width,
+              height,
+            });
+          }
+          scrollRect(x, y, width, height, dx, dy) {
+            this.dispatchCommand({
+              type: "scrollRect",
+              x,
+              y,
+              width,
+              height,
+              dx,
+              dy,
+            });
+          }
+          dispatch() {
+            if (!this.ready) {
+              return;
+            }
+            if (this.queue.length === 0) {
+              return;
+            }
+            const batch = {
+              type: "batch",
+              commands: this.queue,
+            };
+            this.queue = [];
+            this.worker.postMessage(batch);
+          }
+        };
+        exports_27("DrawingWorker", DrawingWorker);
+      },
+    };
+  },
+);
 System.register(
   "web/src/native/web",
-  ["engine/src/types"],
-  function (exports_24, context_24) {
+  [
+    "engine/src/types",
+    "web/src/native/drawing-real",
+    "web/src/native/drawing-worker",
+  ],
+  function (exports_28, context_28) {
     "use strict";
-    var types_ts_9, USE_DEVICE_PIXEL_RATION;
-    var __moduleName = context_24 && context_24.id;
+    var types_ts_11,
+      drawing_real_ts_1,
+      drawing_worker_ts_1,
+      USE_DEVICE_PIXEL_RATION,
+      USE_WORKER;
+    var __moduleName = context_28 && context_28.id;
     function updateCanvasSize(canvas) {
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -2780,30 +3302,8 @@ System.register(
       const canvas = tmp.canvas;
       const ctx = canvas.getContext("2d");
       let screenMultiplier = tmp.multiplier;
-      const screenSize = new types_ts_9.Size(256, 256);
+      const screenSize = new types_ts_11.Size(256, 256);
       let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      let imageDataPixels = imageData.data;
-      let imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
-      const colorsRGB = new Uint32Array(2);
-      let dirty = false;
-      let dirtyLeft = 0;
-      let dirtyRight = 0;
-      let dirtyTop = 0;
-      let dirtyBottom = 0;
-      const setDirty = (x, y, width, height) => {
-        if (!dirty) {
-          dirty = true;
-          dirtyLeft = x;
-          dirtyTop = y;
-          dirtyRight = x + width;
-          dirtyBottom = y + height;
-        } else {
-          dirtyLeft = Math.min(dirtyLeft, x);
-          dirtyTop = Math.min(dirtyTop, y);
-          dirtyRight = Math.max(dirtyRight, x + width);
-          dirtyBottom = Math.max(dirtyBottom, y + height);
-        }
-      };
       ctx.imageSmoothingEnabled = false;
       let screenSizeChangedListeners = [];
       let keyListeners = [];
@@ -2871,253 +3371,10 @@ System.register(
       };
       const handleResize = () => {
         screenMultiplier = updateCanvasSize(canvas);
-        imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        imageDataPixels = imageData.data;
-        imageDataPixels32 = new Uint32Array(imageDataPixels.buffer);
         updateScreenSize();
+        imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        drawing.setPixels(imageData.data.buffer, screenSize);
         screenSizeChangedListeners.forEach((l) => l(screenSize));
-      };
-      const tintTile = (t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) => {
-        setDirty(x, y, t.width, t.height);
-        colorsRGB[1] = foreColor;
-        colorsRGB[0] = backColor;
-        const tilePixels = t.pixels32;
-        const tileWidth = t.width;
-        const tileHeight = t.height;
-        const backTransparent = backColor >> 24 == 0;
-        let p = 0;
-        let f = 0;
-        if (cfx <= 0 && cfy <= 0 && ctx >= tileWidth && cty >= tileHeight) {
-          if (backTransparent) {
-            for (let py = 0; py < tileHeight; py++) {
-              p = (y + py) * imageData.width + x;
-              f = py * tileWidth;
-              for (let px = 0; px < tileWidth; px++) {
-                const cp = tilePixels[f++];
-                if (cp == 1) {
-                  imageDataPixels32[p++] = colorsRGB[cp];
-                } else {
-                  p++;
-                }
-              }
-            }
-          } else {
-            for (let py = 0; py < tileHeight; py++) {
-              p = (y + py) * imageData.width + x;
-              f = py * tileWidth;
-              for (let px = 0; px < tileWidth; px++) {
-                imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-              }
-            }
-          }
-        } else {
-          if (backTransparent) {
-            for (let py = 0; py < tileHeight; py++) {
-              p = (y + py) * imageData.width + x;
-              f = py * tileWidth;
-              for (let px = 0; px < tileWidth; px++) {
-                if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                  const cp = tilePixels[f++];
-                  if (cp == 1) {
-                    imageDataPixels32[p++] = colorsRGB[cp];
-                  } else {
-                    p++;
-                  }
-                } else {
-                  p++;
-                  f++;
-                }
-              }
-            }
-          } else {
-            for (let py = 0; py < tileHeight; py++) {
-              p = (y + py) * imageData.width + x;
-              f = py * tileWidth;
-              for (let px = 0; px < tileWidth; px++) {
-                if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                  imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-                } else {
-                  p++;
-                  f++;
-                }
-              }
-            }
-          }
-        }
-      };
-      const setTile = (t, x, y, cfx, cfy, ctx, cty) => {
-        setDirty(x, y, t.width, t.height);
-        const tileWidth = t.width;
-        const tileHeight = t.height;
-        let p = 0;
-        let f = 0;
-        const tilePixels32 = t.pixels32;
-        const tilePixels8 = t.pixels;
-        switch (t.alphaType) {
-          case 0 /* None */:
-            if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
-              for (let py = 0; py < tileHeight; py++) {
-                p = (y + py) * imageData.width + x;
-                f = py * tileWidth;
-                for (let px = 0; px < tileWidth; px++) {
-                  imageDataPixels32[p++] = tilePixels32[f++];
-                }
-              }
-            } else {
-              for (let py = 0; py < tileHeight; py++) {
-                p = (y + py) * imageData.width + x;
-                f = py * tileWidth;
-                for (let px = 0; px < tileWidth; px++) {
-                  if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                    imageDataPixels32[p++] = tilePixels32[f++];
-                  } else {
-                    p++;
-                    f++;
-                  }
-                }
-              }
-            }
-            break;
-          case 1 /* Solid */:
-            if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
-              for (let py = 0; py < tileHeight; py++) {
-                p = (y + py) * imageData.width + x;
-                f = py * tileWidth;
-                for (let px = 0; px < tileWidth; px++) {
-                  const pixel = tilePixels32[f++];
-                  if (pixel >> 24 !== 0) {
-                    imageDataPixels32[p++] = pixel;
-                  } else {
-                    p++;
-                  }
-                }
-              }
-            } else {
-              for (let py = 0; py < tileHeight; py++) {
-                p = (y + py) * imageData.width + x;
-                f = py * tileWidth;
-                for (let px = 0; px < tileWidth; px++) {
-                  if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                    const pixel = tilePixels32[f++];
-                    if (pixel >> 24 !== 0) {
-                      imageDataPixels32[p++] = pixel;
-                    } else {
-                      p++;
-                    }
-                  } else {
-                    p++;
-                    f++;
-                  }
-                }
-              }
-            }
-            break;
-          case 2 /* Alpha */:
-            if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
-              for (let py = 0; py < tileHeight; py++) {
-                p = ((y + py) * imageData.width + x) << 2;
-                f = (py * tileWidth) << 2;
-                for (let px = 0; px < tileWidth; px++) {
-                  const r = tilePixels8[f++];
-                  const g = tilePixels8[f++];
-                  const b = tilePixels8[f++];
-                  const a = tilePixels8[f++] / 255;
-                  const invA = 1 - a;
-                  imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA +
-                    r * a;
-                  imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA +
-                    g * a;
-                  imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA +
-                    b * a;
-                  imageDataPixels[p + 3] = 255; //a
-                  p += 4;
-                }
-              }
-            } else {
-              for (let py = 0; py < tileHeight; py++) {
-                p = ((y + py) * imageData.width + x) << 2;
-                f = (py * tileWidth) << 2;
-                for (let px = 0; px < tileWidth; px++) {
-                  if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                    const r = tilePixels8[f++];
-                    const g = tilePixels8[f++];
-                    const b = tilePixels8[f++];
-                    const a = tilePixels8[f++] / 255;
-                    const invA = 1 - a;
-                    imageDataPixels[p + 0] = imageDataPixels[p + 0] * invA +
-                      r * a;
-                    imageDataPixels[p + 1] = imageDataPixels[p + 1] * invA +
-                      g * a;
-                    imageDataPixels[p + 2] = imageDataPixels[p + 2] * invA +
-                      b * a;
-                    imageDataPixels[p + 3] = 255; //a
-                    p += 4;
-                  } else {
-                    p += 4;
-                    f += 4;
-                  }
-                }
-              }
-            }
-            break;
-        }
-      };
-      const fillRect = (color, x, y, width, height) => {
-        setDirty(x, y, width, height);
-        let p = 0;
-        for (let py = 0; py < height; py++) {
-          p = (y + py) * imageData.width + x;
-          for (let px = 0; px < width; px++) {
-            imageDataPixels32[p++] = color;
-          }
-        }
-      };
-      const scrollRect = (x, y, width, height, dx, dy) => {
-        setDirty(x, y, width, height);
-        const screenWidth = screenSize.width;
-        const screenHeight = screenSize.height;
-        if (
-          dy !== 0 && x == 0 &&
-          width === screenWidth &&
-          height === screenHeight
-        ) {
-          //Optimized "vertical scrolling" path for fullscreen scrolling
-          if (dy > 0) {
-            imageDataPixels32.copyWithin(dy * screenWidth, 0);
-          } else { //dy < 0
-            imageDataPixels32.copyWithin(0, -dy * screenWidth);
-          }
-          dy = 0;
-          if (dx === 0) {
-            return;
-          }
-        }
-        let to;
-        let copyOffset;
-        if (dy > 0) {
-          to = (y + height - 1) * screenWidth + x;
-          copyOffset = -screenWidth;
-        } else { //dy <= 0
-          to = y * screenWidth + x;
-          copyOffset = screenWidth;
-        }
-        let fromStartOffset = -dy * screenWidth;
-        let fromEndOffset = -dy * screenWidth + width;
-        if (dx >= 0) {
-          to += dx;
-          fromStartOffset -= dx;
-          fromEndOffset -= dx + dx;
-        } else { //dx < 0
-          fromStartOffset -= dx;
-        }
-        for (let i = height - Math.abs(dy); i >= 0; i--) {
-          imageDataPixels32.copyWithin(
-            to,
-            to + fromStartOffset,
-            to + fromEndOffset,
-          );
-          to += copyOffset;
-        }
       };
       window.addEventListener("keydown", (e) => handleKey(e, "down"));
       window.addEventListener("keyup", (e) => handleKey(e, "up"));
@@ -3132,7 +3389,31 @@ System.register(
         window.addEventListener("mousemove", handleMouseMove);
       }
       window.addEventListener("resize", handleResize);
+      let drawnPixels = 0;
+      const applyDirtyRect = (rect) => {
+        drawnPixels += rect.width * rect.height;
+        ctx.putImageData(
+          imageData,
+          0,
+          0,
+          rect.x,
+          rect.y,
+          rect.width,
+          rect.height,
+        );
+      };
       updateScreenSize();
+      const drawing = USE_WORKER
+        ? new drawing_worker_ts_1.DrawingWorker(
+          imageData.data.buffer,
+          screenSize,
+          applyDirtyRect,
+        )
+        : new drawing_real_ts_1.DrawingReal(
+          imageData.data.buffer,
+          screenSize,
+          applyDirtyRect,
+        );
       return {
         screen: {
           getScreenSize: () => screenSize,
@@ -3154,39 +3435,18 @@ System.register(
               globalThis.pauseStats();
             }
           },
-          tintTile,
-          setTile,
-          fillRect,
-          scrollRect,
-          beginDraw: () => {
-            dirty = false;
-          },
+          tintTile: drawing.tintTile.bind(drawing),
+          setTile: drawing.setTile.bind(drawing),
+          fillRect: drawing.fillRect.bind(drawing),
+          scrollRect: drawing.scrollRect.bind(drawing),
+          beginDraw: () => {},
           endDraw: () => {
-            let drawnPixels = 0;
-            if (dirty) {
-              dirtyLeft = Math.max(Math.min(dirtyLeft, screenSize.width), 0);
-              dirtyRight = Math.max(Math.min(dirtyRight, screenSize.width), 0);
-              dirtyTop = Math.max(Math.min(dirtyTop, screenSize.height), 0);
-              dirtyBottom = Math.max(
-                Math.min(dirtyBottom, screenSize.height),
-                0,
-              );
-              drawnPixels += (dirtyRight - dirtyLeft) *
-                (dirtyBottom - dirtyTop);
-              ctx.putImageData(
-                imageData,
-                0,
-                0,
-                dirtyLeft,
-                dirtyTop,
-                dirtyRight - dirtyLeft,
-                dirtyBottom - dirtyTop,
-              );
-              dirty = false;
-            }
-            return {
+            drawing.dispatch();
+            const stats = {
               drawnPixels,
             };
+            drawnPixels = 0;
+            return stats;
           },
         },
         input: {
@@ -3203,15 +3463,22 @@ System.register(
         destroy: () => {},
       };
     }
-    exports_24("getWebNativeContext", getWebNativeContext);
+    exports_28("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
-        function (types_ts_9_1) {
-          types_ts_9 = types_ts_9_1;
+        function (types_ts_11_1) {
+          types_ts_11 = types_ts_11_1;
+        },
+        function (drawing_real_ts_1_1) {
+          drawing_real_ts_1 = drawing_real_ts_1_1;
+        },
+        function (drawing_worker_ts_1_1) {
+          drawing_worker_ts_1 = drawing_worker_ts_1_1;
         },
       ],
       execute: function () {
         USE_DEVICE_PIXEL_RATION = false;
+        USE_WORKER = true;
       },
     };
   },
@@ -3219,10 +3486,10 @@ System.register(
 System.register(
   "web/src/native/assets",
   ["engine/src/types"],
-  function (exports_25, context_25) {
+  function (exports_29, context_29) {
     "use strict";
-    var types_ts_10;
-    var __moduleName = context_25 && context_25.id;
+    var types_ts_12;
+    var __moduleName = context_29 && context_29.id;
     async function loadImage(src) {
       return new Promise((resolve, reject) => {
         const image = new Image();
@@ -3257,7 +3524,7 @@ System.register(
         getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
         getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
         getTileXYByIndex: (index) =>
-          new types_ts_10.Point(
+          new types_ts_12.Point(
             index % imageWidthInTiles,
             Math.trunc(index / imageWidthInTiles),
           ),
@@ -3508,11 +3775,11 @@ System.register(
       };
       return assets;
     }
-    exports_25("initAssets", initAssets);
+    exports_29("initAssets", initAssets);
     return {
       setters: [
-        function (types_ts_10_1) {
-          types_ts_10 = types_ts_10_1;
+        function (types_ts_12_1) {
+          types_ts_12 = types_ts_12_1;
         },
       ],
       execute: function () {
@@ -3530,9 +3797,9 @@ System.register(
     "web/src/native/web",
     "web/src/native/assets",
   ],
-  function (exports_26, context_26) {
+  function (exports_30, context_30) {
     "use strict";
-    var types_ts_11,
+    var types_ts_13,
       engine_ts_1,
       label_ts_1,
       game_ts_1,
@@ -3550,7 +3817,7 @@ System.register(
       firstUpdate,
       lastUpdateTime,
       timeToNextUpdate;
-    var __moduleName = context_26 && context_26.id;
+    var __moduleName = context_30 && context_30.id;
     function updateFps() {
       const now = performance.now();
       frames++;
@@ -3586,7 +3853,7 @@ System.register(
       fpsLabel = new label_ts_1.LabelWidget(
         assets.defaultFont,
         "FPS:\n 0.00\nRender:\n 0.00ms",
-        types_ts_11.FixedColor.White,
+        types_ts_13.FixedColor.White,
         game.statsContainer.backColor,
       );
       fpsLabel.parent = game.statsContainer;
@@ -3632,8 +3899,8 @@ System.register(
     }
     return {
       setters: [
-        function (types_ts_11_1) {
-          types_ts_11 = types_ts_11_1;
+        function (types_ts_13_1) {
+          types_ts_13 = types_ts_13_1;
         },
         function (engine_ts_1_1) {
           engine_ts_1 = engine_ts_1_1;

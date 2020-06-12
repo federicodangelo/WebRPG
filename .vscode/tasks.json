@@ -28,6 +28,17 @@
         "isBackground": true
       },
       {
+        "label": "web-bundle-worker-watcher",
+        "type": "shell",
+        "options": {
+            "cwd": "${workspaceFolder}/web"
+        },
+        "command": "denon",
+        "args": [ "bundle-worker" ],
+        "group": "none",
+        "isBackground": true
+      },
+      {
         "label": "web-server",
         "type": "shell",
         "options": {
