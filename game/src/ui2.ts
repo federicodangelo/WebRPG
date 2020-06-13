@@ -1,4 +1,3 @@
-import { LabelWidget } from "engine/widgets/label.ts";
 import {
   FixedColor,
   Engine,
@@ -18,8 +17,8 @@ export function initUI(engine: Engine, assets: Assets) {
   mainUI.fillChar = "";
 
   const statsContainer = new BoxContainerWidget(font, 1);
-  statsContainer.width = 10 * font.tileWidth;
-  statsContainer.height = 10 * font.tileHeight;
+  statsContainer.width = 16 * font.tileWidth;
+  statsContainer.height = 7 * font.tileHeight;
   statsContainer.layout = {
     verticalSpacingPercent: 0,
     horizontalSpacingPercent: 100,

@@ -1,9 +1,9 @@
 import {
   Size,
   Color,
-  Rect,
-} from "../../../../engine/src/types.ts";
-import { DrawingTile } from "../types.ts";
+  AlphaType,
+} from "engine/types.ts";
+import { DrawingDoneResult } from "../types.ts";
 
 export type TileId = number;
 
@@ -16,7 +16,10 @@ export type DrawingSetPixels = {
 export type DrawingAddTile = {
   type: "addTile";
   id: TileId;
-  tile: DrawingTile;
+  width: number;
+  height: number;
+  pixels: ArrayBuffer;
+  alphaType: AlphaType;
 };
 
 export type DrawingTintTile = {
@@ -80,15 +83,11 @@ export type DrawingResult = {
   type: "result";
   pixels: ArrayBuffer;
   size: Size;
-  dirtyRect: Rect;
-};
-
-export type DrawingResultEmpty = {
-  type: "result-empty";
+  result: DrawingDoneResult;
 };
 
 export type DrawingReady = {
   type: "ready";
 };
 
-export type DrawingResponse = DrawingResult | DrawingReady | DrawingResultEmpty;
+export type DrawingResponse = DrawingResult | DrawingReady;

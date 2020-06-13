@@ -1,11 +1,22 @@
 import {
   Size,
   Color,
-  Rect,
   AlphaType,
-} from "../../../engine/src/types.ts";
+} from "engine/types.ts";
+import { NativeDrawStats } from "engine/native-types.ts";
 
-export type ApplyDirtyRectFn = (rect: Rect) => void;
+export type DrawingDoneResult = {
+  dirty: boolean;
+  dirtyRect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  stats: NativeDrawStats;
+};
+
+export type DrawingDoneFn = (result: DrawingDoneResult) => void;
 
 export type DrawingTile = {
   width: number;

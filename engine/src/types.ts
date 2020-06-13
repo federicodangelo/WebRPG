@@ -450,7 +450,6 @@ export type EngineMouseEvent = {
 export type DrawStats = {
   time: number;
   rects: number;
-  pixels: number;
 };
 
 export interface Engine {

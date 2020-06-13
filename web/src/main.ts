@@ -2,10 +2,11 @@ import { FixedColor, Engine } from "engine/types.ts";
 import { buildEngine } from "engine/engine.ts";
 import { LabelWidget } from "engine/widgets/label.ts";
 import { initGame, updateGame } from "game/game.ts";
-import { getWebNativeContext } from "./native/web.ts";
-import { initAssets } from "./native/assets.ts";
+import { getWebNativeContext } from "./web.ts";
+import { initAssets } from "./assets.ts";
 import { Game } from "../../game/src/types.ts";
 import { NativeContext } from "../../engine/src/native-types.ts";
+import { EngineStats } from "./stats.ts";
 
 const TARGET_FPS = 30;
 
@@ -14,36 +15,34 @@ let nativeContext: NativeContext;
 let fpsLabel: LabelWidget;
 let game: Game;
 
-let totalRenderTime = 0;
-let totalUpdateTime = 0;
-let totalRenderFrames = 0;
-let frames = 0;
+let updateFpsFrames = 0;
 let updateFpsTime = performance.now();
+
+const engineStats = new EngineStats();
 
 function updateFps() {
   const now = performance.now();
-  frames++;
+  updateFpsFrames++;
   if (now - updateFpsTime > 1000) {
     const deltaTime = now - updateFpsTime;
-    const fps = frames / (deltaTime / 1000);
-    const updateTime = totalUpdateTime / frames;
-    const renderTime = totalRenderFrames > 0
-      ? (totalRenderTime / totalRenderFrames)
-      : 0;
-    const busyTime = (totalUpdateTime + totalRenderTime);
+    const fps = updateFpsFrames / (deltaTime / 1000);
+
+    let stats = `FPS: ${fps.toFixed(1)}`;
+    stats += "\n" + engineStats.update.toString();
+    stats += "\n" + engineStats.render.toString();
+    stats += "\n" + engineStats.renderNative.toString();
+
+    const busyTime = engineStats.render.time + engineStats.update.time;
     const idleTime = deltaTime - busyTime;
     const idlePercent = idleTime * 100 / deltaTime;
 
-    const stats = `FPS:\n ${fps.toFixed(1)}\nRen ${totalRenderFrames}:\n ${
-      renderTime.toFixed(1)
-    }ms\nUpd:\n ${updateTime.toFixed(1)}ms\nIdle:\n ${idlePercent.toFixed(1)}%`;
+    stats += `\nIdle: ${idlePercent.toFixed(1)}%`;
 
     fpsLabel.text = stats;
     updateFpsTime = now;
-    frames = 0;
-    totalRenderFrames = 0;
-    totalRenderTime = 0;
-    totalUpdateTime = 0;
+
+    engineStats.reset();
+    updateFpsFrames = 0;
   }
 }
 
@@ -52,7 +51,11 @@ async function init() {
 
   const assets = await initAssets();
 
-  nativeContext = getWebNativeContext();
+  nativeContext = getWebNativeContext((stats) => {
+    if (stats.drawnPixels > 0) {
+      engineStats.renderNative.addSample(stats.time);
+    }
+  });
 
   engine = await buildEngine(nativeContext);
 
@@ -64,7 +67,7 @@ async function init() {
 
   fpsLabel = new LabelWidget(
     assets.defaultFont,
-    "FPS:\n 0.00\nRender:\n 0.00ms",
+    "",
     FixedColor.White,
     game.statsContainer.backColor,
   );
@@ -105,14 +108,12 @@ function update() {
 
   const postUpdateTime = performance.now();
 
-  totalUpdateTime += postUpdateTime - preUpdateTime;
+  engineStats.update.addSample(postUpdateTime - preUpdateTime);
 
   const drawStats = engine.draw();
 
-  if (drawStats.pixels > 0) {
-    totalRenderFrames++;
-    totalRenderTime += drawStats.time;
-    //console.debug(drawStats);
+  if (drawStats.rects > 0) {
+    engineStats.render.addSample(drawStats.time);
   }
 }
 

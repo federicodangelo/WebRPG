@@ -812,7 +812,7 @@ System.register(
           }
           endClip() {}
           endDraw() {
-            return this.nativeContext.endDraw();
+            this.nativeContext.endDraw();
           }
           pushTransform(x, y) {
             this.transformsStack.push(new types_ts_3.Point(this.tx, this.ty));
@@ -1307,12 +1307,11 @@ System.register(
                 drawnRects += drawnRects2;
               }
             }
-            const nativeStats = this.context.endDraw();
+            this.context.endDraw();
             const endTime = performance.now();
             return {
               time: endTime - startTime,
               rects: drawnRects,
-              pixels: nativeStats.drawnPixels,
             };
           }
           updateLayout() {
@@ -2386,8 +2385,8 @@ System.register(
       mainUI.layout = { widthPercent: 100, heightPercent: 100 };
       mainUI.fillChar = "";
       const statsContainer = new box_ts_1.BoxContainerWidget(font, 1);
-      statsContainer.width = 10 * font.tileWidth;
-      statsContainer.height = 10 * font.tileHeight;
+      statsContainer.width = 16 * font.tileWidth;
+      statsContainer.height = 7 * font.tileHeight;
       statsContainer.layout = {
         verticalSpacingPercent: 0,
         horizontalSpacingPercent: 100,
@@ -2741,7 +2740,7 @@ System.register(
     };
   },
 );
-System.register("web/src/native/types", [], function (exports_24, context_24) {
+System.register("web/src/drawing/types", [], function (exports_24, context_24) {
   "use strict";
   var __moduleName = context_24 && context_24.id;
   return {
@@ -2751,7 +2750,7 @@ System.register("web/src/native/types", [], function (exports_24, context_24) {
   };
 });
 System.register(
-  "web/src/native/drawing-real",
+  "web/src/drawing/drawing-real",
   ["engine/src/types"],
   function (exports_25, context_25) {
     "use strict";
@@ -2765,15 +2764,17 @@ System.register(
       ],
       execute: function () {
         DrawingReal = class DrawingReal {
-          constructor(pixels, size, applyDirtyRect) {
+          constructor(pixels, size, drawingDone) {
             this.pixelsSize = new types_ts_9.Size();
             this.colorsRGB = new Uint32Array(2);
             this.dirty = false;
+            this.dirtyPixels = 0;
             this.dirtyLeft = 0;
             this.dirtyRight = 0;
             this.dirtyTop = 0;
             this.dirtyBottom = 0;
-            this.applyDirtyRect = applyDirtyRect;
+            this.dirtyTime = 0;
+            this.drawingDone = drawingDone;
             this.pixelsSize.copyFrom(size);
             this.pixels = pixels;
             this.imageDataPixels8 = new Uint8ClampedArray(pixels);
@@ -2788,16 +2789,19 @@ System.register(
           setDirty(x, y, width, height) {
             if (!this.dirty) {
               this.dirty = true;
+              this.dirtyPixels = 0;
               this.dirtyLeft = x;
               this.dirtyTop = y;
               this.dirtyRight = x + width;
               this.dirtyBottom = y + height;
+              this.dirtyTime = performance.now();
             } else {
               this.dirtyLeft = Math.min(this.dirtyLeft, x);
               this.dirtyTop = Math.min(this.dirtyTop, y);
               this.dirtyRight = Math.max(this.dirtyRight, x + width);
               this.dirtyBottom = Math.max(this.dirtyBottom, y + height);
             }
+            this.dirtyPixels += width * height;
           }
           tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
             this.setDirty(x, y, t.width, t.height);
@@ -3078,10 +3082,15 @@ System.register(
             );
           }
           dispatch() {
-            if (this.dirty) {
-              this.applyDirtyRect(this.getDirtyRect());
-              this.dirty = false;
-            }
+            this.drawingDone({
+              dirty: this.dirty,
+              dirtyRect: this.getDirtyRect(),
+              stats: {
+                drawnPixels: this.dirtyPixels,
+                time: this.dirty ? performance.now() - this.dirtyTime : 0,
+              },
+            });
+            this.dirty = false;
           }
           willDispatch() {
             return this.dirty;
@@ -3096,7 +3105,7 @@ System.register(
   },
 );
 System.register(
-  "web/src/native/worker/types",
+  "web/src/drawing/worker/types",
   [],
   function (exports_26, context_26) {
     "use strict";
@@ -3109,21 +3118,17 @@ System.register(
   },
 );
 System.register(
-  "web/src/native/drawing-worker",
-  ["engine/src/types"],
+  "web/src/drawing/drawing-worker",
+  [],
   function (exports_27, context_27) {
     "use strict";
-    var types_ts_10, DrawingWorker;
+    var DrawingWorker;
     var __moduleName = context_27 && context_27.id;
     return {
-      setters: [
-        function (types_ts_10_1) {
-          types_ts_10 = types_ts_10_1;
-        },
-      ],
+      setters: [],
       execute: function () {
         DrawingWorker = class DrawingWorker {
-          constructor(pixels, size, applyDirtyRect) {
+          constructor(pixels, size, drawingDone) {
             this.ready = false;
             this.queue = [];
             this.tileMappings = new Map();
@@ -3133,7 +3138,7 @@ System.register(
             this.worker.onmessage = (e) => this.onMessage(e.data);
             this.pixels = pixels;
             this.size = size.clone();
-            this.applyDirtyRect = applyDirtyRect;
+            this.drawingDone = drawingDone;
           }
           dispatchCommand(command) {
             this.queue.push(command);
@@ -3148,13 +3153,10 @@ System.register(
             this.dispatchCommand({
               type: "addTile",
               id,
-              tile: {
-                width: tile.width,
-                height: tile.height,
-                alphaType: tile.alphaType,
-                pixels: tile.pixels,
-                pixels32: tile.pixels32,
-              },
+              width: tile.width,
+              height: tile.height,
+              alphaType: tile.alphaType,
+              pixels: tile.pixels.buffer,
             });
             return id;
           }
@@ -3180,13 +3182,8 @@ System.register(
                   new Uint8ClampedArray(this.pixels).set(
                     new Uint8ClampedArray(response.pixels),
                   );
-                  this.applyDirtyRect(
-                    new types_ts_10.Rect().copyFrom(response.dirtyRect),
-                  );
+                  this.drawingDone(response.result);
                 }
-                break;
-              case "result-empty":
-                this.pendingFrames--;
                 break;
             }
           }
@@ -3271,28 +3268,28 @@ System.register(
   },
 );
 System.register(
-  "web/src/native/web",
+  "web/src/web",
   [
     "engine/src/types",
-    "web/src/native/drawing-real",
-    "web/src/native/drawing-worker",
+    "web/src/drawing/drawing-real",
+    "web/src/drawing/drawing-worker",
   ],
   function (exports_28, context_28) {
     "use strict";
-    var types_ts_11,
+    var types_ts_10,
       drawing_real_ts_1,
       drawing_worker_ts_1,
-      USE_DEVICE_PIXEL_RATION,
+      USE_DEVICE_PIXEL_RATIO,
       USE_WORKER;
     var __moduleName = context_28 && context_28.id;
     function updateCanvasSize(canvas) {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      const devicePixelRatio = USE_DEVICE_PIXEL_RATION
+      const devicePixelRatio = USE_DEVICE_PIXEL_RATIO
         ? Math.min(window.devicePixelRatio || 1, 2) : 1;
       canvas.width = width * devicePixelRatio;
       canvas.height = height * devicePixelRatio;
-      if (USE_DEVICE_PIXEL_RATION) {
+      if (USE_DEVICE_PIXEL_RATIO) {
         canvas.setAttribute(
           "style",
           "width: " +
@@ -3312,12 +3309,12 @@ System.register(
       document.body.appendChild(canvas);
       return { canvas, multiplier };
     }
-    function getWebNativeContext() {
+    function getWebNativeContext(onStats) {
       const tmp = createFullScreenCanvas();
       const canvas = tmp.canvas;
       const ctx = canvas.getContext("2d");
       let screenMultiplier = tmp.multiplier;
-      const screenSize = new types_ts_11.Size(256, 256);
+      const screenSize = new types_ts_10.Size(256, 256);
       let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
       let screenSizeChangedListeners = [];
@@ -3404,30 +3401,31 @@ System.register(
         window.addEventListener("mousemove", handleMouseMove);
       }
       window.addEventListener("resize", handleResize);
-      let drawnPixels = 0;
-      const applyDirtyRect = (rect) => {
-        drawnPixels += rect.width * rect.height;
-        ctx.putImageData(
-          imageData,
-          0,
-          0,
-          rect.x,
-          rect.y,
-          rect.width,
-          rect.height,
-        );
+      const drawingDone = (result) => {
+        if (result.dirty && result.dirtyRect) {
+          ctx.putImageData(
+            imageData,
+            0,
+            0,
+            result.dirtyRect.x,
+            result.dirtyRect.y,
+            result.dirtyRect.width,
+            result.dirtyRect.height,
+          );
+        }
+        onStats(result.stats);
       };
       updateScreenSize();
       const drawing = USE_WORKER
         ? new drawing_worker_ts_1.DrawingWorker(
           imageData.data.buffer,
           screenSize,
-          applyDirtyRect,
+          drawingDone,
         )
         : new drawing_real_ts_1.DrawingReal(
           imageData.data.buffer,
           screenSize,
-          applyDirtyRect,
+          drawingDone,
         );
       return {
         screen: {
@@ -3458,11 +3456,6 @@ System.register(
           beginDraw: () => {},
           endDraw: () => {
             drawing.dispatch();
-            const stats = {
-              drawnPixels,
-            };
-            drawnPixels = 0;
-            return stats;
           },
         },
         input: {
@@ -3482,8 +3475,8 @@ System.register(
     exports_28("getWebNativeContext", getWebNativeContext);
     return {
       setters: [
-        function (types_ts_11_1) {
-          types_ts_11 = types_ts_11_1;
+        function (types_ts_10_1) {
+          types_ts_10 = types_ts_10_1;
         },
         function (drawing_real_ts_1_1) {
           drawing_real_ts_1 = drawing_real_ts_1_1;
@@ -3493,18 +3486,18 @@ System.register(
         },
       ],
       execute: function () {
-        USE_DEVICE_PIXEL_RATION = false;
+        USE_DEVICE_PIXEL_RATIO = false;
         USE_WORKER = true;
       },
     };
   },
 );
 System.register(
-  "web/src/native/assets",
+  "web/src/assets",
   ["engine/src/types"],
   function (exports_29, context_29) {
     "use strict";
-    var types_ts_12;
+    var types_ts_11;
     var __moduleName = context_29 && context_29.id;
     async function loadImage(src) {
       return new Promise((resolve, reject) => {
@@ -3540,7 +3533,7 @@ System.register(
         getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
         getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
         getTileXYByIndex: (index) =>
-          new types_ts_12.Point(
+          new types_ts_11.Point(
             index % imageWidthInTiles,
             Math.trunc(index / imageWidthInTiles),
           ),
@@ -3794,8 +3787,8 @@ System.register(
     exports_29("initAssets", initAssets);
     return {
       setters: [
-        function (types_ts_12_1) {
-          types_ts_12 = types_ts_12_1;
+        function (types_ts_11_1) {
+          types_ts_11 = types_ts_11_1;
         },
       ],
       execute: function () {
@@ -3803,6 +3796,52 @@ System.register(
     };
   },
 );
+System.register("web/src/stats", [], function (exports_30, context_30) {
+  "use strict";
+  var Stat, EngineStats;
+  var __moduleName = context_30 && context_30.id;
+  return {
+    setters: [],
+    execute: function () {
+      Stat = class Stat {
+        constructor(name) {
+          this.name = "";
+          this.samples = 0;
+          this.time = 0;
+          this.name = name;
+        }
+        addSample(t) {
+          this.time += t;
+          this.samples++;
+        }
+        reset() {
+          this.time = 0;
+          this.samples = 0;
+        }
+        get averageTime() {
+          return this.samples > 0 ? this.time / this.samples : 0;
+        }
+        toString() {
+          return this.name + "[" + this.samples + "]: " +
+            this.averageTime.toFixed(1);
+        }
+      };
+      EngineStats = class EngineStats {
+        constructor() {
+          this.render = new Stat("Ren");
+          this.renderNative = new Stat("RenN");
+          this.update = new Stat("Upd");
+        }
+        reset() {
+          this.render.reset();
+          this.renderNative.reset();
+          this.update.reset();
+        }
+      };
+      exports_30("EngineStats", EngineStats);
+    },
+  };
+});
 System.register(
   "web/src/main",
   [
@@ -3810,68 +3849,67 @@ System.register(
     "engine/src/engine",
     "engine/src/widgets/label",
     "game/src/game",
-    "web/src/native/web",
-    "web/src/native/assets",
+    "web/src/web",
+    "web/src/assets",
+    "web/src/stats",
   ],
-  function (exports_30, context_30) {
+  function (exports_31, context_31) {
     "use strict";
-    var types_ts_13,
+    var types_ts_12,
       engine_ts_1,
       label_ts_1,
       game_ts_1,
       web_ts_1,
       assets_ts_1,
+      stats_ts_1,
       TARGET_FPS,
       engine,
       nativeContext,
       fpsLabel,
       game,
-      totalRenderTime,
-      totalUpdateTime,
-      totalRenderFrames,
-      frames,
+      updateFpsFrames,
       updateFpsTime,
+      engineStats,
       firstUpdate,
       lastUpdateTime,
       timeToNextUpdate;
-    var __moduleName = context_30 && context_30.id;
+    var __moduleName = context_31 && context_31.id;
     function updateFps() {
       const now = performance.now();
-      frames++;
+      updateFpsFrames++;
       if (now - updateFpsTime > 1000) {
         const deltaTime = now - updateFpsTime;
-        const fps = frames / (deltaTime / 1000);
-        const updateTime = totalUpdateTime / frames;
-        const renderTime = totalRenderFrames > 0
-          ? (totalRenderTime / totalRenderFrames) : 0;
-        const busyTime = (totalUpdateTime + totalRenderTime);
+        const fps = updateFpsFrames / (deltaTime / 1000);
+        let stats = `FPS: ${fps.toFixed(1)}`;
+        stats += "\n" + engineStats.update.toString();
+        stats += "\n" + engineStats.render.toString();
+        stats += "\n" + engineStats.renderNative.toString();
+        const busyTime = engineStats.render.time + engineStats.update.time;
         const idleTime = deltaTime - busyTime;
         const idlePercent = idleTime * 100 / deltaTime;
-        const stats = `FPS:\n ${fps.toFixed(1)}\nRen ${totalRenderFrames}:\n ${
-          renderTime.toFixed(1)
-        }ms\nUpd:\n ${updateTime.toFixed(1)}ms\nIdle:\n ${
-          idlePercent.toFixed(1)
-        }%`;
+        stats += `\nIdle: ${idlePercent.toFixed(1)}%`;
         fpsLabel.text = stats;
         updateFpsTime = now;
-        frames = 0;
-        totalRenderFrames = 0;
-        totalRenderTime = 0;
-        totalUpdateTime = 0;
+        engineStats.reset();
+        updateFpsFrames = 0;
       }
     }
     async function init() {
       console.log("Initializing Engine");
       const assets = await assets_ts_1.initAssets();
-      nativeContext = web_ts_1.getWebNativeContext();
+      nativeContext = web_ts_1.getWebNativeContext((stats) => {
+        if (stats.drawnPixels > 0) {
+          engineStats.renderNative.addSample(stats.time);
+        }
+      });
       engine = await engine_ts_1.buildEngine(nativeContext);
       console.log("Engine Initialized");
       game = game_ts_1.initGame(engine, assets);
       console.log("Game Initialized");
       fpsLabel = new label_ts_1.LabelWidget(
         assets.defaultFont,
-        "FPS:\n 0.00\nRender:\n 0.00ms",
-        types_ts_13.FixedColor.White,
+        "",
+        types_ts_12.FixedColor.White,
         game.statsContainer.backColor,
       );
       fpsLabel.parent = game.statsContainer;
@@ -3901,12 +3939,10 @@ System.register(
       engine.update();
       game_ts_1.updateGame(engine, game);
       const postUpdateTime = performance.now();
-      totalUpdateTime += postUpdateTime - preUpdateTime;
+      engineStats.update.addSample(postUpdateTime - preUpdateTime);
       const drawStats = engine.draw();
-      if (drawStats.pixels > 0) {
-        totalRenderFrames++;
-        totalRenderTime += drawStats.time;
-        //console.debug(drawStats);
+      if (drawStats.rects > 0) {
+        engineStats.render.addSample(drawStats.time);
       }
     }
     async function run() {
@@ -3920,8 +3956,8 @@ System.register(
     }
     return {
       setters: [
-        function (types_ts_13_1) {
-          types_ts_13 = types_ts_13_1;
+        function (types_ts_12_1) {
+          types_ts_12 = types_ts_12_1;
         },
         function (engine_ts_1_1) {
           engine_ts_1 = engine_ts_1_1;
@@ -3938,14 +3974,15 @@ System.register(
         function (assets_ts_1_1) {
           assets_ts_1 = assets_ts_1_1;
         },
+        function (stats_ts_1_1) {
+          stats_ts_1 = stats_ts_1_1;
+        },
       ],
       execute: function () {
         TARGET_FPS = 30;
-        totalRenderTime = 0;
-        totalUpdateTime = 0;
-        totalRenderFrames = 0;
-        frames = 0;
+        updateFpsFrames = 0;
         updateFpsTime = performance.now();
+        engineStats = new stats_ts_1.EngineStats();
         firstUpdate = true;
         lastUpdateTime = performance.now();
         timeToNextUpdate = 0;

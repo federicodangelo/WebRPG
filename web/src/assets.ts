@@ -9,7 +9,7 @@ import {
   AlphaType,
   Animations,
   Point,
-} from "../../../engine/src/types.ts";
+} from "engine/types.ts";
 
 type TileJson = {
   index?: number;

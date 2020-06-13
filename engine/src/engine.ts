@@ -179,14 +179,13 @@ class EngineImpl implements Engine {
       }
     }
 
-    const nativeStats = this.context.endDraw();
+    this.context.endDraw();
 
     const endTime = performance.now();
 
     return {
       time: endTime - startTime,
       rects: drawnRects,
-      pixels: nativeStats.drawnPixels,
     };
   }
 

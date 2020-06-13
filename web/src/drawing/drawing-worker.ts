@@ -1,9 +1,8 @@
 import {
   Size,
   Color,
-  Rect,
-} from "../../../engine/src/types.ts";
-import { Drawing, ApplyDirtyRectFn, DrawingTile } from "./types.ts";
+} from "engine/types.ts";
+import { Drawing, DrawingTile, DrawingDoneFn } from "./types.ts";
 import {
   DrawingResponse,
   DrawingCommand,
@@ -23,19 +22,19 @@ export class DrawingWorker implements Drawing {
   private tileMappings = new Map<DrawingTile, TileId>();
   private nextTileId = 0;
 
-  private applyDirtyRect: ApplyDirtyRectFn;
+  private drawingDone: DrawingDoneFn;
   private pendingFrames = 0;
 
   public constructor(
     pixels: ArrayBuffer,
     size: Size,
-    applyDirtyRect: ApplyDirtyRectFn,
+    drawingDone: DrawingDoneFn,
   ) {
     this.worker = new Worker("./worker.js", { type: "module" });
     this.worker.onmessage = (e) => this.onMessage(e.data);
     this.pixels = pixels;
     this.size = size.clone();
-    this.applyDirtyRect = applyDirtyRect;
+    this.drawingDone = drawingDone;
   }
 
   private dispatchCommand(command: DrawingCommand) {
@@ -52,13 +51,10 @@ export class DrawingWorker implements Drawing {
     this.dispatchCommand({
       type: "addTile",
       id,
-      tile: {
-        width: tile.width,
-        height: tile.height,
-        alphaType: tile.alphaType,
-        pixels: tile.pixels,
-        pixels32: tile.pixels32,
-      },
+      width: tile.width,
+      height: tile.height,
+      alphaType: tile.alphaType,
+      pixels: tile.pixels.buffer,
     });
 
     return id;
@@ -88,12 +84,8 @@ export class DrawingWorker implements Drawing {
           new Uint8ClampedArray(this.pixels).set(
             new Uint8ClampedArray(response.pixels),
           );
-          this.applyDirtyRect(new Rect().copyFrom(response.dirtyRect));
+          this.drawingDone(response.result);
         }
-        break;
-
-      case "result-empty":
-        this.pendingFrames--;
         break;
     }
   }

@@ -1,11 +1,10 @@
 import {
   Size,
-  Tile,
   Color,
   AlphaType,
   Rect,
-} from "../../../engine/src/types.ts";
-import { Drawing, ApplyDirtyRectFn, DrawingTile } from "./types.ts";
+} from "engine/types.ts";
+import { Drawing, DrawingDoneFn, DrawingTile } from "./types.ts";
 
 export class DrawingReal implements Drawing {
   private pixels: ArrayBuffer;
@@ -16,18 +15,20 @@ export class DrawingReal implements Drawing {
   private colorsRGB = new Uint32Array(2);
 
   private dirty = false;
+  private dirtyPixels = 0;
   private dirtyLeft = 0;
   private dirtyRight = 0;
   private dirtyTop = 0;
   private dirtyBottom = 0;
-  private applyDirtyRect: ApplyDirtyRectFn;
+  private dirtyTime = 0;
+  private drawingDone: DrawingDoneFn;
 
   public constructor(
     pixels: ArrayBuffer,
     size: Size,
-    applyDirtyRect: ApplyDirtyRectFn,
+    drawingDone: DrawingDoneFn,
   ) {
-    this.applyDirtyRect = applyDirtyRect;
+    this.drawingDone = drawingDone;
     this.pixelsSize.copyFrom(size);
     this.pixels = pixels;
     this.imageDataPixels8 = new Uint8ClampedArray(pixels);
@@ -44,16 +45,19 @@ export class DrawingReal implements Drawing {
   private setDirty(x: number, y: number, width: number, height: number) {
     if (!this.dirty) {
       this.dirty = true;
+      this.dirtyPixels = 0;
       this.dirtyLeft = x;
       this.dirtyTop = y;
       this.dirtyRight = x + width;
       this.dirtyBottom = y + height;
+      this.dirtyTime = performance.now();
     } else {
       this.dirtyLeft = Math.min(this.dirtyLeft, x);
       this.dirtyTop = Math.min(this.dirtyTop, y);
       this.dirtyRight = Math.max(this.dirtyRight, x + width);
       this.dirtyBottom = Math.max(this.dirtyBottom, y + height);
     }
+    this.dirtyPixels += width * height;
   }
 
   public tintTile(
@@ -386,10 +390,16 @@ export class DrawingReal implements Drawing {
   }
 
   public dispatch() {
-    if (this.dirty) {
-      this.applyDirtyRect(this.getDirtyRect());
-      this.dirty = false;
-    }
+    this.drawingDone({
+      dirty: this.dirty,
+      dirtyRect: this.getDirtyRect(),
+      stats: {
+        drawnPixels: this.dirtyPixels,
+        time: this.dirty ? performance.now() - this.dirtyTime : 0,
+      },
+    });
+
+    this.dirty = false;
   }
 
   public willDispatch() {

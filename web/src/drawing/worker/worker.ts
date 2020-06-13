@@ -1,5 +1,5 @@
 import { DrawingReal } from "../drawing-real.ts";
-import { Size, Tile } from "../../../../engine/src/types.ts";
+import { Size } from "engine/types.ts";
 import {
   DrawingCommand,
   DrawingResponse,
@@ -8,25 +8,29 @@ import {
 import { DrawingTile } from "../types.ts";
 
 function sendResponse(response: DrawingResponse) {
-  //@ts-ignore
-  self.postMessage(response);
+  if (response.type === "result") {
+    const pixelsCopy = response.pixels.slice(0);
+    //@ts-ignore
+    self.postMessage({ ...response, pixels: pixelsCopy }, [pixelsCopy]);
+  } else {
+    //@ts-ignore
+    self.postMessage(response);
+  }
 }
 
 let pixels = new Uint8ClampedArray(8 * 8 * 4).buffer;
 let size = new Size(8, 8);
 
-const drawing = new DrawingReal(pixels, size, (dirtyRect) => {
+const drawing = new DrawingReal(pixels, size, (result) => {
   sendResponse({
     type: "result",
     pixels,
     size,
-    dirtyRect,
+    result,
   });
 });
 
 const tilesMapping = new Map<number, DrawingTile>();
-
-console.log("Drawing Worker Started");
 
 function getTile(tid: TileId): DrawingTile {
   return tilesMapping.get(tid) as DrawingTile;
@@ -83,7 +87,13 @@ function handleCommand(command: DrawingCommand) {
       drawing.setPixels(command.pixels, command.size);
       break;
     case "addTile":
-      tilesMapping.set(command.id, command.tile);
+      tilesMapping.set(command.id, {
+        alphaType: command.alphaType,
+        width: command.width,
+        height: command.height,
+        pixels: new Uint8ClampedArray(command.pixels),
+        pixels32: new Uint32Array(command.pixels),
+      });
       break;
     case "batch":
       command.commands.forEach((c) => handleCommand(c));
@@ -95,11 +105,9 @@ function handleCommand(command: DrawingCommand) {
 self.onmessage = (e) => {
   const command: DrawingCommand = e.data;
   handleCommand(command);
-  if (drawing.willDispatch()) {
-    drawing.dispatch();
-  } else {
-    sendResponse({ type: "result-empty" });
-  }
+  drawing.dispatch();
 };
 
 sendResponse({ type: "ready" });
+
+console.log("Drawing Worker Started");

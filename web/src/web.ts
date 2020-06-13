@@ -5,13 +5,12 @@ import {
   KeyCode,
   EngineKeyEventType,
   EngineMouseEvent,
-  Rect,
 } from "engine/types.ts";
-import { DrawingReal } from "./drawing-real.ts";
-import { Drawing } from "./types.ts";
-import { DrawingWorker } from "./drawing-worker.ts";
+import { DrawingReal } from "./drawing/drawing-real.ts";
+import { Drawing, DrawingDoneResult } from "./drawing/types.ts";
+import { DrawingWorker } from "./drawing/drawing-worker.ts";
 
-const USE_DEVICE_PIXEL_RATION = false;
+const USE_DEVICE_PIXEL_RATIO = false;
 const USE_WORKER = true;
 
 function updateCanvasSize(
@@ -19,13 +18,13 @@ function updateCanvasSize(
 ) {
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const devicePixelRatio = USE_DEVICE_PIXEL_RATION
+  const devicePixelRatio = USE_DEVICE_PIXEL_RATIO
     ? Math.min(window.devicePixelRatio || 1, 2)
     : 1;
 
   canvas.width = width * devicePixelRatio;
   canvas.height = height * devicePixelRatio;
-  if (USE_DEVICE_PIXEL_RATION) {
+  if (USE_DEVICE_PIXEL_RATIO) {
     canvas.setAttribute(
       "style",
       "width: " +
@@ -48,7 +47,9 @@ function createFullScreenCanvas() {
   return { canvas, multiplier };
 }
 
-export function getWebNativeContext(): NativeContext {
+export function getWebNativeContext(
+  onStats: (stats: NativeDrawStats) => void,
+): NativeContext {
   const tmp = createFullScreenCanvas();
 
   const canvas = tmp.canvas;
@@ -162,19 +163,20 @@ export function getWebNativeContext(): NativeContext {
 
   window.addEventListener("resize", handleResize);
 
-  let drawnPixels = 0;
+  const drawingDone = (result: DrawingDoneResult) => {
+    if (result.dirty && result.dirtyRect) {
+      ctx.putImageData(
+        imageData,
+        0,
+        0,
+        result.dirtyRect.x,
+        result.dirtyRect.y,
+        result.dirtyRect.width,
+        result.dirtyRect.height,
+      );
+    }
 
-  const applyDirtyRect = (rect: Rect) => {
-    drawnPixels += rect.width * rect.height;
-    ctx.putImageData(
-      imageData,
-      0,
-      0,
-      rect.x,
-      rect.y,
-      rect.width,
-      rect.height,
-    );
+    onStats(result.stats);
   };
 
   updateScreenSize();
@@ -182,12 +184,12 @@ export function getWebNativeContext(): NativeContext {
     ? new DrawingWorker(
       imageData.data.buffer,
       screenSize,
-      applyDirtyRect,
+      drawingDone,
     )
     : new DrawingReal(
       imageData.data.buffer,
       screenSize,
-      applyDirtyRect,
+      drawingDone,
     );
 
   return {
@@ -219,11 +221,6 @@ export function getWebNativeContext(): NativeContext {
       beginDraw: () => {},
       endDraw: () => {
         drawing.dispatch();
-        const stats: NativeDrawStats = {
-          drawnPixels,
-        };
-        drawnPixels = 0;
-        return stats;
       },
     },
     input: {

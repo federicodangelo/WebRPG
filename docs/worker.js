@@ -711,7 +711,7 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
     },
   };
 });
-System.register("web/src/native/types", [], function (exports_5, context_5) {
+System.register("engine/src/native-types", [], function (exports_5, context_5) {
   "use strict";
   var __moduleName = context_5 && context_5.id;
   return {
@@ -720,13 +720,22 @@ System.register("web/src/native/types", [], function (exports_5, context_5) {
     },
   };
 });
+System.register("web/src/drawing/types", [], function (exports_6, context_6) {
+  "use strict";
+  var __moduleName = context_6 && context_6.id;
+  return {
+    setters: [],
+    execute: function () {
+    },
+  };
+});
 System.register(
-  "web/src/native/drawing-real",
+  "web/src/drawing/drawing-real",
   ["engine/src/types"],
-  function (exports_6, context_6) {
+  function (exports_7, context_7) {
     "use strict";
     var types_ts_3, DrawingReal;
-    var __moduleName = context_6 && context_6.id;
+    var __moduleName = context_7 && context_7.id;
     return {
       setters: [
         function (types_ts_3_1) {
@@ -735,15 +744,17 @@ System.register(
       ],
       execute: function () {
         DrawingReal = class DrawingReal {
-          constructor(pixels, size, applyDirtyRect) {
+          constructor(pixels, size, drawingDone) {
             this.pixelsSize = new types_ts_3.Size();
             this.colorsRGB = new Uint32Array(2);
             this.dirty = false;
+            this.dirtyPixels = 0;
             this.dirtyLeft = 0;
             this.dirtyRight = 0;
             this.dirtyTop = 0;
             this.dirtyBottom = 0;
-            this.applyDirtyRect = applyDirtyRect;
+            this.dirtyTime = 0;
+            this.drawingDone = drawingDone;
             this.pixelsSize.copyFrom(size);
             this.pixels = pixels;
             this.imageDataPixels8 = new Uint8ClampedArray(pixels);
@@ -758,16 +769,19 @@ System.register(
           setDirty(x, y, width, height) {
             if (!this.dirty) {
               this.dirty = true;
+              this.dirtyPixels = 0;
               this.dirtyLeft = x;
               this.dirtyTop = y;
               this.dirtyRight = x + width;
               this.dirtyBottom = y + height;
+              this.dirtyTime = performance.now();
             } else {
               this.dirtyLeft = Math.min(this.dirtyLeft, x);
               this.dirtyTop = Math.min(this.dirtyTop, y);
               this.dirtyRight = Math.max(this.dirtyRight, x + width);
               this.dirtyBottom = Math.max(this.dirtyBottom, y + height);
             }
+            this.dirtyPixels += width * height;
           }
           tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
             this.setDirty(x, y, t.width, t.height);
@@ -1048,10 +1062,15 @@ System.register(
             );
           }
           dispatch() {
-            if (this.dirty) {
-              this.applyDirtyRect(this.getDirtyRect());
-              this.dirty = false;
-            }
+            this.drawingDone({
+              dirty: this.dirty,
+              dirtyRect: this.getDirtyRect(),
+              stats: {
+                drawnPixels: this.dirtyPixels,
+                time: this.dirty ? performance.now() - this.dirtyTime : 0,
+              },
+            });
+            this.dirty = false;
           }
           willDispatch() {
             return this.dirty;
@@ -1060,17 +1079,17 @@ System.register(
             return true;
           }
         };
-        exports_6("DrawingReal", DrawingReal);
+        exports_7("DrawingReal", DrawingReal);
       },
     };
   },
 );
 System.register(
-  "web/src/native/worker/types",
+  "web/src/drawing/worker/types",
   [],
-  function (exports_7, context_7) {
+  function (exports_8, context_8) {
     "use strict";
-    var __moduleName = context_7 && context_7.id;
+    var __moduleName = context_8 && context_8.id;
     return {
       setters: [],
       execute: function () {
@@ -1079,15 +1098,21 @@ System.register(
   },
 );
 System.register(
-  "web/src/native/worker/worker",
-  ["web/src/native/drawing-real", "engine/src/types"],
-  function (exports_8, context_8) {
+  "web/src/drawing/worker/worker",
+  ["web/src/drawing/drawing-real", "engine/src/types"],
+  function (exports_9, context_9) {
     "use strict";
     var drawing_real_ts_1, types_ts_4, pixels, size, drawing, tilesMapping;
-    var __moduleName = context_8 && context_8.id;
+    var __moduleName = context_9 && context_9.id;
     function sendResponse(response) {
-      //@ts-ignore
-      self.postMessage(response);
+      if (response.type === "result") {
+        const pixelsCopy = response.pixels.slice(0);
+        //@ts-ignore
+        self.postMessage({ ...response, pixels: pixelsCopy }, [pixelsCopy]);
+      } else {
+        //@ts-ignore
+        self.postMessage(response);
+      }
     }
     function getTile(tid) {
       return tilesMapping.get(tid);
@@ -1143,7 +1168,13 @@ System.register(
           drawing.setPixels(command.pixels, command.size);
           break;
         case "addTile":
-          tilesMapping.set(command.id, command.tile);
+          tilesMapping.set(command.id, {
+            alphaType: command.alphaType,
+            width: command.width,
+            height: command.height,
+            pixels: new Uint8ClampedArray(command.pixels),
+            pixels32: new Uint32Array(command.pixels),
+          });
           break;
         case "batch":
           command.commands.forEach((c) => handleCommand(c));
@@ -1162,34 +1193,26 @@ System.register(
       execute: function () {
         pixels = new Uint8ClampedArray(8 * 8 * 4).buffer;
         size = new types_ts_4.Size(8, 8);
-        drawing = new drawing_real_ts_1.DrawingReal(
-          pixels,
-          size,
-          (dirtyRect) => {
-            sendResponse({
-              type: "result",
-              pixels,
-              size,
-              dirtyRect,
-            });
-          },
-        );
+        drawing = new drawing_real_ts_1.DrawingReal(pixels, size, (result) => {
+          sendResponse({
+            type: "result",
+            pixels,
+            size,
+            result,
+          });
+        });
         tilesMapping = new Map();
-        console.log("Drawing Worker Started");
         //@ts-ignore
         self.onmessage = (e) => {
           const command = e.data;
           handleCommand(command);
-          if (drawing.willDispatch()) {
-            drawing.dispatch();
-          } else {
-            sendResponse({ type: "result-empty" });
-          }
+          drawing.dispatch();
         };
         sendResponse({ type: "ready" });
+        console.log("Drawing Worker Started");
       },
     };
   },
 );
 
-__instantiate("web/src/native/worker/worker");
+__instantiate("web/src/drawing/worker/worker");

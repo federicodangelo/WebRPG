@@ -8,6 +8,7 @@ import {
 
 export type NativeDrawStats = {
   drawnPixels: number;
+  time: number;
 };
 
 export interface NativeContextScreen {
@@ -58,7 +59,7 @@ export interface NativeContextScreen {
     dy: number,
   ): void;
 
-  endDraw(): NativeDrawStats;
+  endDraw(): void;
 }
 
 export interface NativeContextInput {
