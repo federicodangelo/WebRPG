@@ -1,5 +1,4 @@
 import { DrawingReal } from "../drawing-real.ts";
-import { Size } from "engine/types.ts";
 import {
   DrawingCommand,
   DrawingResponse,
@@ -8,25 +7,24 @@ import {
 import { DrawingTile } from "../types.ts";
 
 function sendResponse(response: DrawingResponse) {
-  if (response.type === "result" && response.pixels) {
-    const pixelsCopy = response.pixels.slice(0);
+  if (
+    response.type === "result" &&
+    response.result.dirty &&
+    response.result.dirtyParams
+  ) {
+    const pixelsCopy = response.result.dirtyParams.pixels.slice(0);
+    response.result.dirtyParams.pixels = pixelsCopy;
     //@ts-ignore
-    self.postMessage({ ...response, pixels: pixelsCopy }, [pixelsCopy]);
+    self.postMessage(response, [pixelsCopy]);
   } else {
     //@ts-ignore
     self.postMessage(response);
   }
 }
 
-let pixels = new Uint8ClampedArray(8 * 8 * 4).buffer;
-let pixelsSize = new Size(8, 8);
-
-const drawing = new DrawingReal(pixels, pixelsSize, (result) => {
+const drawing = new DrawingReal(8, 8, (result) => {
   sendResponse({
     type: "result",
-    pixels: result.dirty ? pixels : undefined,
-    pixelsWidth: pixelsSize.width,
-    pixelsHeight: pixelsSize.height,
     result,
   });
 });
@@ -82,10 +80,8 @@ function handleCommand(command: DrawingCommand) {
         command.dy,
       );
       break;
-    case "setPixels":
-      pixels = command.pixels;
-      pixelsSize.set(command.pixelsWidth, command.pixelsHeight);
-      drawing.setPixels(command.pixels, pixelsSize);
+    case "setSize":
+      drawing.setSize(command.width, command.height);
       break;
     case "addTile":
       tilesMapping.set(command.id, {

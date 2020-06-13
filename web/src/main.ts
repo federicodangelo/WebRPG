@@ -20,9 +20,6 @@ let updateFpsTime = performance.now();
 
 const engineStats = new EngineStats();
 
-let lastRenderNativeAllSamples = 0;
-let maxRenderNativePerFrame: number = 0;
-
 function updateFps() {
   const now = performance.now();
   updateFpsFrames++;
@@ -34,7 +31,6 @@ function updateFps() {
     stats += "\n" + engineStats.update.toString();
     stats += "\n" + engineStats.render.toString();
     stats += "\n" + engineStats.renderNative.toString();
-    stats += "\n" + "Max RNPF: " + maxRenderNativePerFrame;
 
     const busyTime = engineStats.render.time + engineStats.update.time;
     const idleTime = deltaTime - busyTime;
@@ -47,7 +43,6 @@ function updateFps() {
 
     engineStats.reset();
     updateFpsFrames = 0;
-    maxRenderNativePerFrame = 0;
   }
 }
 
@@ -87,17 +82,11 @@ let lastUpdateTime = performance.now();
 let timeToNextUpdate = 0;
 
 function update() {
-  maxRenderNativePerFrame = Math.max(
-    maxRenderNativePerFrame,
-    engineStats.renderNative.allSamples - lastRenderNativeAllSamples,
-  );
-  lastRenderNativeAllSamples = engineStats.renderNative.allSamples;
+  nativeContext.screen.processPendingFrames();
 
-  if (!nativeContext.screen.readyForNextFrame()) return;
-
-  const preUpdateTime = performance.now();
-  const delta = preUpdateTime - lastUpdateTime;
-  lastUpdateTime = preUpdateTime;
+  const now = performance.now();
+  const delta = now - lastUpdateTime;
+  lastUpdateTime = now;
   timeToNextUpdate -= delta;
   if (timeToNextUpdate < -1000) timeToNextUpdate = -1000;
 
@@ -113,6 +102,8 @@ function update() {
 
   updateFps();
 
+  const preUpdateTime = performance.now();
+
   engine.update();
 
   updateGame(engine, game);
@@ -121,10 +112,11 @@ function update() {
 
   engineStats.update.addSample(postUpdateTime - preUpdateTime);
 
-  const drawStats = engine.draw();
-
-  if (drawStats.rects > 0) {
-    engineStats.render.addSample(drawStats.time);
+  if (nativeContext.screen.readyForNextFrame()) {
+    const drawStats = engine.draw();
+    if (drawStats.rects > 0) {
+      engineStats.render.addSample(drawStats.time);
+    }
   }
 }
 

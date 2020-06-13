@@ -6,11 +6,10 @@ import { DrawingDoneResult } from "../types.ts";
 
 export type TileId = number;
 
-export type DrawingSetPixels = {
-  type: "setPixels";
-  pixels: ArrayBuffer;
-  pixelsWidth: number;
-  pixelsHeight: number;
+export type DrawingSetSize = {
+  type: "setSize";
+  width: number;
+  height: number;
 };
 
 export type DrawingAddTile = {
@@ -72,7 +71,7 @@ export type DrawingBatch = {
 
 export type DrawingCommand =
   | DrawingAddTile
-  | DrawingSetPixels
+  | DrawingSetSize
   | DrawingTintTile
   | DrawingSetTile
   | DrawingFillRect
@@ -81,9 +80,6 @@ export type DrawingCommand =
 
 export type DrawingResult = {
   type: "result";
-  pixels?: ArrayBuffer;
-  pixelsWidth: number;
-  pixelsHeight: number;
   result: DrawingDoneResult;
 };
 

@@ -7,11 +7,16 @@ import { NativeDrawStats } from "engine/native-types.ts";
 
 export type DrawingDoneResult = {
   dirty: boolean;
-  dirtyRect: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
+  dirtyParams?: {
+    dirtyRect: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    pixels: ArrayBuffer;
+    pixelsWidth: number;
+    pixelsHeight: number;
   };
   stats: NativeDrawStats;
 };
@@ -27,9 +32,11 @@ export type DrawingTile = {
 };
 
 export type Drawing = {
+  processPendingFrames(): void;
+
   readyForNextFrame(): boolean;
 
-  setPixels(pixels: ArrayBuffer, size: Size): void;
+  setSize(width: number, height: number): void;
 
   tintTile(
     t: DrawingTile,

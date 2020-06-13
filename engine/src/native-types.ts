@@ -17,6 +17,7 @@ export interface NativeContextScreen {
   setFullscreen(fullscreen: boolean): void;
   toggleStats(): void;
   readyForNextFrame(): boolean;
+  processPendingFrames(): void;
 
   beginDraw(): void;
 

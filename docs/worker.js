@@ -680,8 +680,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
         ],
         execute: function () {
             DrawingReal = class DrawingReal {
-                constructor(pixels, size, drawingDone) {
-                    this.pixelsSize = new types_ts_3.Size();
+                constructor(width, height, drawingDone) {
                     this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
                     this.dirtyPixels = 0;
@@ -691,16 +690,18 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     this.dirtyBottom = 0;
                     this.dirtyTime = 0;
                     this.drawingDone = drawingDone;
-                    this.pixelsSize.copyFrom(size);
-                    this.pixels = pixels;
-                    this.imageDataPixels8 = new Uint8ClampedArray(pixels);
-                    this.imageDataPixels32 = new Uint32Array(pixels);
+                    this.pixels = new ArrayBuffer(width * height * 4);
+                    this.pixelsWidth = width;
+                    this.pixelsHeight = height;
+                    this.imageDataPixels8 = new Uint8ClampedArray(this.pixels);
+                    this.imageDataPixels32 = new Uint32Array(this.pixels);
                 }
-                setPixels(pixels, size) {
-                    this.pixelsSize.copyFrom(size);
-                    this.pixels = pixels;
-                    this.imageDataPixels8 = new Uint8ClampedArray(pixels);
-                    this.imageDataPixels32 = new Uint32Array(pixels);
+                setSize(width, height) {
+                    this.pixels = new ArrayBuffer(width * height * 4);
+                    this.pixelsWidth = width;
+                    this.pixelsHeight = height;
+                    this.imageDataPixels8 = new Uint8ClampedArray(this.pixels);
+                    this.imageDataPixels32 = new Uint32Array(this.pixels);
                 }
                 setDirty(x, y, width, height) {
                     if (!this.dirty) {
@@ -724,7 +725,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     this.setDirty(x, y, t.width, t.height);
                     const colorsRGB = this.colorsRGB;
                     const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsSize.width;
+                    const screenWidth = this.pixelsWidth;
                     colorsRGB[1] = foreColor;
                     colorsRGB[0] = backColor;
                     const tilePixels = t.pixels32;
@@ -802,7 +803,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     this.setDirty(x, y, t.width, t.height);
                     const imageDataPixels8 = this.imageDataPixels8;
                     const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsSize.width;
+                    const screenWidth = this.pixelsWidth;
                     const tileWidth = t.width;
                     const tileHeight = t.height;
                     let p = 0;
@@ -926,7 +927,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 fillRect(color, x, y, width, height) {
                     this.setDirty(x, y, width, height);
                     const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsSize.width;
+                    const screenWidth = this.pixelsWidth;
                     let p = 0;
                     for (let py = 0; py < height; py++) {
                         p = (y + py) * screenWidth + x;
@@ -938,8 +939,8 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 scrollRect(x, y, width, height, dx, dy) {
                     this.setDirty(x, y, width, height);
                     const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsSize.width;
-                    const screenHeight = this.pixelsSize.height;
+                    const screenWidth = this.pixelsWidth;
+                    const screenHeight = this.pixelsHeight;
                     if (dy !== 0 && x == 0 &&
                         width === screenWidth &&
                         height === screenHeight) {
@@ -980,16 +981,23 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     }
                 }
                 getDirtyRect() {
-                    const dirtyLeft = Math.max(Math.min(this.dirtyLeft, this.pixelsSize.width), 0);
-                    const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsSize.width), 0);
-                    const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsSize.height), 0);
-                    const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsSize.height), 0);
+                    const dirtyLeft = Math.max(Math.min(this.dirtyLeft, this.pixelsWidth), 0);
+                    const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
+                    const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
+                    const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
                     return new types_ts_3.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
                 }
                 dispatch() {
                     this.drawingDone({
                         dirty: this.dirty,
-                        dirtyRect: this.getDirtyRect(),
+                        dirtyParams: this.dirty
+                            ? {
+                                dirtyRect: this.getDirtyRect(),
+                                pixels: this.pixels,
+                                pixelsWidth: this.pixelsWidth,
+                                pixelsHeight: this.pixelsHeight,
+                            }
+                            : undefined,
                         stats: {
                             drawnPixels: this.dirtyPixels,
                             time: this.dirty ? performance.now() - this.dirtyTime : 0,
@@ -1003,6 +1011,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 readyForNextFrame() {
                     return true;
                 }
+                processPendingFrames() { }
             };
             exports_7("DrawingReal", DrawingReal);
         }
@@ -1017,15 +1026,18 @@ System.register("web/src/drawing/worker/types", [], function (exports_8, context
         }
     };
 });
-System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real", "engine/src/types"], function (exports_9, context_9) {
+System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"], function (exports_9, context_9) {
     "use strict";
-    var drawing_real_ts_1, types_ts_4, pixels, pixelsSize, drawing, tilesMapping;
+    var drawing_real_ts_1, drawing, tilesMapping;
     var __moduleName = context_9 && context_9.id;
     function sendResponse(response) {
-        if (response.type === "result" && response.pixels) {
-            const pixelsCopy = response.pixels.slice(0);
+        if (response.type === "result" &&
+            response.result.dirty &&
+            response.result.dirtyParams) {
+            const pixelsCopy = response.result.dirtyParams.pixels.slice(0);
+            response.result.dirtyParams.pixels = pixelsCopy;
             //@ts-ignore
-            self.postMessage({ ...response, pixels: pixelsCopy }, [pixelsCopy]);
+            self.postMessage(response, [pixelsCopy]);
         }
         else {
             //@ts-ignore
@@ -1049,10 +1061,8 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             case "scrollRect":
                 drawing.scrollRect(command.x, command.y, command.width, command.height, command.dx, command.dy);
                 break;
-            case "setPixels":
-                pixels = command.pixels;
-                pixelsSize.set(command.pixelsWidth, command.pixelsHeight);
-                drawing.setPixels(command.pixels, pixelsSize);
+            case "setSize":
+                drawing.setSize(command.width, command.height);
                 break;
             case "addTile":
                 tilesMapping.set(command.id, {
@@ -1072,20 +1082,12 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
         setters: [
             function (drawing_real_ts_1_1) {
                 drawing_real_ts_1 = drawing_real_ts_1_1;
-            },
-            function (types_ts_4_1) {
-                types_ts_4 = types_ts_4_1;
             }
         ],
         execute: function () {
-            pixels = new Uint8ClampedArray(8 * 8 * 4).buffer;
-            pixelsSize = new types_ts_4.Size(8, 8);
-            drawing = new drawing_real_ts_1.DrawingReal(pixels, pixelsSize, (result) => {
+            drawing = new drawing_real_ts_1.DrawingReal(8, 8, (result) => {
                 sendResponse({
                     type: "result",
-                    pixels: result.dirty ? pixels : undefined,
-                    pixelsWidth: pixelsSize.width,
-                    pixelsHeight: pixelsSize.height,
                     result,
                 });
             });

@@ -8,7 +8,8 @@ import { Drawing, DrawingDoneFn, DrawingTile } from "./types.ts";
 
 export class DrawingReal implements Drawing {
   private pixels: ArrayBuffer;
-  private pixelsSize = new Size();
+  private pixelsWidth: number;
+  private pixelsHeight: number;
 
   private imageDataPixels8: Uint8ClampedArray;
   private imageDataPixels32: Uint32Array;
@@ -24,22 +25,24 @@ export class DrawingReal implements Drawing {
   private drawingDone: DrawingDoneFn;
 
   public constructor(
-    pixels: ArrayBuffer,
-    size: Size,
+    width: number,
+    height: number,
     drawingDone: DrawingDoneFn,
   ) {
     this.drawingDone = drawingDone;
-    this.pixelsSize.copyFrom(size);
-    this.pixels = pixels;
-    this.imageDataPixels8 = new Uint8ClampedArray(pixels);
-    this.imageDataPixels32 = new Uint32Array(pixels);
+    this.pixels = new ArrayBuffer(width * height * 4);
+    this.pixelsWidth = width;
+    this.pixelsHeight = height;
+    this.imageDataPixels8 = new Uint8ClampedArray(this.pixels);
+    this.imageDataPixels32 = new Uint32Array(this.pixels);
   }
 
-  public setPixels(pixels: ArrayBuffer, size: Size) {
-    this.pixelsSize.copyFrom(size);
-    this.pixels = pixels;
-    this.imageDataPixels8 = new Uint8ClampedArray(pixels);
-    this.imageDataPixels32 = new Uint32Array(pixels);
+  public setSize(width: number, height: number) {
+    this.pixels = new ArrayBuffer(width * height * 4);
+    this.pixelsWidth = width;
+    this.pixelsHeight = height;
+    this.imageDataPixels8 = new Uint8ClampedArray(this.pixels);
+    this.imageDataPixels32 = new Uint32Array(this.pixels);
   }
 
   private setDirty(x: number, y: number, width: number, height: number) {
@@ -75,7 +78,7 @@ export class DrawingReal implements Drawing {
 
     const colorsRGB = this.colorsRGB;
     const imageDataPixels32 = this.imageDataPixels32;
-    const screenWidth = this.pixelsSize.width;
+    const screenWidth = this.pixelsWidth;
 
     colorsRGB[1] = foreColor;
     colorsRGB[0] = backColor;
@@ -161,7 +164,7 @@ export class DrawingReal implements Drawing {
 
     const imageDataPixels8 = this.imageDataPixels8;
     const imageDataPixels32 = this.imageDataPixels32;
-    const screenWidth = this.pixelsSize.width;
+    const screenWidth = this.pixelsWidth;
 
     const tileWidth = t.width;
     const tileHeight = t.height;
@@ -290,7 +293,7 @@ export class DrawingReal implements Drawing {
     this.setDirty(x, y, width, height);
 
     const imageDataPixels32 = this.imageDataPixels32;
-    const screenWidth = this.pixelsSize.width;
+    const screenWidth = this.pixelsWidth;
 
     let p = 0;
 
@@ -313,8 +316,8 @@ export class DrawingReal implements Drawing {
     this.setDirty(x, y, width, height);
 
     const imageDataPixels32 = this.imageDataPixels32;
-    const screenWidth = this.pixelsSize.width;
-    const screenHeight = this.pixelsSize.height;
+    const screenWidth = this.pixelsWidth;
+    const screenHeight = this.pixelsHeight;
 
     if (
       dy !== 0 && x == 0 &&
@@ -365,19 +368,19 @@ export class DrawingReal implements Drawing {
 
   private getDirtyRect(): Rect {
     const dirtyLeft = Math.max(
-      Math.min(this.dirtyLeft, this.pixelsSize.width),
+      Math.min(this.dirtyLeft, this.pixelsWidth),
       0,
     );
     const dirtyRight = Math.max(
-      Math.min(this.dirtyRight, this.pixelsSize.width),
+      Math.min(this.dirtyRight, this.pixelsWidth),
       0,
     );
     const dirtyTop = Math.max(
-      Math.min(this.dirtyTop, this.pixelsSize.height),
+      Math.min(this.dirtyTop, this.pixelsHeight),
       0,
     );
     const dirtyBottom = Math.max(
-      Math.min(this.dirtyBottom, this.pixelsSize.height),
+      Math.min(this.dirtyBottom, this.pixelsHeight),
       0,
     );
 
@@ -392,7 +395,14 @@ export class DrawingReal implements Drawing {
   public dispatch() {
     this.drawingDone({
       dirty: this.dirty,
-      dirtyRect: this.getDirtyRect(),
+      dirtyParams: this.dirty
+        ? {
+          dirtyRect: this.getDirtyRect(),
+          pixels: this.pixels,
+          pixelsWidth: this.pixelsWidth,
+          pixelsHeight: this.pixelsHeight,
+        }
+        : undefined,
       stats: {
         drawnPixels: this.dirtyPixels,
         time: this.dirty ? performance.now() - this.dirtyTime : 0,
@@ -409,4 +419,6 @@ export class DrawingReal implements Drawing {
   public readyForNextFrame() {
     return true;
   }
+
+  processPendingFrames() {}
 }

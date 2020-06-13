@@ -58,22 +58,24 @@ function mouseEventToKeyCodes(
 
   const map = game.map;
   const bounds = map.getBoundingBox();
-  const mapX = e.x - bounds.x;
-  const mapY = e.y - bounds.y;
+  let dx = e.x - bounds.x - bounds.width * 0.5;
+  let dy = e.y - bounds.y - bounds.height * 0.5;
+  let len = Math.sqrt(dx * dx + dy * dy);
+  if (len > 0) {
+    dx /= len;
+    dy /= len;
 
-  const dx = mapX < map.width / 3 ? -1 : mapX > (map.width * 2) / 3 ? 1 : 0;
-  const dy = mapY < map.height / 3 ? -1 : mapY > (map.height * 2) / 3 ? 1 : 0;
+    if (dx < -0.25) {
+      keyCodes.push(KeyCode.ArrowLeft);
+    } else if (dx > 0.25) {
+      keyCodes.push(KeyCode.ArrowRight);
+    }
 
-  if (dx === -1) {
-    keyCodes.push(KeyCode.ArrowLeft);
-  } else if (dx === 1) {
-    keyCodes.push(KeyCode.ArrowRight);
-  }
-
-  if (dy === -1) {
-    keyCodes.push(KeyCode.ArrowUp);
-  } else if (dy === 1) {
-    keyCodes.push(KeyCode.ArrowDown);
+    if (dy < -0.25) {
+      keyCodes.push(KeyCode.ArrowUp);
+    } else if (dy > 0.25) {
+      keyCodes.push(KeyCode.ArrowDown);
+    }
   }
 
   return keyCodes;

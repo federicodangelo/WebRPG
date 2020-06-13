@@ -1979,7 +1979,7 @@ System.register("game/src/ui2", ["engine/src/types", "engine/src/widgets/tiles-c
         mainUI.fillChar = "";
         const statsContainer = new box_ts_1.BoxContainerWidget(font, 1);
         statsContainer.width = 16 * font.tileWidth;
-        statsContainer.height = 8 * font.tileHeight;
+        statsContainer.height = 7 * font.tileHeight;
         statsContainer.layout = {
             verticalSpacingPercent: 0,
             horizontalSpacingPercent: 100,
@@ -2068,21 +2068,24 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
             return keyCodes;
         const map = game.map;
         const bounds = map.getBoundingBox();
-        const mapX = e.x - bounds.x;
-        const mapY = e.y - bounds.y;
-        const dx = mapX < map.width / 3 ? -1 : mapX > (map.width * 2) / 3 ? 1 : 0;
-        const dy = mapY < map.height / 3 ? -1 : mapY > (map.height * 2) / 3 ? 1 : 0;
-        if (dx === -1) {
-            keyCodes.push(1 /* ArrowLeft */);
-        }
-        else if (dx === 1) {
-            keyCodes.push(2 /* ArrowRight */);
-        }
-        if (dy === -1) {
-            keyCodes.push(3 /* ArrowUp */);
-        }
-        else if (dy === 1) {
-            keyCodes.push(4 /* ArrowDown */);
+        let dx = e.x - bounds.x - bounds.width * 0.5;
+        let dy = e.y - bounds.y - bounds.height * 0.5;
+        let len = Math.sqrt(dx * dx + dy * dy);
+        if (len > 0) {
+            dx /= len;
+            dy /= len;
+            if (dx < -0.25) {
+                keyCodes.push(1 /* ArrowLeft */);
+            }
+            else if (dx > 0.25) {
+                keyCodes.push(2 /* ArrowRight */);
+            }
+            if (dy < -0.25) {
+                keyCodes.push(3 /* ArrowUp */);
+            }
+            else if (dy > 0.25) {
+                keyCodes.push(4 /* ArrowDown */);
+            }
         }
         return keyCodes;
     }
@@ -2262,8 +2265,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
         ],
         execute: function () {
             DrawingReal = class DrawingReal {
-                constructor(pixels, size, drawingDone) {
-                    this.pixelsSize = new types_ts_9.Size();
+                constructor(width, height, drawingDone) {
                     this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
                     this.dirtyPixels = 0;
@@ -2273,16 +2275,18 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     this.dirtyBottom = 0;
                     this.dirtyTime = 0;
                     this.drawingDone = drawingDone;
-                    this.pixelsSize.copyFrom(size);
-                    this.pixels = pixels;
-                    this.imageDataPixels8 = new Uint8ClampedArray(pixels);
-                    this.imageDataPixels32 = new Uint32Array(pixels);
+                    this.pixels = new ArrayBuffer(width * height * 4);
+                    this.pixelsWidth = width;
+                    this.pixelsHeight = height;
+                    this.imageDataPixels8 = new Uint8ClampedArray(this.pixels);
+                    this.imageDataPixels32 = new Uint32Array(this.pixels);
                 }
-                setPixels(pixels, size) {
-                    this.pixelsSize.copyFrom(size);
-                    this.pixels = pixels;
-                    this.imageDataPixels8 = new Uint8ClampedArray(pixels);
-                    this.imageDataPixels32 = new Uint32Array(pixels);
+                setSize(width, height) {
+                    this.pixels = new ArrayBuffer(width * height * 4);
+                    this.pixelsWidth = width;
+                    this.pixelsHeight = height;
+                    this.imageDataPixels8 = new Uint8ClampedArray(this.pixels);
+                    this.imageDataPixels32 = new Uint32Array(this.pixels);
                 }
                 setDirty(x, y, width, height) {
                     if (!this.dirty) {
@@ -2306,7 +2310,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     this.setDirty(x, y, t.width, t.height);
                     const colorsRGB = this.colorsRGB;
                     const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsSize.width;
+                    const screenWidth = this.pixelsWidth;
                     colorsRGB[1] = foreColor;
                     colorsRGB[0] = backColor;
                     const tilePixels = t.pixels32;
@@ -2384,7 +2388,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     this.setDirty(x, y, t.width, t.height);
                     const imageDataPixels8 = this.imageDataPixels8;
                     const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsSize.width;
+                    const screenWidth = this.pixelsWidth;
                     const tileWidth = t.width;
                     const tileHeight = t.height;
                     let p = 0;
@@ -2508,7 +2512,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 fillRect(color, x, y, width, height) {
                     this.setDirty(x, y, width, height);
                     const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsSize.width;
+                    const screenWidth = this.pixelsWidth;
                     let p = 0;
                     for (let py = 0; py < height; py++) {
                         p = (y + py) * screenWidth + x;
@@ -2520,8 +2524,8 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 scrollRect(x, y, width, height, dx, dy) {
                     this.setDirty(x, y, width, height);
                     const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsSize.width;
-                    const screenHeight = this.pixelsSize.height;
+                    const screenWidth = this.pixelsWidth;
+                    const screenHeight = this.pixelsHeight;
                     if (dy !== 0 && x == 0 &&
                         width === screenWidth &&
                         height === screenHeight) {
@@ -2562,16 +2566,23 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     }
                 }
                 getDirtyRect() {
-                    const dirtyLeft = Math.max(Math.min(this.dirtyLeft, this.pixelsSize.width), 0);
-                    const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsSize.width), 0);
-                    const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsSize.height), 0);
-                    const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsSize.height), 0);
+                    const dirtyLeft = Math.max(Math.min(this.dirtyLeft, this.pixelsWidth), 0);
+                    const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
+                    const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
+                    const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
                     return new types_ts_9.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
                 }
                 dispatch() {
                     this.drawingDone({
                         dirty: this.dirty,
-                        dirtyRect: this.getDirtyRect(),
+                        dirtyParams: this.dirty
+                            ? {
+                                dirtyRect: this.getDirtyRect(),
+                                pixels: this.pixels,
+                                pixelsWidth: this.pixelsWidth,
+                                pixelsHeight: this.pixelsHeight,
+                            }
+                            : undefined,
                         stats: {
                             drawnPixels: this.dirtyPixels,
                             time: this.dirty ? performance.now() - this.dirtyTime : 0,
@@ -2585,6 +2596,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 readyForNextFrame() {
                     return true;
                 }
+                processPendingFrames() { }
             };
             exports_25("DrawingReal", DrawingReal);
         }
@@ -2601,25 +2613,28 @@ System.register("web/src/drawing/worker/types", [], function (exports_26, contex
 });
 System.register("web/src/drawing/drawing-worker", [], function (exports_27, context_27) {
     "use strict";
-    var DrawingWorker;
+    var MAX_PENDING_FRAMES, DrawingWorker;
     var __moduleName = context_27 && context_27.id;
     return {
         setters: [],
         execute: function () {
+            MAX_PENDING_FRAMES = 2;
             DrawingWorker = class DrawingWorker {
-                constructor(pixels, size, drawingDone) {
+                constructor(width, height, drawingDone) {
                     this.ready = false;
                     this.queue = [];
                     this.tileMappings = new Map();
                     this.nextTileId = 0;
+                    this.pendingDoneResults = [];
                     this.pendingFrames = 0;
                     this.worker = new Worker("./worker.js", { type: "module" });
                     this.worker.onmessage = (e) => this.onMessage(e.data);
-                    this.pixels = pixels;
-                    this.size = size.clone();
+                    this.pixels = new ArrayBuffer(width * height * 4);
+                    this.pixelsWidth = width;
+                    this.pixelsHeight = height;
                     this.drawingDone = drawingDone;
                 }
-                dispatchCommand(command) {
+                enqueueCommand(command) {
                     this.queue.push(command);
                 }
                 getTileId(tile) {
@@ -2628,7 +2643,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                         return tileId;
                     const id = this.nextTileId++;
                     this.tileMappings.set(tile, id);
-                    this.dispatchCommand({
+                    this.enqueueCommand({
                         type: "addTile",
                         id,
                         width: tile.width,
@@ -2647,37 +2662,30 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                             this.ready = true;
                             //Send first in the queue
                             this.queue.unshift({
-                                type: "setPixels",
-                                pixels: this.pixels,
-                                pixelsWidth: this.size.width,
-                                pixelsHeight: this.size.height,
+                                type: "setSize",
+                                width: this.pixelsWidth,
+                                height: this.pixelsHeight,
                             });
                             this.dispatch();
                             break;
                         case "result":
                             this.pendingFrames--;
-                            if (response.result.dirty &&
-                                response.pixels &&
-                                response.pixelsWidth === this.size.width &&
-                                response.pixelsHeight === this.size.height) {
-                                new Uint8ClampedArray(this.pixels).set(new Uint8ClampedArray(response.pixels));
-                            }
-                            this.drawingDone(response.result);
+                            this.pendingDoneResults.push(response.result);
                             break;
                     }
                 }
-                setPixels(pixels, size) {
-                    this.pixels = pixels;
-                    this.size.copyFrom(size);
-                    this.dispatchCommand({
-                        type: "setPixels",
-                        pixels,
-                        pixelsWidth: size.width,
-                        pixelsHeight: size.height,
+                setSize(width, height) {
+                    this.pixels = new ArrayBuffer(width * height * 4);
+                    this.pixelsWidth = width;
+                    this.pixelsHeight = height;
+                    this.enqueueCommand({
+                        type: "setSize",
+                        width,
+                        height,
                     });
                 }
                 tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.dispatchCommand({
+                    this.enqueueCommand({
                         type: "tintTile",
                         t: this.getTileId(t),
                         foreColor,
@@ -2691,7 +2699,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     });
                 }
                 setTile(t, x, y, cfx, cfy, ctx, cty) {
-                    this.dispatchCommand({
+                    this.enqueueCommand({
                         type: "setTile",
                         t: this.getTileId(t),
                         x,
@@ -2703,7 +2711,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     });
                 }
                 fillRect(color, x, y, width, height) {
-                    this.dispatchCommand({
+                    this.enqueueCommand({
                         type: "fillRect",
                         color,
                         x,
@@ -2713,7 +2721,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     });
                 }
                 scrollRect(x, y, width, height, dx, dy) {
-                    this.dispatchCommand({
+                    this.enqueueCommand({
                         type: "scrollRect",
                         x,
                         y,
@@ -2737,7 +2745,27 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     this.pendingFrames++;
                 }
                 readyForNextFrame() {
-                    return this.pendingFrames < 2;
+                    return this.pendingFrames < MAX_PENDING_FRAMES &&
+                        this.pendingDoneResults.length < MAX_PENDING_FRAMES;
+                }
+                processPendingFrames() {
+                    if (this.pendingDoneResults.length > 0) {
+                        const result = this.pendingDoneResults.shift();
+                        if (result.dirty &&
+                            result.dirtyParams) {
+                            if (result.dirtyParams.pixelsWidth === this.pixelsWidth &&
+                                result.dirtyParams.pixelsHeight === this.pixelsHeight) {
+                                new Uint8Array(this.pixels).set(new Uint8Array(result.dirtyParams.pixels));
+                                result.dirtyParams.pixels = this.pixels;
+                            }
+                            else {
+                                //Ignore dirty from different size, must be an old frame
+                                result.dirty = false;
+                                result.dirtyParams = undefined;
+                            }
+                        }
+                        this.drawingDone(result);
+                    }
                 }
             };
             exports_27("DrawingWorker", DrawingWorker);
@@ -2779,7 +2807,6 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         const ctx = canvas.getContext("2d");
         let screenMultiplier = tmp.multiplier;
         const screenSize = new types_ts_10.Size(256, 256);
-        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         ctx.imageSmoothingEnabled = false;
         let screenSizeChangedListeners = [];
         let keyListeners = [];
@@ -2846,8 +2873,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         const handleResize = () => {
             screenMultiplier = updateCanvasSize(canvas);
             updateScreenSize();
-            imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            drawing.setPixels(imageData.data.buffer, screenSize);
+            drawing.setSize(screenSize.width, screenSize.height);
             screenSizeChangedListeners.forEach((l) => l(screenSize));
         };
         window.addEventListener("keydown", (e) => handleKey(e, "down"));
@@ -2865,15 +2891,16 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         }
         window.addEventListener("resize", handleResize);
         const drawingDone = (result) => {
-            if (result.dirty && result.dirtyRect) {
-                ctx.putImageData(imageData, 0, 0, result.dirtyRect.x, result.dirtyRect.y, result.dirtyRect.width, result.dirtyRect.height);
+            if (result.dirty && result.dirtyParams) {
+                const params = result.dirtyParams;
+                ctx.putImageData(new ImageData(new Uint8ClampedArray(params.pixels), params.pixelsWidth, params.pixelsHeight), 0, 0, params.dirtyRect.x, params.dirtyRect.y, params.dirtyRect.width, params.dirtyRect.height);
             }
             onStats(result.stats);
         };
         updateScreenSize();
         const drawing = USE_WORKER
-            ? new drawing_worker_ts_1.DrawingWorker(imageData.data.buffer, screenSize, drawingDone)
-            : new drawing_real_ts_1.DrawingReal(imageData.data.buffer, screenSize, drawingDone);
+            ? new drawing_worker_ts_1.DrawingWorker(screenSize.width, screenSize.height, drawingDone)
+            : new drawing_real_ts_1.DrawingReal(screenSize.width, screenSize.height, drawingDone);
         return {
             screen: {
                 getScreenSize: () => screenSize,
@@ -2901,6 +2928,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
                     }
                 },
                 readyForNextFrame: drawing.readyForNextFrame.bind(drawing),
+                processPendingFrames: drawing.processPendingFrames.bind(drawing),
                 tintTile: drawing.tintTile.bind(drawing),
                 setTile: drawing.setTile.bind(drawing),
                 fillRect: drawing.fillRect.bind(drawing),
@@ -3272,7 +3300,7 @@ System.register("web/src/stats", [], function (exports_30, context_30) {
 });
 System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_31, context_31) {
     "use strict";
-    var types_ts_12, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, engine, nativeContext, fpsLabel, game, updateFpsFrames, updateFpsTime, engineStats, lastRenderNativeAllSamples, maxRenderNativePerFrame, firstUpdate, lastUpdateTime, timeToNextUpdate;
+    var types_ts_12, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, engine, nativeContext, fpsLabel, game, updateFpsFrames, updateFpsTime, engineStats, firstUpdate, lastUpdateTime, timeToNextUpdate;
     var __moduleName = context_31 && context_31.id;
     function updateFps() {
         const now = performance.now();
@@ -3284,7 +3312,6 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             stats += "\n" + engineStats.update.toString();
             stats += "\n" + engineStats.render.toString();
             stats += "\n" + engineStats.renderNative.toString();
-            stats += "\n" + "Max RNPF: " + maxRenderNativePerFrame;
             const busyTime = engineStats.render.time + engineStats.update.time;
             const idleTime = deltaTime - busyTime;
             const idlePercent = idleTime * 100 / deltaTime;
@@ -3293,7 +3320,6 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             updateFpsTime = now;
             engineStats.reset();
             updateFpsFrames = 0;
-            maxRenderNativePerFrame = 0;
         }
     }
     async function init() {
@@ -3313,13 +3339,10 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         return engine;
     }
     function update() {
-        maxRenderNativePerFrame = Math.max(maxRenderNativePerFrame, engineStats.renderNative.allSamples - lastRenderNativeAllSamples);
-        lastRenderNativeAllSamples = engineStats.renderNative.allSamples;
-        if (!nativeContext.screen.readyForNextFrame())
-            return;
-        const preUpdateTime = performance.now();
-        const delta = preUpdateTime - lastUpdateTime;
-        lastUpdateTime = preUpdateTime;
+        nativeContext.screen.processPendingFrames();
+        const now = performance.now();
+        const delta = now - lastUpdateTime;
+        lastUpdateTime = now;
         timeToNextUpdate -= delta;
         if (timeToNextUpdate < -1000)
             timeToNextUpdate = -1000;
@@ -3332,13 +3355,16 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             return;
         timeToNextUpdate += 1000 / TARGET_FPS;
         updateFps();
+        const preUpdateTime = performance.now();
         engine.update();
         game_ts_1.updateGame(engine, game);
         const postUpdateTime = performance.now();
         engineStats.update.addSample(postUpdateTime - preUpdateTime);
-        const drawStats = engine.draw();
-        if (drawStats.rects > 0) {
-            engineStats.render.addSample(drawStats.time);
+        if (nativeContext.screen.readyForNextFrame()) {
+            const drawStats = engine.draw();
+            if (drawStats.rects > 0) {
+                engineStats.render.addSample(drawStats.time);
+            }
         }
     }
     async function run() {
@@ -3379,8 +3405,6 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             updateFpsFrames = 0;
             updateFpsTime = performance.now();
             engineStats = new stats_ts_1.EngineStats();
-            lastRenderNativeAllSamples = 0;
-            maxRenderNativePerFrame = 0;
             firstUpdate = true;
             lastUpdateTime = performance.now();
             timeToNextUpdate = 0;

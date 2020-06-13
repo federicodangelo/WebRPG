@@ -2,42 +2,51 @@ import {
   Size,
   Color,
 } from "engine/types.ts";
-import { Drawing, DrawingTile, DrawingDoneFn } from "./types.ts";
+import {
+  Drawing,
+  DrawingTile,
+  DrawingDoneFn,
+  DrawingDoneResult,
+} from "./types.ts";
 import {
   DrawingResponse,
   DrawingCommand,
   TileId,
   DrawingBatch,
-  DrawingSetPixels,
 } from "./worker/types.ts";
+
+const MAX_PENDING_FRAMES = 2;
 
 export class DrawingWorker implements Drawing {
   private ready = false;
   private worker: Worker;
 
   private pixels: ArrayBuffer;
-  private size: Size;
+  private pixelsWidth: number;
+  private pixelsHeight: number;
 
   private queue: DrawingCommand[] = [];
   private tileMappings = new Map<DrawingTile, TileId>();
   private nextTileId = 0;
+  private pendingDoneResults: DrawingDoneResult[] = [];
 
   private drawingDone: DrawingDoneFn;
   private pendingFrames = 0;
 
   public constructor(
-    pixels: ArrayBuffer,
-    size: Size,
+    width: number,
+    height: number,
     drawingDone: DrawingDoneFn,
   ) {
     this.worker = new Worker("./worker.js", { type: "module" });
     this.worker.onmessage = (e) => this.onMessage(e.data);
-    this.pixels = pixels;
-    this.size = size.clone();
+    this.pixels = new ArrayBuffer(width * height * 4);
+    this.pixelsWidth = width;
+    this.pixelsHeight = height;
     this.drawingDone = drawingDone;
   }
 
-  private dispatchCommand(command: DrawingCommand) {
+  private enqueueCommand(command: DrawingCommand) {
     this.queue.push(command);
   }
 
@@ -48,7 +57,7 @@ export class DrawingWorker implements Drawing {
     const id = this.nextTileId++;
     this.tileMappings.set(tile, id);
 
-    this.dispatchCommand({
+    this.enqueueCommand({
       type: "addTile",
       id,
       width: tile.width,
@@ -70,40 +79,28 @@ export class DrawingWorker implements Drawing {
         this.ready = true;
         //Send first in the queue
         this.queue.unshift({
-          type: "setPixels",
-          pixels: this.pixels,
-          pixelsWidth: this.size.width,
-          pixelsHeight: this.size.height,
+          type: "setSize",
+          width: this.pixelsWidth,
+          height: this.pixelsHeight,
         });
         this.dispatch();
         break;
 
       case "result":
         this.pendingFrames--;
-        if (
-          response.result.dirty &&
-          response.pixels &&
-          response.pixelsWidth === this.size.width &&
-          response.pixelsHeight === this.size.height
-        ) {
-          new Uint8ClampedArray(this.pixels).set(
-            new Uint8ClampedArray(response.pixels),
-          );
-        }
-        this.drawingDone(response.result);
+        this.pendingDoneResults.push(response.result);
         break;
     }
   }
 
-  public setPixels(pixels: ArrayBuffer, size: Size) {
-    this.pixels = pixels;
-    this.size.copyFrom(size);
-
-    this.dispatchCommand({
-      type: "setPixels",
-      pixels,
-      pixelsWidth: size.width,
-      pixelsHeight: size.height,
+  public setSize(width: number, height: number) {
+    this.pixels = new ArrayBuffer(width * height * 4);
+    this.pixelsWidth = width;
+    this.pixelsHeight = height;
+    this.enqueueCommand({
+      type: "setSize",
+      width,
+      height,
     });
   }
 
@@ -118,7 +115,7 @@ export class DrawingWorker implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    this.dispatchCommand({
+    this.enqueueCommand({
       type: "tintTile",
       t: this.getTileId(t),
       foreColor,
@@ -141,7 +138,7 @@ export class DrawingWorker implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    this.dispatchCommand({
+    this.enqueueCommand({
       type: "setTile",
       t: this.getTileId(t),
       x,
@@ -160,7 +157,7 @@ export class DrawingWorker implements Drawing {
     width: number,
     height: number,
   ) {
-    this.dispatchCommand({
+    this.enqueueCommand({
       type: "fillRect",
       color,
       x,
@@ -178,7 +175,7 @@ export class DrawingWorker implements Drawing {
     dx: number,
     dy: number,
   ) {
-    this.dispatchCommand({
+    this.enqueueCommand({
       type: "scrollRect",
       x,
       y,
@@ -203,6 +200,32 @@ export class DrawingWorker implements Drawing {
   }
 
   public readyForNextFrame() {
-    return this.pendingFrames < 2;
+    return this.pendingFrames < MAX_PENDING_FRAMES &&
+      this.pendingDoneResults.length < MAX_PENDING_FRAMES;
+  }
+
+  public processPendingFrames() {
+    if (this.pendingDoneResults.length > 0) {
+      const result = this.pendingDoneResults.shift() as DrawingDoneResult;
+      if (
+        result.dirty &&
+        result.dirtyParams
+      ) {
+        if (
+          result.dirtyParams.pixelsWidth === this.pixelsWidth &&
+          result.dirtyParams.pixelsHeight === this.pixelsHeight
+        ) {
+          new Uint8Array(this.pixels).set(
+            new Uint8Array(result.dirtyParams.pixels),
+          );
+          result.dirtyParams.pixels = this.pixels;
+        } else {
+          //Ignore dirty from different size, must be an old frame
+          result.dirty = false;
+          result.dirtyParams = undefined;
+        }
+      }
+      this.drawingDone(result);
+    }
   }
 }

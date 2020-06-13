@@ -59,8 +59,6 @@ export function getWebNativeContext(
 
   const screenSize = new Size(256, 256);
 
-  let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
   ctx.imageSmoothingEnabled = false;
 
   let screenSizeChangedListeners: ((size: Size) => void)[] = [];
@@ -142,8 +140,7 @@ export function getWebNativeContext(
   const handleResize = () => {
     screenMultiplier = updateCanvasSize(canvas);
     updateScreenSize();
-    imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    drawing.setPixels(imageData.data.buffer, screenSize);
+    drawing.setSize(screenSize.width, screenSize.height);
     screenSizeChangedListeners.forEach((l) => l(screenSize));
   };
 
@@ -164,15 +161,20 @@ export function getWebNativeContext(
   window.addEventListener("resize", handleResize);
 
   const drawingDone = (result: DrawingDoneResult) => {
-    if (result.dirty && result.dirtyRect) {
+    if (result.dirty && result.dirtyParams) {
+      const params = result.dirtyParams;
       ctx.putImageData(
-        imageData,
+        new ImageData(
+          new Uint8ClampedArray(params.pixels),
+          params.pixelsWidth,
+          params.pixelsHeight,
+        ),
         0,
         0,
-        result.dirtyRect.x,
-        result.dirtyRect.y,
-        result.dirtyRect.width,
-        result.dirtyRect.height,
+        params.dirtyRect.x,
+        params.dirtyRect.y,
+        params.dirtyRect.width,
+        params.dirtyRect.height,
       );
     }
 
@@ -182,13 +184,13 @@ export function getWebNativeContext(
   updateScreenSize();
   const drawing: Drawing = USE_WORKER
     ? new DrawingWorker(
-      imageData.data.buffer,
-      screenSize,
+      screenSize.width,
+      screenSize.height,
       drawingDone,
     )
     : new DrawingReal(
-      imageData.data.buffer,
-      screenSize,
+      screenSize.width,
+      screenSize.height,
       drawingDone,
     );
 
@@ -217,6 +219,7 @@ export function getWebNativeContext(
         }
       },
       readyForNextFrame: drawing.readyForNextFrame.bind(drawing),
+      processPendingFrames: drawing.processPendingFrames.bind(drawing),
       tintTile: drawing.tintTile.bind(drawing),
       setTile: drawing.setTile.bind(drawing),
       fillRect: drawing.fillRect.bind(drawing),
