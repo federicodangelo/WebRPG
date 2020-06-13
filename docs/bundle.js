@@ -159,7 +159,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set x(v) {
                     if (v !== this._x) {
                         this.invalidate();
-                        this._x = Math.trunc(v);
+                        this._x = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -170,7 +170,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set y(v) {
                     if (v !== this._y) {
                         this.invalidate();
-                        this._y = Math.trunc(v);
+                        this._y = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -181,7 +181,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set width(v) {
                     if (v !== this._width) {
                         this.invalidate();
-                        this._width = Math.trunc(v);
+                        this._width = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -192,7 +192,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set height(v) {
                     if (v !== this._height) {
                         this.invalidate();
-                        this._height = Math.trunc(v);
+                        this._height = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -203,7 +203,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set pivotX(v) {
                     if (v !== this._pivotX) {
                         this.invalidate();
-                        this._pivotX = Math.trunc(v);
+                        this._pivotX = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -214,7 +214,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set pivotY(v) {
                     if (v !== this._pivotY) {
                         this.invalidate();
-                        this._pivotY = Math.trunc(v);
+                        this._pivotY = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -471,8 +471,8 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                 }
                 setOffset(offsetX, offsetY, invalidate = true) {
                     if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
-                        this._offsetX = Math.trunc(offsetX);
-                        this._offsetY = Math.trunc(offsetY);
+                        this._offsetX = offsetX | 0;
+                        this._offsetY = offsetY | 0;
                         if (invalidate)
                             this.invalidate();
                     }
@@ -556,7 +556,7 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
                 distanceTo(point) {
                     const dx = point.x - this.x;
                     const dy = point.y - this.y;
-                    return Math.trunc(Math.sqrt(dx * dx + dy * dy));
+                    return Math.sqrt(dx * dx + dy * dy) | 0;
                 }
             };
             exports_4("Point", Point);
@@ -921,10 +921,10 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                         return this;
                     }
                     const tiles = tilemap.tiles;
-                    for (let screenY = y0; screenY < y1; screenY += tileHeight) {
-                        const tileY = Math.trunc((screenY - y - ty) / tileHeight);
+                    let tileY = ((y0 - y - ty) / tileHeight) | 0;
+                    for (let screenY = y0; screenY < y1; screenY += tileHeight, tileY++) {
                         const row = indexes[tileY];
-                        let tileX = Math.trunc((x0 - x - tx) / tileWidth);
+                        let tileX = ((x0 - x - tx) / tileWidth) | 0;
                         for (let screenX = x0; screenX < x1; screenX += tileWidth, tileX++) {
                             const tileIndex = row[tileX];
                             if (tileIndex >= 0) {
@@ -1156,8 +1156,8 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                     this.mainScrollable = scrollable;
                 }
                 setMainScroll(offsetX, offsetY) {
-                    this.mainScrollableOffset.x = offsetX;
-                    this.mainScrollableOffset.y = offsetY;
+                    this.mainScrollableOffset.x = offsetX | 0;
+                    this.mainScrollableOffset.y = offsetY | 0;
                 }
                 getWidgetAt(x, y) {
                     for (let i = this.children.length - 1; i >= 0; i--) {
@@ -1600,15 +1600,15 @@ System.register("game/src/random", [], function (exports_15, context_15) {
     "use strict";
     var __moduleName = context_15 && context_15.id;
     function random(arr) {
-        return arr[Math.trunc(Math.random() * arr.length)];
+        return arr[(Math.random() * arr.length) | 0];
     }
     exports_15("random", random);
     function randomIntervalInt(min, max) {
-        return Math.trunc(min) + Math.trunc(Math.random() * (max - min));
+        return (min | 0) + ((Math.random() * (max - min)) | 0);
     }
     exports_15("randomIntervalInt", randomIntervalInt);
     function randomDirection() {
-        return Math.round(Math.random() * 2 - 1);
+        return Math.round(Math.random() * 2 - 1) | 0;
     }
     exports_15("randomDirection", randomDirection);
     return {
@@ -1881,7 +1881,7 @@ System.register("game/src/utils", [], function (exports_20, context_20) {
     function followAvatar(avatar, map, engine) {
         let newOffsetX = -avatar.x + Math.floor(map.width * 0.5);
         let newOffsetY = -avatar.y + Math.floor(map.height * 0.5);
-        engine.setMainScroll(Math.trunc(Math.max(Math.min(newOffsetX, 0), -(map.tilemapsBounds.width - map.width))), Math.trunc(Math.max(Math.min(newOffsetY, 0), -(map.tilemapsBounds.height - map.height))));
+        engine.setMainScroll(Math.max(Math.min(newOffsetX, 0), -(map.tilemapsBounds.width - map.width)), Math.max(Math.min(newOffsetY, 0), -(map.tilemapsBounds.height - map.height)));
     }
     exports_20("followAvatar", followAvatar);
     function isKeyDown(game, key) {

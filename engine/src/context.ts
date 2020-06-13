@@ -376,11 +376,10 @@ export class EngineContextImpl implements EngineContext {
     }
 
     const tiles = tilemap.tiles;
-
-    for (let screenY = y0; screenY < y1; screenY += tileHeight) {
-      const tileY = Math.trunc((screenY - y - ty) / tileHeight);
+    let tileY = ((y0 - y - ty) / tileHeight) | 0;
+    for (let screenY = y0; screenY < y1; screenY += tileHeight, tileY++) {
       const row = indexes[tileY];
-      let tileX = Math.trunc((x0 - x - tx) / tileWidth);
+      let tileX = ((x0 - x - tx) / tileWidth) | 0;
 
       for (let screenX = x0; screenX < x1; screenX += tileWidth, tileX++) {
         const tileIndex = row[tileX];

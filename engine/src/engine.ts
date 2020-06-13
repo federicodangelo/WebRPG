@@ -243,8 +243,8 @@ class EngineImpl implements Engine {
   }
 
   public setMainScroll(offsetX: number, offsetY: number): void {
-    this.mainScrollableOffset.x = offsetX;
-    this.mainScrollableOffset.y = offsetY;
+    this.mainScrollableOffset.x = offsetX | 0;
+    this.mainScrollableOffset.y = offsetY | 0;
   }
 
   public getWidgetAt(x: number, y: number): Widget | null {

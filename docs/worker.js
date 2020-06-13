@@ -159,7 +159,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set x(v) {
                     if (v !== this._x) {
                         this.invalidate();
-                        this._x = Math.trunc(v);
+                        this._x = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -170,7 +170,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set y(v) {
                     if (v !== this._y) {
                         this.invalidate();
-                        this._y = Math.trunc(v);
+                        this._y = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -181,7 +181,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set width(v) {
                     if (v !== this._width) {
                         this.invalidate();
-                        this._width = Math.trunc(v);
+                        this._width = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -192,7 +192,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set height(v) {
                     if (v !== this._height) {
                         this.invalidate();
-                        this._height = Math.trunc(v);
+                        this._height = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -203,7 +203,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set pivotX(v) {
                     if (v !== this._pivotX) {
                         this.invalidate();
-                        this._pivotX = Math.trunc(v);
+                        this._pivotX = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -214,7 +214,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 set pivotY(v) {
                     if (v !== this._pivotY) {
                         this.invalidate();
-                        this._pivotY = Math.trunc(v);
+                        this._pivotY = v | 0;
                         this.invalidate();
                         this._parent?.onChildrenTransformChanged(this);
                     }
@@ -471,8 +471,8 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                 }
                 setOffset(offsetX, offsetY, invalidate = true) {
                     if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
-                        this._offsetX = Math.trunc(offsetX);
-                        this._offsetY = Math.trunc(offsetY);
+                        this._offsetX = offsetX | 0;
+                        this._offsetY = offsetY | 0;
                         if (invalidate)
                             this.invalidate();
                     }
@@ -556,7 +556,7 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
                 distanceTo(point) {
                     const dx = point.x - this.x;
                     const dy = point.y - this.y;
-                    return Math.trunc(Math.sqrt(dx * dx + dy * dy));
+                    return Math.sqrt(dx * dx + dy * dy) | 0;
                 }
             };
             exports_4("Point", Point);

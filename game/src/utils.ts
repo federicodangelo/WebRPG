@@ -12,17 +12,13 @@ export function followAvatar(
   let newOffsetY = -avatar.y + Math.floor(map.height * 0.5);
 
   engine.setMainScroll(
-    Math.trunc(
-      Math.max(
-        Math.min(newOffsetX, 0),
-        -(map.tilemapsBounds.width - map.width),
-      ),
+    Math.max(
+      Math.min(newOffsetX, 0),
+      -(map.tilemapsBounds.width - map.width),
     ),
-    Math.trunc(
-      Math.max(
-        Math.min(newOffsetY, 0),
-        -(map.tilemapsBounds.height - map.height),
-      ),
+    Math.max(
+      Math.min(newOffsetY, 0),
+      -(map.tilemapsBounds.height - map.height),
     ),
   );
 }
