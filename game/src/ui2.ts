@@ -18,7 +18,7 @@ export function initUI(engine: Engine, assets: Assets) {
 
   const statsContainer = new BoxContainerWidget(font, 1);
   statsContainer.width = 16 * font.tileWidth;
-  statsContainer.height = 7 * font.tileHeight;
+  statsContainer.height = 8 * font.tileHeight;
   statsContainer.layout = {
     verticalSpacingPercent: 0,
     horizontalSpacingPercent: 100,

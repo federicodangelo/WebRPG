@@ -71,7 +71,8 @@ export class DrawingWorker implements Drawing {
         const setPixelsCmd: DrawingSetPixels = {
           type: "setPixels",
           pixels: this.pixels,
-          size: this.size,
+          pixelsWidth: this.size.width,
+          pixelsHeight: this.size.height,
         };
         //Send first in the queue
         this.queue.unshift(setPixelsCmd);
@@ -80,12 +81,17 @@ export class DrawingWorker implements Drawing {
 
       case "result":
         this.pendingFrames--;
-        if (this.size.equals(response.size)) {
+        if (
+          response.result.dirty &&
+          response.pixels &&
+          response.pixelsWidth === this.size.width &&
+          response.pixelsHeight === this.size.height
+        ) {
           new Uint8ClampedArray(this.pixels).set(
             new Uint8ClampedArray(response.pixels),
           );
-          this.drawingDone(response.result);
         }
+        this.drawingDone(response.result);
         break;
     }
   }
@@ -97,7 +103,8 @@ export class DrawingWorker implements Drawing {
     this.dispatchCommand({
       type: "setPixels",
       pixels,
-      size,
+      pixelsWidth: size.width,
+      pixelsHeight: size.height,
     });
   }
 

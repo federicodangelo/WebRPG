@@ -20,6 +20,9 @@ let updateFpsTime = performance.now();
 
 const engineStats = new EngineStats();
 
+let lastRenderNativeAllSamples = 0;
+let maxRenderNativePerFrame: number = 0;
+
 function updateFps() {
   const now = performance.now();
   updateFpsFrames++;
@@ -31,6 +34,7 @@ function updateFps() {
     stats += "\n" + engineStats.update.toString();
     stats += "\n" + engineStats.render.toString();
     stats += "\n" + engineStats.renderNative.toString();
+    stats += "\n" + "Max RNPF: " + maxRenderNativePerFrame;
 
     const busyTime = engineStats.render.time + engineStats.update.time;
     const idleTime = deltaTime - busyTime;
@@ -43,6 +47,7 @@ function updateFps() {
 
     engineStats.reset();
     updateFpsFrames = 0;
+    maxRenderNativePerFrame = 0;
   }
 }
 
@@ -82,6 +87,12 @@ let lastUpdateTime = performance.now();
 let timeToNextUpdate = 0;
 
 function update() {
+  maxRenderNativePerFrame = Math.max(
+    maxRenderNativePerFrame,
+    engineStats.renderNative.allSamples - lastRenderNativeAllSamples,
+  );
+  lastRenderNativeAllSamples = engineStats.renderNative.allSamples;
+
   if (!nativeContext.screen.readyForNextFrame()) return;
 
   const preUpdateTime = performance.now();

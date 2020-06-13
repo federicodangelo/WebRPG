@@ -1102,10 +1102,15 @@ System.register(
   ["web/src/drawing/drawing-real", "engine/src/types"],
   function (exports_9, context_9) {
     "use strict";
-    var drawing_real_ts_1, types_ts_4, pixels, size, drawing, tilesMapping;
+    var drawing_real_ts_1,
+      types_ts_4,
+      pixels,
+      pixelsSize,
+      drawing,
+      tilesMapping;
     var __moduleName = context_9 && context_9.id;
     function sendResponse(response) {
-      if (response.type === "result") {
+      if (response.type === "result" && response.pixels) {
         const pixelsCopy = response.pixels.slice(0);
         //@ts-ignore
         self.postMessage({ ...response, pixels: pixelsCopy }, [pixelsCopy]);
@@ -1164,8 +1169,8 @@ System.register(
           break;
         case "setPixels":
           pixels = command.pixels;
-          size.copyFrom(command.size);
-          drawing.setPixels(command.pixels, command.size);
+          pixelsSize.set(command.pixelsWidth, command.pixelsHeight);
+          drawing.setPixels(command.pixels, pixelsSize);
           break;
         case "addTile":
           tilesMapping.set(command.id, {
@@ -1192,15 +1197,20 @@ System.register(
       ],
       execute: function () {
         pixels = new Uint8ClampedArray(8 * 8 * 4).buffer;
-        size = new types_ts_4.Size(8, 8);
-        drawing = new drawing_real_ts_1.DrawingReal(pixels, size, (result) => {
-          sendResponse({
-            type: "result",
-            pixels,
-            size,
-            result,
-          });
-        });
+        pixelsSize = new types_ts_4.Size(8, 8);
+        drawing = new drawing_real_ts_1.DrawingReal(
+          pixels,
+          pixelsSize,
+          (result) => {
+            sendResponse({
+              type: "result",
+              pixels: result.dirty ? pixels : undefined,
+              pixelsWidth: pixelsSize.width,
+              pixelsHeight: pixelsSize.height,
+              result,
+            });
+          },
+        );
         tilesMapping = new Map();
         //@ts-ignore
         self.onmessage = (e) => {

@@ -2,6 +2,7 @@ class Stat {
   public name = "";
   public samples = 0;
   public time = 0;
+  public allSamples = 0;
 
   constructor(name: string) {
     this.name = name;
@@ -10,6 +11,7 @@ class Stat {
   public addSample(t: number) {
     this.time += t;
     this.samples++;
+    this.allSamples++;
   }
 
   public reset() {

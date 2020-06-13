@@ -1,5 +1,4 @@
 import {
-  Size,
   Color,
   AlphaType,
 } from "engine/types.ts";
@@ -10,7 +9,8 @@ export type TileId = number;
 export type DrawingSetPixels = {
   type: "setPixels";
   pixels: ArrayBuffer;
-  size: Size;
+  pixelsWidth: number;
+  pixelsHeight: number;
 };
 
 export type DrawingAddTile = {
@@ -81,8 +81,9 @@ export type DrawingCommand =
 
 export type DrawingResult = {
   type: "result";
-  pixels: ArrayBuffer;
-  size: Size;
+  pixels?: ArrayBuffer;
+  pixelsWidth: number;
+  pixelsHeight: number;
   result: DrawingDoneResult;
 };
 

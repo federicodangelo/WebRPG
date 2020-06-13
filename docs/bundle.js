@@ -2386,7 +2386,7 @@ System.register(
       mainUI.fillChar = "";
       const statsContainer = new box_ts_1.BoxContainerWidget(font, 1);
       statsContainer.width = 16 * font.tileWidth;
-      statsContainer.height = 7 * font.tileHeight;
+      statsContainer.height = 8 * font.tileHeight;
       statsContainer.layout = {
         verticalSpacingPercent: 0,
         horizontalSpacingPercent: 100,
@@ -3170,7 +3170,8 @@ System.register(
                 const setPixelsCmd = {
                   type: "setPixels",
                   pixels: this.pixels,
-                  size: this.size,
+                  pixelsWidth: this.size.width,
+                  pixelsHeight: this.size.height,
                 };
                 //Send first in the queue
                 this.queue.unshift(setPixelsCmd);
@@ -3178,12 +3179,17 @@ System.register(
                 break;
               case "result":
                 this.pendingFrames--;
-                if (this.size.equals(response.size)) {
+                if (
+                  response.result.dirty &&
+                  response.pixels &&
+                  response.pixelsWidth === this.size.width &&
+                  response.pixelsHeight === this.size.height
+                ) {
                   new Uint8ClampedArray(this.pixels).set(
                     new Uint8ClampedArray(response.pixels),
                   );
-                  this.drawingDone(response.result);
                 }
+                this.drawingDone(response.result);
                 break;
             }
           }
@@ -3193,7 +3199,8 @@ System.register(
             this.dispatchCommand({
               type: "setPixels",
               pixels,
-              size,
+              pixelsWidth: size.width,
+              pixelsHeight: size.height,
             });
           }
           tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
@@ -3808,11 +3815,13 @@ System.register("web/src/stats", [], function (exports_30, context_30) {
           this.name = "";
           this.samples = 0;
           this.time = 0;
+          this.allSamples = 0;
           this.name = name;
         }
         addSample(t) {
           this.time += t;
           this.samples++;
+          this.allSamples++;
         }
         reset() {
           this.time = 0;
@@ -3870,6 +3879,8 @@ System.register(
       updateFpsFrames,
       updateFpsTime,
       engineStats,
+      lastRenderNativeAllSamples,
+      maxRenderNativePerFrame,
       firstUpdate,
       lastUpdateTime,
       timeToNextUpdate;
@@ -3884,6 +3895,7 @@ System.register(
         stats += "\n" + engineStats.update.toString();
         stats += "\n" + engineStats.render.toString();
         stats += "\n" + engineStats.renderNative.toString();
+        stats += "\n" + "Max RNPF: " + maxRenderNativePerFrame;
         const busyTime = engineStats.render.time + engineStats.update.time;
         const idleTime = deltaTime - busyTime;
         const idlePercent = idleTime * 100 / deltaTime;
@@ -3892,6 +3904,7 @@ System.register(
         updateFpsTime = now;
         engineStats.reset();
         updateFpsFrames = 0;
+        maxRenderNativePerFrame = 0;
       }
     }
     async function init() {
@@ -3916,6 +3929,11 @@ System.register(
       return engine;
     }
     function update() {
+      maxRenderNativePerFrame = Math.max(
+        maxRenderNativePerFrame,
+        engineStats.renderNative.allSamples - lastRenderNativeAllSamples,
+      );
+      lastRenderNativeAllSamples = engineStats.renderNative.allSamples;
       if (!nativeContext.screen.readyForNextFrame()) {
         return;
       }
@@ -3983,6 +4001,8 @@ System.register(
         updateFpsFrames = 0;
         updateFpsTime = performance.now();
         engineStats = new stats_ts_1.EngineStats();
+        lastRenderNativeAllSamples = 0;
+        maxRenderNativePerFrame = 0;
         firstUpdate = true;
         lastUpdateTime = performance.now();
         timeToNextUpdate = 0;

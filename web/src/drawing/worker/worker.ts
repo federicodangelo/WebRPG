@@ -8,7 +8,7 @@ import {
 import { DrawingTile } from "../types.ts";
 
 function sendResponse(response: DrawingResponse) {
-  if (response.type === "result") {
+  if (response.type === "result" && response.pixels) {
     const pixelsCopy = response.pixels.slice(0);
     //@ts-ignore
     self.postMessage({ ...response, pixels: pixelsCopy }, [pixelsCopy]);
@@ -19,13 +19,14 @@ function sendResponse(response: DrawingResponse) {
 }
 
 let pixels = new Uint8ClampedArray(8 * 8 * 4).buffer;
-let size = new Size(8, 8);
+let pixelsSize = new Size(8, 8);
 
-const drawing = new DrawingReal(pixels, size, (result) => {
+const drawing = new DrawingReal(pixels, pixelsSize, (result) => {
   sendResponse({
     type: "result",
-    pixels,
-    size,
+    pixels: result.dirty ? pixels : undefined,
+    pixelsWidth: pixelsSize.width,
+    pixelsHeight: pixelsSize.height,
     result,
   });
 });
@@ -83,8 +84,8 @@ function handleCommand(command: DrawingCommand) {
       break;
     case "setPixels":
       pixels = command.pixels;
-      size.copyFrom(command.size);
-      drawing.setPixels(command.pixels, command.size);
+      pixelsSize.set(command.pixelsWidth, command.pixelsHeight);
+      drawing.setPixels(command.pixels, pixelsSize);
       break;
     case "addTile":
       tilesMapping.set(command.id, {
