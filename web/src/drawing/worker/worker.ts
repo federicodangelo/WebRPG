@@ -102,8 +102,7 @@ function handleCommand(command: DrawingCommand) {
   }
 }
 
-//@ts-ignore
-self.onmessage = (e) => {
+self.onmessage = (e: MessageEvent) => {
   const command: DrawingCommand = e.data;
   handleCommand(command);
   drawing.dispatch();

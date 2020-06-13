@@ -68,14 +68,13 @@ export class DrawingWorker implements Drawing {
     switch (response.type) {
       case "ready":
         this.ready = true;
-        const setPixelsCmd: DrawingSetPixels = {
+        //Send first in the queue
+        this.queue.unshift({
           type: "setPixels",
           pixels: this.pixels,
           pixelsWidth: this.size.width,
           pixelsHeight: this.size.height,
-        };
-        //Send first in the queue
-        this.queue.unshift(setPixelsCmd);
+        });
         this.dispatch();
         break;
 

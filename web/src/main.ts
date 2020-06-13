@@ -2,7 +2,7 @@ import { FixedColor, Engine } from "engine/types.ts";
 import { buildEngine } from "engine/engine.ts";
 import { LabelWidget } from "engine/widgets/label.ts";
 import { initGame, updateGame } from "game/game.ts";
-import { getWebNativeContext } from "./web.ts";
+import { getWebNativeContext } from "./native.ts";
 import { initAssets } from "./assets.ts";
 import { Game } from "../../game/src/types.ts";
 import { NativeContext } from "../../engine/src/native-types.ts";

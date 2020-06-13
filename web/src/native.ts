@@ -207,9 +207,12 @@ export function getWebNativeContext(
         }
       },
       toggleStats: () => {
+        // deno-lint-ignore no-explicit-any
         if ((globalThis as any).statsPaused) {
+          // deno-lint-ignore no-explicit-any
           (globalThis as any).resumeStats();
         } else {
+          // deno-lint-ignore no-explicit-any
           (globalThis as any).pauseStats();
         }
       },
