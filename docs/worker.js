@@ -1065,27 +1065,36 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
                 case 3 /* ScrollRect */:
                     drawing.scrollRect(optCommands[index + 0], optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5]);
                     break;
+                case 4 /* SetSize */:
+                    drawing.setSize(optCommands[index + 0], optCommands[index + 1]);
+                    break;
+                case 5 /* AddTile */: {
+                    const id = optCommands[index + 0];
+                    const width = optCommands[index + 1];
+                    const height = optCommands[index + 2];
+                    const alphaType = optCommands[index + 3];
+                    const pixels32Len = optCommands[index + 4];
+                    const pixels32 = new Uint32Array(pixels32Len);
+                    const pixels = new Uint8ClampedArray(pixels32.buffer);
+                    pixels32.set(optCommands.slice(index + 5, index + 5 + pixels32Len));
+                    tilesMapping.set(id, {
+                        alphaType,
+                        width,
+                        height,
+                        pixels,
+                        pixels32,
+                    });
+                    break;
+                }
             }
             index += argsLen;
         }
     }
-    function handleCommand(command) {
+    function handleRequest(command) {
         switch (command.type) {
-            case "setSize":
-                drawing.setSize(command.width, command.height);
-                break;
-            case "addTile":
-                tilesMapping.set(command.id, {
-                    alphaType: command.alphaType,
-                    width: command.width,
-                    height: command.height,
-                    pixels: new Uint8ClampedArray(command.pixels),
-                    pixels32: new Uint32Array(command.pixels),
-                });
-                break;
             case "batch":
-                command.commands.forEach((c) => handleCommand(c));
-                handleDrawCommands(new Int32Array(command.drawCommands), command.drawCommandsLen);
+                command.requests.forEach((c) => handleRequest(c));
+                handleDrawCommands(new Int32Array(command.commands), command.commandsLen);
                 break;
         }
     }
@@ -1105,7 +1114,7 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             tilesMapping = new Map();
             self.onmessage = (e) => {
                 const command = e.data;
-                handleCommand(command);
+                handleRequest(command);
                 drawing.dispatch();
             };
             sendResponse({ type: "ready" });

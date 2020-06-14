@@ -1,28 +1,19 @@
-import {
-  AlphaType,
-} from "engine/types.ts";
 import { DrawingDoneResult } from "../types.ts";
 
 export type TileId = number;
 
-export type DrawingSetSize = {
-  type: "setSize";
-  width: number;
-  height: number;
-};
+export const enum DrawingCommandType {
+  SetTile,
+  TintTile,
+  FillRect,
+  ScrollRect,
+  SetSize,
+  AddTile,
+}
 
-export type DrawingAddTile = {
-  type: "addTile";
-  id: TileId;
-  width: number;
-  height: number;
-  pixels: ArrayBuffer;
-  alphaType: AlphaType;
-};
-
-export type DrawingBatch = {
+export type DrawingRequestBatch = {
   type: "batch";
-  commands: DrawingCommand[];
+  requests: DrawingRequest[];
   // Drawing commands, Int32Array, format:
   // [ DrawCommandType ]
   // [ Number Of Args ]
@@ -33,29 +24,19 @@ export type DrawingBatch = {
   // [ Next DrawCommandType ]
   // [ Next Number Of Args ]
   // [ Etc.. etc.. ]
-  drawCommands: ArrayBuffer;
-  drawCommandsLen: number;
+  commands: ArrayBuffer;
+  commandsLen: number;
 };
 
-export type DrawingCommand =
-  | DrawingAddTile
-  | DrawingSetSize
-  | DrawingBatch;
+export type DrawingRequest = DrawingRequestBatch;
 
-export type DrawingResult = {
+export type DrawingResponseResult = {
   type: "result";
   result: DrawingDoneResult;
 };
 
-export type DrawingReady = {
+export type DrawingResponseReady = {
   type: "ready";
 };
 
-export type DrawingResponse = DrawingResult | DrawingReady;
-
-export const enum DrawCommandType {
-  SetTile,
-  TintTile,
-  FillRect,
-  ScrollRect,
-}
+export type DrawingResponse = DrawingResponseResult | DrawingResponseReady;

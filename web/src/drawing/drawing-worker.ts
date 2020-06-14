@@ -9,10 +9,10 @@ import {
 } from "./types.ts";
 import {
   DrawingResponse,
-  DrawingCommand,
+  DrawingRequest,
   TileId,
-  DrawingBatch,
-  DrawCommandType,
+  DrawingRequestBatch,
+  DrawingCommandType,
 } from "./worker/types.ts";
 
 const MAX_PENDING_FRAMES = 2;
@@ -24,7 +24,7 @@ export class DrawingWorker implements Drawing {
   private pixelsWidth: number;
   private pixelsHeight: number;
 
-  private queue: DrawingCommand[] = [];
+  private queue: DrawingRequest[];
   private drawQueue: ArrayBuffer;
   private drawQueue32: Int32Array;
   private drawQueueLen = 0;
@@ -43,20 +43,23 @@ export class DrawingWorker implements Drawing {
   ) {
     this.worker = new Worker("./worker.js", { type: "module" });
     this.worker.onmessage = (e) => this.onMessage(e.data);
-    this.pixelsWidth = width;
-    this.pixelsHeight = height;
     this.drawingDone = drawingDone;
-    this.drawQueue = new ArrayBuffer(1024 * 64);
+    this.pixelsWidth = -1;
+    this.pixelsHeight = -1;
+    this.queue = [];
+    this.drawQueue = new ArrayBuffer(1024 * 1024);
     this.drawQueue32 = new Int32Array(this.drawQueue);
     this.drawQueueLen = 0;
+
+    this.setSize(width, height);
   }
 
-  private enqueueCommand(command: DrawingCommand) {
+  private enqueueCommand(command: DrawingRequest) {
     this.queue.push(command);
   }
 
   private enqueueOptimizedCommand(
-    cmd: DrawCommandType,
+    cmd: DrawingCommandType,
     ...args: number[]
   ) {
     while (
@@ -84,14 +87,15 @@ export class DrawingWorker implements Drawing {
     const id = this.nextTileId++;
     this.tileMappings.set(tile, id);
 
-    this.enqueueCommand({
-      type: "addTile",
+    this.enqueueOptimizedCommand(
+      DrawingCommandType.AddTile,
       id,
-      width: tile.width,
-      height: tile.height,
-      alphaType: tile.alphaType,
-      pixels: tile.pixels.buffer,
-    });
+      tile.width,
+      tile.height,
+      tile.alphaType,
+      tile.pixels32.length,
+      ...tile.pixels32,
+    );
 
     return id;
   }
@@ -104,12 +108,6 @@ export class DrawingWorker implements Drawing {
     switch (response.type) {
       case "ready":
         this.ready = true;
-        //Send first in the queue
-        this.queue.unshift({
-          type: "setSize",
-          width: this.pixelsWidth,
-          height: this.pixelsHeight,
-        });
         this.dispatch();
         break;
 
@@ -124,15 +122,8 @@ export class DrawingWorker implements Drawing {
     if (width === this.pixelsWidth && height === this.pixelsHeight) return;
     this.pixelsWidth = width;
     this.pixelsHeight = height;
-    this.drawQueueLen = 0; //reset queue when size changes
-    this.queue.length = 0; //reset queue when size changes
-    if (this.ready) {
-      this.enqueueCommand({
-        type: "setSize",
-        width,
-        height,
-      });
-    }
+    this.resetQueues();
+    this.enqueueOptimizedCommand(DrawingCommandType.SetSize, width, height);
   }
 
   public tintTile(
@@ -147,7 +138,7 @@ export class DrawingWorker implements Drawing {
     cty: number,
   ) {
     this.enqueueOptimizedCommand(
-      DrawCommandType.TintTile,
+      DrawingCommandType.TintTile,
       this.getTileId(t),
       foreColor,
       backColor,
@@ -170,7 +161,7 @@ export class DrawingWorker implements Drawing {
     cty: number,
   ) {
     this.enqueueOptimizedCommand(
-      DrawCommandType.SetTile,
+      DrawingCommandType.SetTile,
       this.getTileId(t),
       x,
       y,
@@ -189,7 +180,7 @@ export class DrawingWorker implements Drawing {
     height: number,
   ) {
     this.enqueueOptimizedCommand(
-      DrawCommandType.FillRect,
+      DrawingCommandType.FillRect,
       color,
       x,
       y,
@@ -207,7 +198,7 @@ export class DrawingWorker implements Drawing {
     dy: number,
   ) {
     this.enqueueOptimizedCommand(
-      DrawCommandType.ScrollRect,
+      DrawingCommandType.ScrollRect,
       x,
       y,
       width,
@@ -224,17 +215,20 @@ export class DrawingWorker implements Drawing {
     const copy = new ArrayBuffer(this.drawQueueLen * 4);
     const copy32 = new Int32Array(copy);
     copy32.set(this.drawQueue32.slice(0, this.drawQueueLen));
-    const batch: DrawingBatch = {
+    const batch: DrawingRequestBatch = {
       type: "batch",
-      drawCommands: copy,
-      drawCommandsLen: this.drawQueueLen,
-      commands: this.queue,
+      commands: copy,
+      commandsLen: this.drawQueueLen,
+      requests: this.queue,
     };
     this.worker.postMessage(batch, [copy]);
-
-    this.queue = [];
-    this.drawQueueLen = 0;
+    this.resetQueues();
     this.pendingFrames++;
+  }
+
+  private resetQueues() {
+    this.queue.length = 0;
+    this.drawQueueLen = 0;
   }
 
   public readyForNextFrame() {

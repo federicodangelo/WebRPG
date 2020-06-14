@@ -1,0 +1,23 @@
+{
+  "$schema": "https://deno.land/x/denon/schema.json",
+  "importmap": "../importmap.json",
+  "unstable": true,
+  "allow": ["hrtime", "net", "read", "env"],
+  "scripts": {
+    "server": {
+      "env": {
+        "SECURE": "0"
+      },
+      "cmd": "src/server.ts"
+    },
+    "server-secure": {
+      "env": {
+        "SECURE": "1"
+      },
+      "cmd": "src/server.ts"
+    }
+  },
+  "watcher": {
+    "paths": ["./src", "../engine/src", "../game/src"]
+  }
+}

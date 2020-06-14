@@ -3,10 +3,6 @@
   "importmap": "../importmap.json",
   "unstable": true,
   "scripts": {
-    "dev": {
-      "allow": ["hrtime", "net", "read"],
-      "cmd": "src/server.ts"
-    },
     "bundle": {
       "tsconfig": "../tsconfig.json",
       "cmd": "deno bundle src/main.ts ../docs/bundle.js"

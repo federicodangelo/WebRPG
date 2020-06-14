@@ -77,11 +77,25 @@
         "label": "web-server",
         "type": "shell",
         "options": {
-          "cwd": "${workspaceFolder}/web"
+          "cwd": "${workspaceFolder}/server"
         },
         "command": "denon",
         "args": [
-          "dev"
+          "server"
+        ],
+        "group": "none",
+        "isBackground": true,
+        "problemMatcher": []
+      },
+      {
+        "label": "web-server-secure",
+        "type": "shell",
+        "options": {
+          "cwd": "${workspaceFolder}/server"
+        },
+        "command": "denon",
+        "args": [
+          "server-secure"
         ],
         "group": "none",
         "isBackground": true,

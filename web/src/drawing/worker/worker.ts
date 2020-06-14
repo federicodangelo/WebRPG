@@ -1,11 +1,12 @@
 import { DrawingReal } from "../drawing-real.ts";
 import {
-  DrawingCommand,
+  DrawingRequest,
   DrawingResponse,
   TileId,
-  DrawCommandType,
+  DrawingCommandType,
 } from "./types.ts";
 import { DrawingTile } from "../types.ts";
+import { AlphaType } from "../../../../engine/src/types.ts";
 
 function sendResponse(response: DrawingResponse) {
   if (
@@ -33,90 +34,108 @@ const drawing = new DrawingReal(8, 8, (result) => {
 const tilesMapping = new Map<number, DrawingTile>();
 
 function getTile(tid: TileId): DrawingTile {
-  return tilesMapping.get(tid) as DrawingTile;
+  const tile = tilesMapping.get(tid);
+  if (tile === undefined) throw new Error("Unknown tile id received " + tid);
+  return tile;
 }
 
-function handleDrawCommands(optCommands: Int32Array, len: number) {
+function addTile(tid: TileId, tile: DrawingTile) {
+  tilesMapping.set(tid, tile);
+}
+
+function handleCommands(commands: Int32Array, commandsLen: number) {
   let index = 0;
-  while (index < len) {
-    const cmd: DrawCommandType = optCommands[index++];
-    const argsLen = optCommands[index++];
+  while (index < commandsLen) {
+    const cmd: DrawingCommandType = commands[index++];
+    const argsLen = commands[index++];
     switch (cmd) {
-      case DrawCommandType.SetTile:
+      case DrawingCommandType.SetTile:
         drawing.setTile(
-          getTile(optCommands[index + 0]),
-          optCommands[index + 1],
-          optCommands[index + 2],
-          optCommands[index + 3],
-          optCommands[index + 4],
-          optCommands[index + 5],
-          optCommands[index + 6],
+          getTile(commands[index + 0]),
+          commands[index + 1],
+          commands[index + 2],
+          commands[index + 3],
+          commands[index + 4],
+          commands[index + 5],
+          commands[index + 6],
         );
         break;
-      case DrawCommandType.TintTile:
+      case DrawingCommandType.TintTile:
         drawing.tintTile(
-          getTile(optCommands[index + 0]),
-          optCommands[index + 1],
-          optCommands[index + 2],
-          optCommands[index + 3],
-          optCommands[index + 4],
-          optCommands[index + 5],
-          optCommands[index + 6],
-          optCommands[index + 7],
-          optCommands[index + 8],
+          getTile(commands[index + 0]),
+          commands[index + 1],
+          commands[index + 2],
+          commands[index + 3],
+          commands[index + 4],
+          commands[index + 5],
+          commands[index + 6],
+          commands[index + 7],
+          commands[index + 8],
         );
         break;
-      case DrawCommandType.FillRect:
+      case DrawingCommandType.FillRect:
         drawing.fillRect(
-          optCommands[index + 0],
-          optCommands[index + 1],
-          optCommands[index + 2],
-          optCommands[index + 3],
-          optCommands[index + 4],
+          commands[index + 0],
+          commands[index + 1],
+          commands[index + 2],
+          commands[index + 3],
+          commands[index + 4],
         );
         break;
-      case DrawCommandType.ScrollRect:
+      case DrawingCommandType.ScrollRect:
         drawing.scrollRect(
-          optCommands[index + 0],
-          optCommands[index + 1],
-          optCommands[index + 2],
-          optCommands[index + 3],
-          optCommands[index + 4],
-          optCommands[index + 5],
+          commands[index + 0],
+          commands[index + 1],
+          commands[index + 2],
+          commands[index + 3],
+          commands[index + 4],
+          commands[index + 5],
         );
         break;
+      case DrawingCommandType.SetSize:
+        drawing.setSize(
+          commands[index + 0],
+          commands[index + 1],
+        );
+        break;
+      case DrawingCommandType.AddTile: {
+        const id = commands[index + 0];
+        const width = commands[index + 1];
+        const height = commands[index + 2];
+        const alphaType: AlphaType = commands[index + 3];
+        const pixels32Len = commands[index + 4];
+        const pixels32 = new Uint32Array(pixels32Len);
+        const pixels = new Uint8ClampedArray(pixels32.buffer);
+        pixels32.set(commands.slice(index + 5, index + 5 + pixels32Len));
+        addTile(id, {
+          alphaType,
+          width,
+          height,
+          pixels,
+          pixels32,
+        });
+        break;
+      }
     }
     index += argsLen;
   }
 }
 
-function handleCommand(command: DrawingCommand) {
-  switch (command.type) {
-    case "setSize":
-      drawing.setSize(command.width, command.height);
-      break;
-    case "addTile":
-      tilesMapping.set(command.id, {
-        alphaType: command.alphaType,
-        width: command.width,
-        height: command.height,
-        pixels: new Uint8ClampedArray(command.pixels),
-        pixels32: new Uint32Array(command.pixels),
-      });
-      break;
+function handleRequest(request: DrawingRequest) {
+  switch (request.type) {
     case "batch":
-      command.commands.forEach((c) => handleCommand(c));
-      handleDrawCommands(
-        new Int32Array(command.drawCommands),
-        command.drawCommandsLen,
+      request.requests.forEach((c) => handleRequest(c));
+      handleCommands(
+        new Int32Array(request.commands),
+        request.commandsLen,
       );
       break;
   }
 }
 
 self.onmessage = (e: MessageEvent) => {
-  const command: DrawingCommand = e.data;
-  handleCommand(command);
+  const command: DrawingRequest = e.data;
+  handleRequest(command);
   drawing.dispatch();
 };
 

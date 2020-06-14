@@ -2622,7 +2622,6 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
             DrawingWorker = class DrawingWorker {
                 constructor(width, height, drawingDone) {
                     this.ready = false;
-                    this.queue = [];
                     this.drawQueueLen = 0;
                     this.tileMappings = new Map();
                     this.nextTileId = 0;
@@ -2630,12 +2629,14 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     this.pendingFrames = 0;
                     this.worker = new Worker("./worker.js", { type: "module" });
                     this.worker.onmessage = (e) => this.onMessage(e.data);
-                    this.pixelsWidth = width;
-                    this.pixelsHeight = height;
                     this.drawingDone = drawingDone;
-                    this.drawQueue = new ArrayBuffer(1024 * 64);
+                    this.pixelsWidth = -1;
+                    this.pixelsHeight = -1;
+                    this.queue = [];
+                    this.drawQueue = new ArrayBuffer(1024 * 1024);
                     this.drawQueue32 = new Int32Array(this.drawQueue);
                     this.drawQueueLen = 0;
+                    this.setSize(width, height);
                 }
                 enqueueCommand(command) {
                     this.queue.push(command);
@@ -2661,14 +2662,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                         return tileId;
                     const id = this.nextTileId++;
                     this.tileMappings.set(tile, id);
-                    this.enqueueCommand({
-                        type: "addTile",
-                        id,
-                        width: tile.width,
-                        height: tile.height,
-                        alphaType: tile.alphaType,
-                        pixels: tile.pixels.buffer,
-                    });
+                    this.enqueueOptimizedCommand(5 /* AddTile */, id, tile.width, tile.height, tile.alphaType, tile.pixels32.length, ...tile.pixels32);
                     return id;
                 }
                 isReady() {
@@ -2678,12 +2672,6 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     switch (response.type) {
                         case "ready":
                             this.ready = true;
-                            //Send first in the queue
-                            this.queue.unshift({
-                                type: "setSize",
-                                width: this.pixelsWidth,
-                                height: this.pixelsHeight,
-                            });
                             this.dispatch();
                             break;
                         case "result":
@@ -2697,15 +2685,8 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                         return;
                     this.pixelsWidth = width;
                     this.pixelsHeight = height;
-                    this.drawQueueLen = 0; //reset queue when size changes
-                    this.queue.length = 0; //reset queue when size changes
-                    if (this.ready) {
-                        this.enqueueCommand({
-                            type: "setSize",
-                            width,
-                            height,
-                        });
-                    }
+                    this.resetQueues();
+                    this.enqueueOptimizedCommand(4 /* SetSize */, width, height);
                 }
                 tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
                     this.enqueueOptimizedCommand(1 /* TintTile */, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
@@ -2729,14 +2710,17 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     copy32.set(this.drawQueue32.slice(0, this.drawQueueLen));
                     const batch = {
                         type: "batch",
-                        drawCommands: copy,
-                        drawCommandsLen: this.drawQueueLen,
-                        commands: this.queue,
+                        commands: copy,
+                        commandsLen: this.drawQueueLen,
+                        requests: this.queue,
                     };
                     this.worker.postMessage(batch, [copy]);
-                    this.queue = [];
-                    this.drawQueueLen = 0;
+                    this.resetQueues();
                     this.pendingFrames++;
+                }
+                resetQueues() {
+                    this.queue.length = 0;
+                    this.drawQueueLen = 0;
                 }
                 readyForNextFrame() {
                     return this.pendingFrames < MAX_PENDING_FRAMES &&
