@@ -1045,39 +1045,45 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
         }
     }
     function getTile(tid) {
-        return tilesMapping.get(tid);
+        const tile = tilesMapping.get(tid);
+        if (tile === undefined)
+            throw new Error("Unknown tile id received " + tid);
+        return tile;
     }
-    function handleDrawCommands(optCommands, len) {
+    function addTile(tid, tile) {
+        tilesMapping.set(tid, tile);
+    }
+    function handleCommands(commands, commandsLen) {
         let index = 0;
-        while (index < len) {
-            const cmd = optCommands[index++];
-            const argsLen = optCommands[index++];
+        while (index < commandsLen) {
+            const cmd = commands[index++];
+            const argsLen = commands[index++];
             switch (cmd) {
                 case 0 /* SetTile */:
-                    drawing.setTile(getTile(optCommands[index + 0]), optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5], optCommands[index + 6]);
+                    drawing.setTile(getTile(commands[index + 0]), commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6]);
                     break;
                 case 1 /* TintTile */:
-                    drawing.tintTile(getTile(optCommands[index + 0]), optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5], optCommands[index + 6], optCommands[index + 7], optCommands[index + 8]);
+                    drawing.tintTile(getTile(commands[index + 0]), commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6], commands[index + 7], commands[index + 8]);
                     break;
                 case 2 /* FillRect */:
-                    drawing.fillRect(optCommands[index + 0], optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4]);
+                    drawing.fillRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4]);
                     break;
                 case 3 /* ScrollRect */:
-                    drawing.scrollRect(optCommands[index + 0], optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5]);
+                    drawing.scrollRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5]);
                     break;
                 case 4 /* SetSize */:
-                    drawing.setSize(optCommands[index + 0], optCommands[index + 1]);
+                    drawing.setSize(commands[index + 0], commands[index + 1]);
                     break;
                 case 5 /* AddTile */: {
-                    const id = optCommands[index + 0];
-                    const width = optCommands[index + 1];
-                    const height = optCommands[index + 2];
-                    const alphaType = optCommands[index + 3];
-                    const pixels32Len = optCommands[index + 4];
+                    const id = commands[index + 0];
+                    const width = commands[index + 1];
+                    const height = commands[index + 2];
+                    const alphaType = commands[index + 3];
+                    const pixels32Len = commands[index + 4];
                     const pixels32 = new Uint32Array(pixels32Len);
                     const pixels = new Uint8ClampedArray(pixels32.buffer);
-                    pixels32.set(optCommands.slice(index + 5, index + 5 + pixels32Len));
-                    tilesMapping.set(id, {
+                    pixels32.set(commands.slice(index + 5, index + 5 + pixels32Len));
+                    addTile(id, {
                         alphaType,
                         width,
                         height,
@@ -1090,11 +1096,11 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             index += argsLen;
         }
     }
-    function handleRequest(command) {
-        switch (command.type) {
+    function handleRequest(request) {
+        switch (request.type) {
             case "batch":
-                command.requests.forEach((c) => handleRequest(c));
-                handleDrawCommands(new Int32Array(command.commands), command.commandsLen);
+                request.requests.forEach((c) => handleRequest(c));
+                handleCommands(new Int32Array(request.commands), request.commandsLen);
                 break;
         }
     }
