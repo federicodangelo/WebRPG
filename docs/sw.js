@@ -1,8 +1,9 @@
+const cacheId = "v1";
+
 self.addEventListener("install", function (event) {
   event.waitUntil(
-    caches.open("v1").then(function (cache) {
+    caches.open(cacheId).then(function (cache) {
       return cache.addAll([
-        "/",
         "/index.html",
         "/bundle.js",
         "/worker.js",
@@ -34,7 +35,7 @@ self.addEventListener("fetch", function (event) {
           // and serve second one
           let responseClone = response.clone();
 
-          caches.open("v1").then(function (cache) {
+          caches.open(cacheId).then(function (cache) {
             cache.put(event.request, responseClone);
           });
           return response;
