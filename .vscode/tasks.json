@@ -7,48 +7,85 @@
         "label": "web-bundle",
         "type": "shell",
         "options": {
-            "cwd": "${workspaceFolder}/web"
+          "cwd": "${workspaceFolder}/web"
         },
         "command": "deno",
-        "args": [ "bundle", "--unstable", "--importmap=../importmap.json", "--config=../tsconfig.json", "src/main.ts", "../docs/bundle.js" ],
+        "args": [
+          "bundle",
+          "--unstable",
+          "--importmap=../importmap.json",
+          "--config=../tsconfig.json",
+          "src/main.ts",
+          "../docs/bundle.js"
+        ],
         "group": {
           "kind": "build",
           "isDefault": true
         },
+        "problemMatcher": []
+      },
+      {
+        "label": "web-bundle-worker",
+        "type": "shell",
+        "options": {
+          "cwd": "${workspaceFolder}/web"
+        },
+        "command": "deno",
+        "args": [
+          "bundle",
+          "--unstable",
+          "--importmap=../importmap.json",
+          "--config=../tsconfig.json",
+          "src/drawing/worker/worker.ts",
+          "../docs/worker.js"
+        ],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": []
       },
       {
         "label": "web-bundle-watcher",
         "type": "shell",
         "options": {
-            "cwd": "${workspaceFolder}/web"
+          "cwd": "${workspaceFolder}/web"
         },
         "command": "denon",
-        "args": [ "bundle" ],
+        "args": [
+          "bundle"
+        ],
         "group": "none",
-        "isBackground": true
+        "isBackground": true,
+        "problemMatcher": []
       },
       {
         "label": "web-bundle-worker-watcher",
         "type": "shell",
         "options": {
-            "cwd": "${workspaceFolder}/web"
+          "cwd": "${workspaceFolder}/web"
         },
         "command": "denon",
-        "args": [ "bundle-worker" ],
+        "args": [
+          "bundle-worker"
+        ],
         "group": "none",
-        "isBackground": true
+        "isBackground": true,
+        "problemMatcher": []
       },
       {
         "label": "web-server",
         "type": "shell",
         "options": {
-            "cwd": "${workspaceFolder}/web"
+          "cwd": "${workspaceFolder}/web"
         },
         "command": "denon",
-        "args": [ "dev" ],
+        "args": [
+          "dev"
+        ],
         "group": "none",
-        "isBackground": true
-      },
-
+        "isBackground": true,
+        "problemMatcher": []
+      }
     ]
   }
