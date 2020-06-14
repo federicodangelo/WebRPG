@@ -3,7 +3,7 @@ import {
   DrawingCommand,
   DrawingResponse,
   TileId,
-  OptimizedDrawingCommandType,
+  DrawCommandType,
 } from "./types.ts";
 import { DrawingTile } from "../types.ts";
 
@@ -36,51 +36,62 @@ function getTile(tid: TileId): DrawingTile {
   return tilesMapping.get(tid) as DrawingTile;
 }
 
+function handleDrawCommands(optCommands: Int32Array, len: number) {
+  let index = 0;
+  while (index < len) {
+    const cmd: DrawCommandType = optCommands[index++];
+    const argsLen = optCommands[index++];
+    switch (cmd) {
+      case DrawCommandType.SetTile:
+        drawing.setTile(
+          getTile(optCommands[index + 0]),
+          optCommands[index + 1],
+          optCommands[index + 2],
+          optCommands[index + 3],
+          optCommands[index + 4],
+          optCommands[index + 5],
+          optCommands[index + 6],
+        );
+        break;
+      case DrawCommandType.TintTile:
+        drawing.tintTile(
+          getTile(optCommands[index + 0]),
+          optCommands[index + 1],
+          optCommands[index + 2],
+          optCommands[index + 3],
+          optCommands[index + 4],
+          optCommands[index + 5],
+          optCommands[index + 6],
+          optCommands[index + 7],
+          optCommands[index + 8],
+        );
+        break;
+      case DrawCommandType.FillRect:
+        drawing.fillRect(
+          optCommands[index + 0],
+          optCommands[index + 1],
+          optCommands[index + 2],
+          optCommands[index + 3],
+          optCommands[index + 4],
+        );
+        break;
+      case DrawCommandType.ScrollRect:
+        drawing.scrollRect(
+          optCommands[index + 0],
+          optCommands[index + 1],
+          optCommands[index + 2],
+          optCommands[index + 3],
+          optCommands[index + 4],
+          optCommands[index + 5],
+        );
+        break;
+    }
+    index += argsLen;
+  }
+}
+
 function handleCommand(command: DrawingCommand) {
   switch (command.type) {
-    case "setTile":
-      drawing.setTile(
-        getTile(command.t),
-        command.x,
-        command.y,
-        command.cfx,
-        command.cfy,
-        command.ctx,
-        command.cty,
-      );
-      break;
-    case "tintTile":
-      drawing.tintTile(
-        getTile(command.t),
-        command.foreColor,
-        command.backColor,
-        command.x,
-        command.y,
-        command.cfx,
-        command.cfy,
-        command.ctx,
-        command.cty,
-      );
-      break;
-    case "fillRect":
-      drawing.fillRect(
-        command.color,
-        command.x,
-        command.y,
-        command.width,
-        command.height,
-      );
-      break;
-    case "scrollRect":
-      drawing.scrollRect(
-        command.x,
-        command.y,
-        command.width,
-        command.height,
-        command.dx,
-        command.dy,
-      );
-      break;
     case "setSize":
       drawing.setSize(command.width, command.height);
       break;
@@ -95,64 +106,11 @@ function handleCommand(command: DrawingCommand) {
       break;
     case "batch":
       command.commands.forEach((c) => handleCommand(c));
+      handleDrawCommands(
+        new Int32Array(command.drawCommands),
+        command.drawCommandsLen,
+      );
       break;
-    case "optimized-batch": {
-      command.commands.forEach((c) => handleCommand(c));
-      let index = 0;
-      const len = command.optCommandsLen;
-      const optCommands = new Int32Array(command.optCommands);
-      while (index < len) {
-        const cmd: OptimizedDrawingCommandType = optCommands[index++];
-        const argsLen = optCommands[index++];
-        switch (cmd) {
-          case OptimizedDrawingCommandType.SetTile:
-            drawing.setTile(
-              getTile(optCommands[index + 0]),
-              optCommands[index + 1],
-              optCommands[index + 2],
-              optCommands[index + 3],
-              optCommands[index + 4],
-              optCommands[index + 5],
-              optCommands[index + 6],
-            );
-            break;
-          case OptimizedDrawingCommandType.TintTile:
-            drawing.tintTile(
-              getTile(optCommands[index + 0]),
-              optCommands[index + 1],
-              optCommands[index + 2],
-              optCommands[index + 3],
-              optCommands[index + 4],
-              optCommands[index + 5],
-              optCommands[index + 6],
-              optCommands[index + 7],
-              optCommands[index + 8],
-            );
-            break;
-          case OptimizedDrawingCommandType.FillRect:
-            drawing.fillRect(
-              optCommands[index + 0],
-              optCommands[index + 1],
-              optCommands[index + 2],
-              optCommands[index + 3],
-              optCommands[index + 4],
-            );
-            break;
-          case OptimizedDrawingCommandType.ScrollRect:
-            drawing.scrollRect(
-              optCommands[index + 0],
-              optCommands[index + 1],
-              optCommands[index + 2],
-              optCommands[index + 3],
-              optCommands[index + 4],
-              optCommands[index + 5],
-            );
-            break;
-        }
-        index += argsLen;
-      }
-      break;
-    }
   }
 }
 

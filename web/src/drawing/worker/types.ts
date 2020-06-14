@@ -1,5 +1,4 @@
 import {
-  Color,
   AlphaType,
 } from "engine/types.ts";
 import { DrawingDoneResult } from "../types.ts";
@@ -21,70 +20,27 @@ export type DrawingAddTile = {
   alphaType: AlphaType;
 };
 
-export type DrawingTintTile = {
-  type: "tintTile";
-  t: TileId;
-  foreColor: Color;
-  backColor: Color;
-  x: number;
-  y: number;
-  cfx: number;
-  cfy: number;
-  ctx: number;
-  cty: number;
-};
-
-export type DrawingSetTile = {
-  type: "setTile";
-  t: TileId;
-  x: number;
-  y: number;
-  cfx: number;
-  cfy: number;
-  ctx: number;
-  cty: number;
-};
-
-export type DrawingFillRect = {
-  type: "fillRect";
-  color: Color;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-export type DrawingScrollRect = {
-  type: "scrollRect";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  dx: number;
-  dy: number;
-};
-
 export type DrawingBatch = {
   type: "batch";
   commands: DrawingCommand[];
-};
-
-export type DrawingOptimizedBatch = {
-  type: "optimized-batch";
-  commands: DrawingCommand[];
-  optCommands: ArrayBuffer; //Int32Array
-  optCommandsLen: number;
+  // Drawing commands, Int32Array, format:
+  // [ DrawCommandType ]
+  // [ Number Of Args ]
+  // [ Arg 0 ]
+  // [ Arg 1 ]
+  // [ Arg ... ]
+  // [ Last Arg ]
+  // [ Next DrawCommandType ]
+  // [ Next Number Of Args ]
+  // [ Etc.. etc.. ]
+  drawCommands: ArrayBuffer;
+  drawCommandsLen: number;
 };
 
 export type DrawingCommand =
   | DrawingAddTile
   | DrawingSetSize
-  | DrawingTintTile
-  | DrawingSetTile
-  | DrawingFillRect
-  | DrawingScrollRect
-  | DrawingBatch
-  | DrawingOptimizedBatch;
+  | DrawingBatch;
 
 export type DrawingResult = {
   type: "result";
@@ -97,7 +53,7 @@ export type DrawingReady = {
 
 export type DrawingResponse = DrawingResult | DrawingReady;
 
-export const enum OptimizedDrawingCommandType {
+export const enum DrawCommandType {
   SetTile,
   TintTile,
   FillRect,

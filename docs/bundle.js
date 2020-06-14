@@ -2613,48 +2613,46 @@ System.register("web/src/drawing/worker/types", [], function (exports_26, contex
 });
 System.register("web/src/drawing/drawing-worker", [], function (exports_27, context_27) {
     "use strict";
-    var MAX_PENDING_FRAMES, USE_OPTMIZED_TYPES, DrawingWorker;
+    var MAX_PENDING_FRAMES, DrawingWorker;
     var __moduleName = context_27 && context_27.id;
     return {
         setters: [],
         execute: function () {
             MAX_PENDING_FRAMES = 2;
-            USE_OPTMIZED_TYPES = true;
             DrawingWorker = class DrawingWorker {
                 constructor(width, height, drawingDone) {
                     this.ready = false;
                     this.queue = [];
-                    this.optimizedQueueLen = 0;
+                    this.drawQueueLen = 0;
                     this.tileMappings = new Map();
                     this.nextTileId = 0;
                     this.pendingDoneResults = [];
                     this.pendingFrames = 0;
                     this.worker = new Worker("./worker.js", { type: "module" });
                     this.worker.onmessage = (e) => this.onMessage(e.data);
-                    this.pixels = new ArrayBuffer(width * height * 4);
                     this.pixelsWidth = width;
                     this.pixelsHeight = height;
                     this.drawingDone = drawingDone;
-                    this.optimizedQueue = new ArrayBuffer(1024 * 64);
-                    this.optimizedQueue32 = new Int32Array(this.optimizedQueue);
-                    this.optimizedQueueLen = 0;
+                    this.drawQueue = new ArrayBuffer(1024 * 64);
+                    this.drawQueue32 = new Int32Array(this.drawQueue);
+                    this.drawQueueLen = 0;
                 }
                 enqueueCommand(command) {
                     this.queue.push(command);
                 }
                 enqueueOptimizedCommand(cmd, ...args) {
-                    while (this.optimizedQueueLen + 2 + args.length >=
-                        this.optimizedQueue32.length) {
-                        const copy = new ArrayBuffer(this.optimizedQueue.byteLength * 2);
+                    while (this.drawQueueLen + 2 + args.length >=
+                        this.drawQueue32.length) {
+                        const copy = new ArrayBuffer(this.drawQueue.byteLength * 2);
                         const copy32 = new Int32Array(copy);
-                        copy32.set(this.optimizedQueue32);
-                        this.optimizedQueue = copy;
-                        this.optimizedQueue32 = copy32;
+                        copy32.set(this.drawQueue32);
+                        this.drawQueue = copy;
+                        this.drawQueue32 = copy32;
                     }
-                    this.optimizedQueue32[this.optimizedQueueLen++] = cmd;
-                    this.optimizedQueue32[this.optimizedQueueLen++] = args.length;
+                    this.drawQueue32[this.drawQueueLen++] = cmd;
+                    this.drawQueue32[this.drawQueueLen++] = args.length;
                     for (let i = 0; i < args.length; i++) {
-                        this.optimizedQueue32[this.optimizedQueueLen++] = args[i];
+                        this.drawQueue32[this.drawQueueLen++] = args[i];
                     }
                 }
                 getTileId(tile) {
@@ -2697,12 +2695,10 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                 setSize(width, height) {
                     if (width === this.pixelsWidth && height === this.pixelsHeight)
                         return;
-                    this.pixels = new ArrayBuffer(width * height * 4);
                     this.pixelsWidth = width;
                     this.pixelsHeight = height;
-                    //reset queue when size changes
-                    this.optimizedQueueLen = 0;
-                    this.queue.length = 0;
+                    this.drawQueueLen = 0; //reset queue when size changes
+                    this.queue.length = 0; //reset queue when size changes
                     if (this.ready) {
                         this.enqueueCommand({
                             type: "setSize",
@@ -2712,98 +2708,34 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     }
                 }
                 tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    if (USE_OPTMIZED_TYPES) {
-                        this.enqueueOptimizedCommand(1 /* TintTile */, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
-                    }
-                    else {
-                        this.enqueueCommand({
-                            type: "tintTile",
-                            t: this.getTileId(t),
-                            foreColor,
-                            backColor,
-                            x,
-                            y,
-                            cfx,
-                            cfy,
-                            ctx,
-                            cty,
-                        });
-                    }
+                    this.enqueueOptimizedCommand(1 /* TintTile */, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
                 }
                 setTile(t, x, y, cfx, cfy, ctx, cty) {
-                    if (USE_OPTMIZED_TYPES) {
-                        this.enqueueOptimizedCommand(0 /* SetTile */, this.getTileId(t), x, y, cfx, cfy, ctx, cty);
-                    }
-                    else {
-                        this.enqueueCommand({
-                            type: "setTile",
-                            t: this.getTileId(t),
-                            x,
-                            y,
-                            cfx,
-                            cfy,
-                            ctx,
-                            cty,
-                        });
-                    }
+                    this.enqueueOptimizedCommand(0 /* SetTile */, this.getTileId(t), x, y, cfx, cfy, ctx, cty);
                 }
                 fillRect(color, x, y, width, height) {
-                    if (USE_OPTMIZED_TYPES) {
-                        this.enqueueOptimizedCommand(2 /* FillRect */, color, x, y, width, height);
-                    }
-                    else {
-                        this.enqueueCommand({
-                            type: "fillRect",
-                            color,
-                            x,
-                            y,
-                            width,
-                            height,
-                        });
-                    }
+                    this.enqueueOptimizedCommand(2 /* FillRect */, color, x, y, width, height);
                 }
                 scrollRect(x, y, width, height, dx, dy) {
-                    if (USE_OPTMIZED_TYPES) {
-                        this.enqueueOptimizedCommand(3 /* ScrollRect */, x, y, width, height, dx, dy);
-                    }
-                    else {
-                        this.enqueueCommand({
-                            type: "scrollRect",
-                            x,
-                            y,
-                            width,
-                            height,
-                            dx,
-                            dy,
-                        });
-                    }
+                    this.enqueueOptimizedCommand(3 /* ScrollRect */, x, y, width, height, dx, dy);
                 }
                 dispatch() {
                     if (!this.ready)
                         return;
-                    if (this.queue.length === 0 && this.optimizedQueueLen === 0)
+                    if (this.queue.length === 0 && this.drawQueueLen === 0)
                         return;
-                    if (this.optimizedQueueLen > 0) {
-                        const copy = new ArrayBuffer(this.optimizedQueueLen * 4);
-                        const copy32 = new Int32Array(copy);
-                        copy32.set(this.optimizedQueue32.slice(0, this.optimizedQueueLen));
-                        const batch = {
-                            type: "optimized-batch",
-                            optCommands: copy,
-                            optCommandsLen: this.optimizedQueueLen,
-                            commands: this.queue,
-                        };
-                        this.worker.postMessage(batch, [copy]);
-                    }
-                    else {
-                        const batch = {
-                            type: "batch",
-                            commands: this.queue,
-                        };
-                        this.worker.postMessage(batch);
-                    }
+                    const copy = new ArrayBuffer(this.drawQueueLen * 4);
+                    const copy32 = new Int32Array(copy);
+                    copy32.set(this.drawQueue32.slice(0, this.drawQueueLen));
+                    const batch = {
+                        type: "batch",
+                        drawCommands: copy,
+                        drawCommandsLen: this.drawQueueLen,
+                        commands: this.queue,
+                    };
+                    this.worker.postMessage(batch, [copy]);
                     this.queue = [];
-                    this.optimizedQueueLen = 0;
+                    this.drawQueueLen = 0;
                     this.pendingFrames++;
                 }
                 readyForNextFrame() {
@@ -2815,12 +2747,8 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                         const result = this.pendingDoneResults.shift();
                         if (result.dirty &&
                             result.dirtyParams) {
-                            if (result.dirtyParams.pixelsWidth === this.pixelsWidth &&
-                                result.dirtyParams.pixelsHeight === this.pixelsHeight) {
-                                new Uint8Array(this.pixels).set(new Uint8Array(result.dirtyParams.pixels));
-                                result.dirtyParams.pixels = this.pixels;
-                            }
-                            else {
+                            if (result.dirtyParams.pixelsWidth !== this.pixelsWidth ||
+                                result.dirtyParams.pixelsHeight !== this.pixelsHeight) {
                                 //Ignore dirty from different size, must be an old frame
                                 result.dirty = false;
                                 result.dirtyParams = undefined;

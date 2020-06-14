@@ -1,5 +1,4 @@
 import {
-  Size,
   Color,
   AlphaType,
 } from "engine/types.ts";

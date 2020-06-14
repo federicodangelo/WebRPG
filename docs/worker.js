@@ -1047,20 +1047,30 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
     function getTile(tid) {
         return tilesMapping.get(tid);
     }
+    function handleDrawCommands(optCommands, len) {
+        let index = 0;
+        while (index < len) {
+            const cmd = optCommands[index++];
+            const argsLen = optCommands[index++];
+            switch (cmd) {
+                case 0 /* SetTile */:
+                    drawing.setTile(getTile(optCommands[index + 0]), optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5], optCommands[index + 6]);
+                    break;
+                case 1 /* TintTile */:
+                    drawing.tintTile(getTile(optCommands[index + 0]), optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5], optCommands[index + 6], optCommands[index + 7], optCommands[index + 8]);
+                    break;
+                case 2 /* FillRect */:
+                    drawing.fillRect(optCommands[index + 0], optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4]);
+                    break;
+                case 3 /* ScrollRect */:
+                    drawing.scrollRect(optCommands[index + 0], optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5]);
+                    break;
+            }
+            index += argsLen;
+        }
+    }
     function handleCommand(command) {
         switch (command.type) {
-            case "setTile":
-                drawing.setTile(getTile(command.t), command.x, command.y, command.cfx, command.cfy, command.ctx, command.cty);
-                break;
-            case "tintTile":
-                drawing.tintTile(getTile(command.t), command.foreColor, command.backColor, command.x, command.y, command.cfx, command.cfy, command.ctx, command.cty);
-                break;
-            case "fillRect":
-                drawing.fillRect(command.color, command.x, command.y, command.width, command.height);
-                break;
-            case "scrollRect":
-                drawing.scrollRect(command.x, command.y, command.width, command.height, command.dx, command.dy);
-                break;
             case "setSize":
                 drawing.setSize(command.width, command.height);
                 break;
@@ -1075,33 +1085,8 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
                 break;
             case "batch":
                 command.commands.forEach((c) => handleCommand(c));
+                handleDrawCommands(new Int32Array(command.drawCommands), command.drawCommandsLen);
                 break;
-            case "optimized-batch": {
-                command.commands.forEach((c) => handleCommand(c));
-                let index = 0;
-                const len = command.optCommandsLen;
-                const optCommands = new Int32Array(command.optCommands);
-                while (index < len) {
-                    const cmd = optCommands[index++];
-                    const argsLen = optCommands[index++];
-                    switch (cmd) {
-                        case 0 /* SetTile */:
-                            drawing.setTile(getTile(optCommands[index + 0]), optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5], optCommands[index + 6]);
-                            break;
-                        case 1 /* TintTile */:
-                            drawing.tintTile(getTile(optCommands[index + 0]), optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5], optCommands[index + 6], optCommands[index + 7], optCommands[index + 8]);
-                            break;
-                        case 2 /* FillRect */:
-                            drawing.fillRect(optCommands[index + 0], optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4]);
-                            break;
-                        case 3 /* ScrollRect */:
-                            drawing.scrollRect(optCommands[index + 0], optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5]);
-                            break;
-                    }
-                    index += argsLen;
-                }
-                break;
-            }
         }
     }
     return {

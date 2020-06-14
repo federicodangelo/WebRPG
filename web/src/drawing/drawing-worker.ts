@@ -12,25 +12,22 @@ import {
   DrawingCommand,
   TileId,
   DrawingBatch,
-  DrawingOptimizedBatch,
-  OptimizedDrawingCommandType,
+  DrawCommandType,
 } from "./worker/types.ts";
 
 const MAX_PENDING_FRAMES = 2;
-const USE_OPTMIZED_TYPES = true;
 
 export class DrawingWorker implements Drawing {
   private ready = false;
   private worker: Worker;
 
-  private pixels: ArrayBuffer;
   private pixelsWidth: number;
   private pixelsHeight: number;
 
   private queue: DrawingCommand[] = [];
-  private optimizedQueue: ArrayBuffer;
-  private optimizedQueue32: Int32Array;
-  private optimizedQueueLen = 0;
+  private drawQueue: ArrayBuffer;
+  private drawQueue32: Int32Array;
+  private drawQueueLen = 0;
 
   private tileMappings = new Map<DrawingTile, TileId>();
   private nextTileId = 0;
@@ -46,13 +43,12 @@ export class DrawingWorker implements Drawing {
   ) {
     this.worker = new Worker("./worker.js", { type: "module" });
     this.worker.onmessage = (e) => this.onMessage(e.data);
-    this.pixels = new ArrayBuffer(width * height * 4);
     this.pixelsWidth = width;
     this.pixelsHeight = height;
     this.drawingDone = drawingDone;
-    this.optimizedQueue = new ArrayBuffer(1024 * 64);
-    this.optimizedQueue32 = new Int32Array(this.optimizedQueue);
-    this.optimizedQueueLen = 0;
+    this.drawQueue = new ArrayBuffer(1024 * 64);
+    this.drawQueue32 = new Int32Array(this.drawQueue);
+    this.drawQueueLen = 0;
   }
 
   private enqueueCommand(command: DrawingCommand) {
@@ -60,24 +56,24 @@ export class DrawingWorker implements Drawing {
   }
 
   private enqueueOptimizedCommand(
-    cmd: OptimizedDrawingCommandType,
+    cmd: DrawCommandType,
     ...args: number[]
   ) {
     while (
-      this.optimizedQueueLen + 2 + args.length >=
-        this.optimizedQueue32.length
+      this.drawQueueLen + 2 + args.length >=
+        this.drawQueue32.length
     ) {
-      const copy = new ArrayBuffer(this.optimizedQueue.byteLength * 2);
+      const copy = new ArrayBuffer(this.drawQueue.byteLength * 2);
       const copy32 = new Int32Array(copy);
-      copy32.set(this.optimizedQueue32);
-      this.optimizedQueue = copy;
-      this.optimizedQueue32 = copy32;
+      copy32.set(this.drawQueue32);
+      this.drawQueue = copy;
+      this.drawQueue32 = copy32;
     }
 
-    this.optimizedQueue32[this.optimizedQueueLen++] = cmd;
-    this.optimizedQueue32[this.optimizedQueueLen++] = args.length;
+    this.drawQueue32[this.drawQueueLen++] = cmd;
+    this.drawQueue32[this.drawQueueLen++] = args.length;
     for (let i = 0; i < args.length; i++) {
-      this.optimizedQueue32[this.optimizedQueueLen++] = args[i];
+      this.drawQueue32[this.drawQueueLen++] = args[i];
     }
   }
 
@@ -126,12 +122,10 @@ export class DrawingWorker implements Drawing {
 
   public setSize(width: number, height: number) {
     if (width === this.pixelsWidth && height === this.pixelsHeight) return;
-    this.pixels = new ArrayBuffer(width * height * 4);
     this.pixelsWidth = width;
     this.pixelsHeight = height;
-    //reset queue when size changes
-    this.optimizedQueueLen = 0;
-    this.queue.length = 0;
+    this.drawQueueLen = 0; //reset queue when size changes
+    this.queue.length = 0; //reset queue when size changes
     if (this.ready) {
       this.enqueueCommand({
         type: "setSize",
@@ -152,33 +146,18 @@ export class DrawingWorker implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    if (USE_OPTMIZED_TYPES) {
-      this.enqueueOptimizedCommand(
-        OptimizedDrawingCommandType.TintTile,
-        this.getTileId(t),
-        foreColor,
-        backColor,
-        x,
-        y,
-        cfx,
-        cfy,
-        ctx,
-        cty,
-      );
-    } else {
-      this.enqueueCommand({
-        type: "tintTile",
-        t: this.getTileId(t),
-        foreColor,
-        backColor,
-        x,
-        y,
-        cfx,
-        cfy,
-        ctx,
-        cty,
-      });
-    }
+    this.enqueueOptimizedCommand(
+      DrawCommandType.TintTile,
+      this.getTileId(t),
+      foreColor,
+      backColor,
+      x,
+      y,
+      cfx,
+      cfy,
+      ctx,
+      cty,
+    );
   }
 
   public setTile(
@@ -190,29 +169,16 @@ export class DrawingWorker implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    if (USE_OPTMIZED_TYPES) {
-      this.enqueueOptimizedCommand(
-        OptimizedDrawingCommandType.SetTile,
-        this.getTileId(t),
-        x,
-        y,
-        cfx,
-        cfy,
-        ctx,
-        cty,
-      );
-    } else {
-      this.enqueueCommand({
-        type: "setTile",
-        t: this.getTileId(t),
-        x,
-        y,
-        cfx,
-        cfy,
-        ctx,
-        cty,
-      });
-    }
+    this.enqueueOptimizedCommand(
+      DrawCommandType.SetTile,
+      this.getTileId(t),
+      x,
+      y,
+      cfx,
+      cfy,
+      ctx,
+      cty,
+    );
   }
 
   public fillRect(
@@ -222,25 +188,14 @@ export class DrawingWorker implements Drawing {
     width: number,
     height: number,
   ) {
-    if (USE_OPTMIZED_TYPES) {
-      this.enqueueOptimizedCommand(
-        OptimizedDrawingCommandType.FillRect,
-        color,
-        x,
-        y,
-        width,
-        height,
-      );
-    } else {
-      this.enqueueCommand({
-        type: "fillRect",
-        color,
-        x,
-        y,
-        width,
-        height,
-      });
-    }
+    this.enqueueOptimizedCommand(
+      DrawCommandType.FillRect,
+      color,
+      x,
+      y,
+      width,
+      height,
+    );
   }
 
   public scrollRect(
@@ -251,54 +206,34 @@ export class DrawingWorker implements Drawing {
     dx: number,
     dy: number,
   ) {
-    if (USE_OPTMIZED_TYPES) {
-      this.enqueueOptimizedCommand(
-        OptimizedDrawingCommandType.ScrollRect,
-        x,
-        y,
-        width,
-        height,
-        dx,
-        dy,
-      );
-    } else {
-      this.enqueueCommand({
-        type: "scrollRect",
-        x,
-        y,
-        width,
-        height,
-        dx,
-        dy,
-      });
-    }
+    this.enqueueOptimizedCommand(
+      DrawCommandType.ScrollRect,
+      x,
+      y,
+      width,
+      height,
+      dx,
+      dy,
+    );
   }
 
   public dispatch() {
     if (!this.ready) return;
-    if (this.queue.length === 0 && this.optimizedQueueLen === 0) return;
+    if (this.queue.length === 0 && this.drawQueueLen === 0) return;
 
-    if (this.optimizedQueueLen > 0) {
-      const copy = new ArrayBuffer(this.optimizedQueueLen * 4);
-      const copy32 = new Int32Array(copy);
-      copy32.set(this.optimizedQueue32.slice(0, this.optimizedQueueLen));
-      const batch: DrawingOptimizedBatch = {
-        type: "optimized-batch",
-        optCommands: copy,
-        optCommandsLen: this.optimizedQueueLen,
-        commands: this.queue,
-      };
-      this.worker.postMessage(batch, [copy]);
-    } else {
-      const batch: DrawingBatch = {
-        type: "batch",
-        commands: this.queue,
-      };
-      this.worker.postMessage(batch);
-    }
+    const copy = new ArrayBuffer(this.drawQueueLen * 4);
+    const copy32 = new Int32Array(copy);
+    copy32.set(this.drawQueue32.slice(0, this.drawQueueLen));
+    const batch: DrawingBatch = {
+      type: "batch",
+      drawCommands: copy,
+      drawCommandsLen: this.drawQueueLen,
+      commands: this.queue,
+    };
+    this.worker.postMessage(batch, [copy]);
 
     this.queue = [];
-    this.optimizedQueueLen = 0;
+    this.drawQueueLen = 0;
     this.pendingFrames++;
   }
 
@@ -315,14 +250,9 @@ export class DrawingWorker implements Drawing {
         result.dirtyParams
       ) {
         if (
-          result.dirtyParams.pixelsWidth === this.pixelsWidth &&
-          result.dirtyParams.pixelsHeight === this.pixelsHeight
+          result.dirtyParams.pixelsWidth !== this.pixelsWidth ||
+          result.dirtyParams.pixelsHeight !== this.pixelsHeight
         ) {
-          new Uint8Array(this.pixels).set(
-            new Uint8Array(result.dirtyParams.pixels),
-          );
-          result.dirtyParams.pixels = this.pixels;
-        } else {
           //Ignore dirty from different size, must be an old frame
           result.dirty = false;
           result.dirtyParams = undefined;
