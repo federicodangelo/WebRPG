@@ -67,7 +67,10 @@ app.use(async (context, next) => {
 
 // Static Content
 app.use(async (context) => {
-  await send(context, context.request.url.pathname, {
+  const path = context.request.url.pathname.startsWith("/WebRPG")
+    ? context.request.url.pathname.substring("/WebRPG".length)
+    : context.request.url.pathname;
+  await send(context, path, {
     root: `${Deno.cwd()}/../docs`,
     index: "index.html",
   });
