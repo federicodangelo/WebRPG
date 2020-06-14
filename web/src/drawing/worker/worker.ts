@@ -3,6 +3,7 @@ import {
   DrawingCommand,
   DrawingResponse,
   TileId,
+  OptimizedDrawingCommandType,
 } from "./types.ts";
 import { DrawingTile } from "../types.ts";
 
@@ -95,6 +96,63 @@ function handleCommand(command: DrawingCommand) {
     case "batch":
       command.commands.forEach((c) => handleCommand(c));
       break;
+    case "optimized-batch": {
+      command.commands.forEach((c) => handleCommand(c));
+      let index = 0;
+      const len = command.optCommandsLen;
+      const optCommands = new Int32Array(command.optCommands);
+      while (index < len) {
+        const cmd: OptimizedDrawingCommandType = optCommands[index++];
+        const argsLen = optCommands[index++];
+        switch (cmd) {
+          case OptimizedDrawingCommandType.SetTile:
+            drawing.setTile(
+              getTile(optCommands[index + 0]),
+              optCommands[index + 1],
+              optCommands[index + 2],
+              optCommands[index + 3],
+              optCommands[index + 4],
+              optCommands[index + 5],
+              optCommands[index + 6],
+            );
+            break;
+          case OptimizedDrawingCommandType.TintTile:
+            drawing.tintTile(
+              getTile(optCommands[index + 0]),
+              optCommands[index + 1],
+              optCommands[index + 2],
+              optCommands[index + 3],
+              optCommands[index + 4],
+              optCommands[index + 5],
+              optCommands[index + 6],
+              optCommands[index + 7],
+              optCommands[index + 8],
+            );
+            break;
+          case OptimizedDrawingCommandType.FillRect:
+            drawing.fillRect(
+              optCommands[index + 0],
+              optCommands[index + 1],
+              optCommands[index + 2],
+              optCommands[index + 3],
+              optCommands[index + 4],
+            );
+            break;
+          case OptimizedDrawingCommandType.ScrollRect:
+            drawing.scrollRect(
+              optCommands[index + 0],
+              optCommands[index + 1],
+              optCommands[index + 2],
+              optCommands[index + 3],
+              optCommands[index + 4],
+              optCommands[index + 5],
+            );
+            break;
+        }
+        index += argsLen;
+      }
+      break;
+    }
   }
 }
 

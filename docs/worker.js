@@ -1076,6 +1076,32 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             case "batch":
                 command.commands.forEach((c) => handleCommand(c));
                 break;
+            case "optimized-batch": {
+                command.commands.forEach((c) => handleCommand(c));
+                let index = 0;
+                const len = command.optCommandsLen;
+                const optCommands = new Int32Array(command.optCommands);
+                while (index < len) {
+                    const cmd = optCommands[index++];
+                    const argsLen = optCommands[index++];
+                    switch (cmd) {
+                        case 0 /* SetTile */:
+                            drawing.setTile(getTile(optCommands[index + 0]), optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5], optCommands[index + 6]);
+                            break;
+                        case 1 /* TintTile */:
+                            drawing.tintTile(getTile(optCommands[index + 0]), optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5], optCommands[index + 6], optCommands[index + 7], optCommands[index + 8]);
+                            break;
+                        case 2 /* FillRect */:
+                            drawing.fillRect(optCommands[index + 0], optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4]);
+                            break;
+                        case 3 /* ScrollRect */:
+                            drawing.scrollRect(optCommands[index + 0], optCommands[index + 1], optCommands[index + 2], optCommands[index + 3], optCommands[index + 4], optCommands[index + 5]);
+                            break;
+                    }
+                    index += argsLen;
+                }
+                break;
+            }
         }
     }
     return {

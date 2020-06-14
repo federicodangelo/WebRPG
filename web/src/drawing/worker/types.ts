@@ -69,6 +69,13 @@ export type DrawingBatch = {
   commands: DrawingCommand[];
 };
 
+export type DrawingOptimizedBatch = {
+  type: "optimized-batch";
+  commands: DrawingCommand[];
+  optCommands: ArrayBuffer; //Int32Array
+  optCommandsLen: number;
+};
+
 export type DrawingCommand =
   | DrawingAddTile
   | DrawingSetSize
@@ -76,7 +83,8 @@ export type DrawingCommand =
   | DrawingSetTile
   | DrawingFillRect
   | DrawingScrollRect
-  | DrawingBatch;
+  | DrawingBatch
+  | DrawingOptimizedBatch;
 
 export type DrawingResult = {
   type: "result";
@@ -88,3 +96,10 @@ export type DrawingReady = {
 };
 
 export type DrawingResponse = DrawingResult | DrawingReady;
+
+export const enum OptimizedDrawingCommandType {
+  SetTile,
+  TintTile,
+  FillRect,
+  ScrollRect,
+}

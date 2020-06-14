@@ -1,5 +1,4 @@
 import {
-  Size,
   Color,
 } from "engine/types.ts";
 import {
@@ -13,9 +12,12 @@ import {
   DrawingCommand,
   TileId,
   DrawingBatch,
+  DrawingOptimizedBatch,
+  OptimizedDrawingCommandType,
 } from "./worker/types.ts";
 
 const MAX_PENDING_FRAMES = 2;
+const USE_OPTMIZED_TYPES = true;
 
 export class DrawingWorker implements Drawing {
   private ready = false;
@@ -26,6 +28,10 @@ export class DrawingWorker implements Drawing {
   private pixelsHeight: number;
 
   private queue: DrawingCommand[] = [];
+  private optimizedQueue: ArrayBuffer;
+  private optimizedQueue32: Int32Array;
+  private optimizedQueueLen = 0;
+
   private tileMappings = new Map<DrawingTile, TileId>();
   private nextTileId = 0;
   private pendingDoneResults: DrawingDoneResult[] = [];
@@ -44,10 +50,35 @@ export class DrawingWorker implements Drawing {
     this.pixelsWidth = width;
     this.pixelsHeight = height;
     this.drawingDone = drawingDone;
+    this.optimizedQueue = new ArrayBuffer(1024 * 64);
+    this.optimizedQueue32 = new Int32Array(this.optimizedQueue);
+    this.optimizedQueueLen = 0;
   }
 
   private enqueueCommand(command: DrawingCommand) {
     this.queue.push(command);
+  }
+
+  private enqueueOptimizedCommand(
+    cmd: OptimizedDrawingCommandType,
+    ...args: number[]
+  ) {
+    while (
+      this.optimizedQueueLen + 2 + args.length >=
+        this.optimizedQueue32.length
+    ) {
+      const copy = new ArrayBuffer(this.optimizedQueue.byteLength * 2);
+      const copy32 = new Int32Array(copy);
+      copy32.set(this.optimizedQueue32);
+      this.optimizedQueue = copy;
+      this.optimizedQueue32 = copy32;
+    }
+
+    this.optimizedQueue32[this.optimizedQueueLen++] = cmd;
+    this.optimizedQueue32[this.optimizedQueueLen++] = args.length;
+    for (let i = 0; i < args.length; i++) {
+      this.optimizedQueue32[this.optimizedQueueLen++] = args[i];
+    }
   }
 
   private getTileId(tile: DrawingTile): TileId {
@@ -94,14 +125,20 @@ export class DrawingWorker implements Drawing {
   }
 
   public setSize(width: number, height: number) {
+    if (width === this.pixelsWidth && height === this.pixelsHeight) return;
     this.pixels = new ArrayBuffer(width * height * 4);
     this.pixelsWidth = width;
     this.pixelsHeight = height;
-    this.enqueueCommand({
-      type: "setSize",
-      width,
-      height,
-    });
+    //reset queue when size changes
+    this.optimizedQueueLen = 0;
+    this.queue.length = 0;
+    if (this.ready) {
+      this.enqueueCommand({
+        type: "setSize",
+        width,
+        height,
+      });
+    }
   }
 
   public tintTile(
@@ -115,18 +152,33 @@ export class DrawingWorker implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    this.enqueueCommand({
-      type: "tintTile",
-      t: this.getTileId(t),
-      foreColor,
-      backColor,
-      x,
-      y,
-      cfx,
-      cfy,
-      ctx,
-      cty,
-    });
+    if (USE_OPTMIZED_TYPES) {
+      this.enqueueOptimizedCommand(
+        OptimizedDrawingCommandType.TintTile,
+        this.getTileId(t),
+        foreColor,
+        backColor,
+        x,
+        y,
+        cfx,
+        cfy,
+        ctx,
+        cty,
+      );
+    } else {
+      this.enqueueCommand({
+        type: "tintTile",
+        t: this.getTileId(t),
+        foreColor,
+        backColor,
+        x,
+        y,
+        cfx,
+        cfy,
+        ctx,
+        cty,
+      });
+    }
   }
 
   public setTile(
@@ -138,16 +190,29 @@ export class DrawingWorker implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    this.enqueueCommand({
-      type: "setTile",
-      t: this.getTileId(t),
-      x,
-      y,
-      cfx,
-      cfy,
-      ctx,
-      cty,
-    });
+    if (USE_OPTMIZED_TYPES) {
+      this.enqueueOptimizedCommand(
+        OptimizedDrawingCommandType.SetTile,
+        this.getTileId(t),
+        x,
+        y,
+        cfx,
+        cfy,
+        ctx,
+        cty,
+      );
+    } else {
+      this.enqueueCommand({
+        type: "setTile",
+        t: this.getTileId(t),
+        x,
+        y,
+        cfx,
+        cfy,
+        ctx,
+        cty,
+      });
+    }
   }
 
   public fillRect(
@@ -157,14 +222,25 @@ export class DrawingWorker implements Drawing {
     width: number,
     height: number,
   ) {
-    this.enqueueCommand({
-      type: "fillRect",
-      color,
-      x,
-      y,
-      width,
-      height,
-    });
+    if (USE_OPTMIZED_TYPES) {
+      this.enqueueOptimizedCommand(
+        OptimizedDrawingCommandType.FillRect,
+        color,
+        x,
+        y,
+        width,
+        height,
+      );
+    } else {
+      this.enqueueCommand({
+        type: "fillRect",
+        color,
+        x,
+        y,
+        width,
+        height,
+      });
+    }
   }
 
   public scrollRect(
@@ -175,27 +251,54 @@ export class DrawingWorker implements Drawing {
     dx: number,
     dy: number,
   ) {
-    this.enqueueCommand({
-      type: "scrollRect",
-      x,
-      y,
-      width,
-      height,
-      dx,
-      dy,
-    });
+    if (USE_OPTMIZED_TYPES) {
+      this.enqueueOptimizedCommand(
+        OptimizedDrawingCommandType.ScrollRect,
+        x,
+        y,
+        width,
+        height,
+        dx,
+        dy,
+      );
+    } else {
+      this.enqueueCommand({
+        type: "scrollRect",
+        x,
+        y,
+        width,
+        height,
+        dx,
+        dy,
+      });
+    }
   }
 
   public dispatch() {
     if (!this.ready) return;
-    if (this.queue.length === 0) return;
+    if (this.queue.length === 0 && this.optimizedQueueLen === 0) return;
 
-    const batch: DrawingBatch = {
-      type: "batch",
-      commands: this.queue,
-    };
+    if (this.optimizedQueueLen > 0) {
+      const copy = new ArrayBuffer(this.optimizedQueueLen * 4);
+      const copy32 = new Int32Array(copy);
+      copy32.set(this.optimizedQueue32.slice(0, this.optimizedQueueLen));
+      const batch: DrawingOptimizedBatch = {
+        type: "optimized-batch",
+        optCommands: copy,
+        optCommandsLen: this.optimizedQueueLen,
+        commands: this.queue,
+      };
+      this.worker.postMessage(batch, [copy]);
+    } else {
+      const batch: DrawingBatch = {
+        type: "batch",
+        commands: this.queue,
+      };
+      this.worker.postMessage(batch);
+    }
+
     this.queue = [];
-    this.worker.postMessage(batch);
+    this.optimizedQueueLen = 0;
     this.pendingFrames++;
   }
 

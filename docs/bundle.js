@@ -2613,16 +2613,18 @@ System.register("web/src/drawing/worker/types", [], function (exports_26, contex
 });
 System.register("web/src/drawing/drawing-worker", [], function (exports_27, context_27) {
     "use strict";
-    var MAX_PENDING_FRAMES, DrawingWorker;
+    var MAX_PENDING_FRAMES, USE_OPTMIZED_TYPES, DrawingWorker;
     var __moduleName = context_27 && context_27.id;
     return {
         setters: [],
         execute: function () {
             MAX_PENDING_FRAMES = 2;
+            USE_OPTMIZED_TYPES = true;
             DrawingWorker = class DrawingWorker {
                 constructor(width, height, drawingDone) {
                     this.ready = false;
                     this.queue = [];
+                    this.optimizedQueueLen = 0;
                     this.tileMappings = new Map();
                     this.nextTileId = 0;
                     this.pendingDoneResults = [];
@@ -2633,9 +2635,27 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     this.pixelsWidth = width;
                     this.pixelsHeight = height;
                     this.drawingDone = drawingDone;
+                    this.optimizedQueue = new ArrayBuffer(1024 * 64);
+                    this.optimizedQueue32 = new Int32Array(this.optimizedQueue);
+                    this.optimizedQueueLen = 0;
                 }
                 enqueueCommand(command) {
                     this.queue.push(command);
+                }
+                enqueueOptimizedCommand(cmd, ...args) {
+                    while (this.optimizedQueueLen + 2 + args.length >=
+                        this.optimizedQueue32.length) {
+                        const copy = new ArrayBuffer(this.optimizedQueue.byteLength * 2);
+                        const copy32 = new Int32Array(copy);
+                        copy32.set(this.optimizedQueue32);
+                        this.optimizedQueue = copy;
+                        this.optimizedQueue32 = copy32;
+                    }
+                    this.optimizedQueue32[this.optimizedQueueLen++] = cmd;
+                    this.optimizedQueue32[this.optimizedQueueLen++] = args.length;
+                    for (let i = 0; i < args.length; i++) {
+                        this.optimizedQueue32[this.optimizedQueueLen++] = args[i];
+                    }
                 }
                 getTileId(tile) {
                     const tileId = this.tileMappings.get(tile);
@@ -2675,73 +2695,115 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     }
                 }
                 setSize(width, height) {
+                    if (width === this.pixelsWidth && height === this.pixelsHeight)
+                        return;
                     this.pixels = new ArrayBuffer(width * height * 4);
                     this.pixelsWidth = width;
                     this.pixelsHeight = height;
-                    this.enqueueCommand({
-                        type: "setSize",
-                        width,
-                        height,
-                    });
+                    //reset queue when size changes
+                    this.optimizedQueueLen = 0;
+                    this.queue.length = 0;
+                    if (this.ready) {
+                        this.enqueueCommand({
+                            type: "setSize",
+                            width,
+                            height,
+                        });
+                    }
                 }
                 tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.enqueueCommand({
-                        type: "tintTile",
-                        t: this.getTileId(t),
-                        foreColor,
-                        backColor,
-                        x,
-                        y,
-                        cfx,
-                        cfy,
-                        ctx,
-                        cty,
-                    });
+                    if (USE_OPTMIZED_TYPES) {
+                        this.enqueueOptimizedCommand(1 /* TintTile */, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
+                    }
+                    else {
+                        this.enqueueCommand({
+                            type: "tintTile",
+                            t: this.getTileId(t),
+                            foreColor,
+                            backColor,
+                            x,
+                            y,
+                            cfx,
+                            cfy,
+                            ctx,
+                            cty,
+                        });
+                    }
                 }
                 setTile(t, x, y, cfx, cfy, ctx, cty) {
-                    this.enqueueCommand({
-                        type: "setTile",
-                        t: this.getTileId(t),
-                        x,
-                        y,
-                        cfx,
-                        cfy,
-                        ctx,
-                        cty,
-                    });
+                    if (USE_OPTMIZED_TYPES) {
+                        this.enqueueOptimizedCommand(0 /* SetTile */, this.getTileId(t), x, y, cfx, cfy, ctx, cty);
+                    }
+                    else {
+                        this.enqueueCommand({
+                            type: "setTile",
+                            t: this.getTileId(t),
+                            x,
+                            y,
+                            cfx,
+                            cfy,
+                            ctx,
+                            cty,
+                        });
+                    }
                 }
                 fillRect(color, x, y, width, height) {
-                    this.enqueueCommand({
-                        type: "fillRect",
-                        color,
-                        x,
-                        y,
-                        width,
-                        height,
-                    });
+                    if (USE_OPTMIZED_TYPES) {
+                        this.enqueueOptimizedCommand(2 /* FillRect */, color, x, y, width, height);
+                    }
+                    else {
+                        this.enqueueCommand({
+                            type: "fillRect",
+                            color,
+                            x,
+                            y,
+                            width,
+                            height,
+                        });
+                    }
                 }
                 scrollRect(x, y, width, height, dx, dy) {
-                    this.enqueueCommand({
-                        type: "scrollRect",
-                        x,
-                        y,
-                        width,
-                        height,
-                        dx,
-                        dy,
-                    });
+                    if (USE_OPTMIZED_TYPES) {
+                        this.enqueueOptimizedCommand(3 /* ScrollRect */, x, y, width, height, dx, dy);
+                    }
+                    else {
+                        this.enqueueCommand({
+                            type: "scrollRect",
+                            x,
+                            y,
+                            width,
+                            height,
+                            dx,
+                            dy,
+                        });
+                    }
                 }
                 dispatch() {
                     if (!this.ready)
                         return;
-                    if (this.queue.length === 0)
+                    if (this.queue.length === 0 && this.optimizedQueueLen === 0)
                         return;
-                    const batch = {
-                        type: "batch",
-                        commands: this.queue,
-                    };
+                    if (this.optimizedQueueLen > 0) {
+                        const copy = new ArrayBuffer(this.optimizedQueueLen * 4);
+                        const copy32 = new Int32Array(copy);
+                        copy32.set(this.optimizedQueue32.slice(0, this.optimizedQueueLen));
+                        const batch = {
+                            type: "optimized-batch",
+                            optCommands: copy,
+                            optCommandsLen: this.optimizedQueueLen,
+                            commands: this.queue,
+                        };
+                        this.worker.postMessage(batch, [copy]);
+                    }
+                    else {
+                        const batch = {
+                            type: "batch",
+                            commands: this.queue,
+                        };
+                        this.worker.postMessage(batch);
+                    }
                     this.queue = [];
-                    this.worker.postMessage(batch);
+                    this.optimizedQueueLen = 0;
                     this.pendingFrames++;
                 }
                 readyForNextFrame() {
@@ -2785,13 +2847,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         canvas.width = width * devicePixelRatio;
         canvas.height = height * devicePixelRatio;
         if (USE_DEVICE_PIXEL_RATIO) {
-            canvas.setAttribute("style", "width: " +
-                width +
-                "px;" +
-                "height: " +
-                height +
-                "px;" +
-                "image-rendering: pixelated;");
+            canvas.setAttribute("style", `width: ${width}px;height: ${height}px;image-rendering: pixelated;`);
         }
         return devicePixelRatio;
     }

@@ -27,13 +27,7 @@ function updateCanvasSize(
   if (USE_DEVICE_PIXEL_RATIO) {
     canvas.setAttribute(
       "style",
-      "width: " +
-        width +
-        "px;" +
-        "height: " +
-        height +
-        "px;" +
-        "image-rendering: pixelated;",
+      `width: ${width}px;height: ${height}px;image-rendering: pixelated;`,
     );
   }
 
