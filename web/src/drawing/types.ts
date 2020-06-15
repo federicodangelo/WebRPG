@@ -4,19 +4,23 @@ import {
 } from "engine/types.ts";
 import { NativeDrawStats } from "engine/native-types.ts";
 
-export type DrawingDoneResult = {
-  dirty: boolean;
-  dirtyParams?: {
-    dirtyRect: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    };
-    pixels: ArrayBuffer;
-    pixelsWidth: number;
-    pixelsHeight: number;
+export const LAYERS_COUNT = 2;
+
+export type DrawingDoneDirtyParams = {
+  layer: number;
+  dirtyRect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
   };
+  pixels: ArrayBuffer;
+  pixelsWidth: number;
+  pixelsHeight: number;
+};
+
+export type DrawingDoneResult = {
+  dirtyParams: DrawingDoneDirtyParams[];
   stats: NativeDrawStats;
 };
 
@@ -38,6 +42,7 @@ export type Drawing = {
   setSize(width: number, height: number): void;
 
   tintTile(
+    layer: number,
     t: DrawingTile,
     foreColor: Color,
     backColor: Color,
@@ -50,6 +55,7 @@ export type Drawing = {
   ): void;
 
   setTile(
+    layer: number,
     t: DrawingTile,
     x: number,
     y: number,
@@ -60,6 +66,7 @@ export type Drawing = {
   ): void;
 
   fillRect(
+    layer: number,
     color: Color,
     x: number,
     y: number,
@@ -68,6 +75,7 @@ export type Drawing = {
   ): void;
 
   scrollRect(
+    layer: number,
     x: number,
     y: number,
     width: number,

@@ -131,6 +131,7 @@ class EngineImpl implements Engine {
           );
 
           this.nativeContext.screen.scrollRect(
+            0,
             bbox.x,
             bbox.y,
             bbox.width,

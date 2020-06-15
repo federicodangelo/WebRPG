@@ -5,26 +5,28 @@ import {
   TileId,
   DrawingCommandType,
 } from "./types.ts";
-import { DrawingTile } from "../types.ts";
+import { DrawingTile, DrawingDoneResult } from "../types.ts";
 import { AlphaType } from "../../../../engine/src/types.ts";
 
 function sendResponse(response: DrawingResponse) {
-  if (
-    response.type === "result" &&
-    response.result.dirty &&
-    response.result.dirtyParams
-  ) {
-    const pixelsCopy = response.result.dirtyParams.pixels.slice(0);
-    response.result.dirtyParams.pixels = pixelsCopy;
+  if (response.type === "result") {
+    const transferables: Transferable[] = [];
+
+    for (let i = 0; i < response.result.dirtyParams.length; i++) {
+      const pixelsCopy = response.result.dirtyParams[i].pixels.slice(0);
+      response.result.dirtyParams[i].pixels = pixelsCopy;
+      transferables.push(pixelsCopy);
+    }
+
     //@ts-ignore
-    self.postMessage(response, [pixelsCopy]);
+    self.postMessage(response, transferables);
   } else {
     //@ts-ignore
     self.postMessage(response);
   }
 }
 
-const drawing = new DrawingReal(8, 8, (result) => {
+const drawing = new DrawingReal(8, 8, (result: DrawingDoneResult) => {
   sendResponse({
     type: "result",
     result,
@@ -51,19 +53,20 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
     switch (cmd) {
       case DrawingCommandType.SetTile:
         drawing.setTile(
-          getTile(commands[index + 0]),
-          commands[index + 1],
+          commands[index + 0],
+          getTile(commands[index + 1]),
           commands[index + 2],
           commands[index + 3],
           commands[index + 4],
           commands[index + 5],
           commands[index + 6],
+          commands[index + 7],
         );
         break;
       case DrawingCommandType.TintTile:
         drawing.tintTile(
-          getTile(commands[index + 0]),
-          commands[index + 1],
+          commands[index + 0],
+          getTile(commands[index + 1]),
           commands[index + 2],
           commands[index + 3],
           commands[index + 4],
@@ -71,6 +74,7 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
           commands[index + 6],
           commands[index + 7],
           commands[index + 8],
+          commands[index + 9],
         );
         break;
       case DrawingCommandType.FillRect:
@@ -80,6 +84,7 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
           commands[index + 2],
           commands[index + 3],
           commands[index + 4],
+          commands[index + 5],
         );
         break;
       case DrawingCommandType.ScrollRect:
@@ -90,6 +95,7 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
           commands[index + 3],
           commands[index + 4],
           commands[index + 5],
+          commands[index + 6],
         );
         break;
       case DrawingCommandType.SetSize:

@@ -22,6 +22,7 @@ export interface NativeContextScreen {
   beginDraw(): void;
 
   tintTile(
+    layer: number,
     t: Tile,
     foreColor: Color,
     backColor: Color,
@@ -34,6 +35,7 @@ export interface NativeContextScreen {
   ): void;
 
   setTile(
+    layer: number,
     t: Tile,
     x: number,
     y: number,
@@ -44,6 +46,7 @@ export interface NativeContextScreen {
   ): void;
 
   fillRect(
+    layer: number,
     color: Color,
     x: number,
     y: number,
@@ -52,6 +55,7 @@ export interface NativeContextScreen {
   ): void;
 
   scrollRect(
+    layer: number,
     x: number,
     y: number,
     width: number,

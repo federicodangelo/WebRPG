@@ -1,35 +1,32 @@
 import {
-  Size,
   Color,
   AlphaType,
   Rect,
 } from "engine/types.ts";
-import { Drawing, DrawingDoneFn, DrawingTile } from "./types.ts";
+import {
+  Drawing,
+  DrawingDoneFn,
+  DrawingTile,
+  DrawingDoneDirtyParams,
+  LAYERS_COUNT,
+} from "./types.ts";
 
-export class DrawingReal implements Drawing {
-  private pixels: ArrayBuffer;
-  private pixelsWidth: number;
-  private pixelsHeight: number;
+class DrawingRealLayer {
+  public pixels: ArrayBuffer;
+  public pixelsWidth: number;
+  public pixelsHeight: number;
 
-  private imageDataPixels8: Uint8ClampedArray;
-  private imageDataPixels32: Uint32Array;
-  private colorsRGB = new Uint32Array(2);
+  public imageDataPixels8: Uint8ClampedArray;
+  public imageDataPixels32: Uint32Array;
 
-  private dirty = false;
-  private dirtyPixels = 0;
-  private dirtyLeft = 0;
-  private dirtyRight = 0;
-  private dirtyTop = 0;
-  private dirtyBottom = 0;
-  private dirtyTime = 0;
-  private drawingDone: DrawingDoneFn;
+  public dirty = false;
+  public dirtyPixels = 0;
+  public dirtyLeft = 0;
+  public dirtyRight = 0;
+  public dirtyTop = 0;
+  public dirtyBottom = 0;
 
-  public constructor(
-    width: number,
-    height: number,
-    drawingDone: DrawingDoneFn,
-  ) {
-    this.drawingDone = drawingDone;
+  constructor(width: number, height: number) {
     this.pixels = new ArrayBuffer(width * height * 4);
     this.pixelsWidth = width;
     this.pixelsHeight = height;
@@ -45,7 +42,7 @@ export class DrawingReal implements Drawing {
     this.imageDataPixels32 = new Uint32Array(this.pixels);
   }
 
-  private setDirty(x: number, y: number, width: number, height: number) {
+  public setDirty(x: number, y: number, width: number, height: number) {
     if (!this.dirty) {
       this.dirty = true;
       this.dirtyPixels = 0;
@@ -53,7 +50,6 @@ export class DrawingReal implements Drawing {
       this.dirtyTop = y;
       this.dirtyRight = x + width;
       this.dirtyBottom = y + height;
-      this.dirtyTime = performance.now();
     } else {
       this.dirtyLeft = Math.min(this.dirtyLeft, x);
       this.dirtyTop = Math.min(this.dirtyTop, y);
@@ -63,7 +59,74 @@ export class DrawingReal implements Drawing {
     this.dirtyPixels += width * height;
   }
 
+  public getDirtyRect(): Rect {
+    const dirtyLeft = Math.max(
+      Math.min(this.dirtyLeft, this.pixelsWidth),
+      0,
+    );
+    const dirtyRight = Math.max(
+      Math.min(this.dirtyRight, this.pixelsWidth),
+      0,
+    );
+    const dirtyTop = Math.max(
+      Math.min(this.dirtyTop, this.pixelsHeight),
+      0,
+    );
+    const dirtyBottom = Math.max(
+      Math.min(this.dirtyBottom, this.pixelsHeight),
+      0,
+    );
+
+    return new Rect(
+      dirtyLeft,
+      dirtyTop,
+      dirtyRight - dirtyLeft,
+      dirtyBottom - dirtyTop,
+    );
+  }
+}
+
+export class DrawingReal implements Drawing {
+  private layers: DrawingRealLayer[] = [];
+  private colorsRGB = new Uint32Array(2);
+  private drawingDone: DrawingDoneFn;
+  private dirty = false;
+  private dirtyTime = 0;
+
+  public constructor(
+    width: number,
+    height: number,
+    drawingDone: DrawingDoneFn,
+  ) {
+    this.drawingDone = drawingDone;
+
+    for (let i = 0; i < LAYERS_COUNT; i++) {
+      this.layers.push(new DrawingRealLayer(width, height));
+    }
+  }
+
+  public setSize(width: number, height: number) {
+    for (let i = 0; i < this.layers.length; i++) {
+      this.layers[i].setSize(width, height);
+    }
+  }
+
+  private setDirty(
+    layer: number,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) {
+    if (!this.dirty) {
+      this.dirty = true;
+      this.dirtyTime = performance.now();
+    }
+    this.layers[layer].setDirty(x, y, width, height);
+  }
+
   public tintTile(
+    layer: number,
     t: DrawingTile,
     foreColor: Color,
     backColor: Color,
@@ -74,11 +137,11 @@ export class DrawingReal implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    this.setDirty(x, y, t.width, t.height);
+    this.setDirty(layer, x, y, t.width, t.height);
 
     const colorsRGB = this.colorsRGB;
-    const imageDataPixels32 = this.imageDataPixels32;
-    const screenWidth = this.pixelsWidth;
+    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+    const screenWidth = this.layers[layer].pixelsWidth;
 
     colorsRGB[1] = foreColor;
     colorsRGB[0] = backColor;
@@ -152,6 +215,7 @@ export class DrawingReal implements Drawing {
   }
 
   public setTile(
+    layer: number,
     t: DrawingTile,
     x: number,
     y: number,
@@ -160,11 +224,11 @@ export class DrawingReal implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    this.setDirty(x, y, t.width, t.height);
+    this.setDirty(layer, x, y, t.width, t.height);
 
-    const imageDataPixels8 = this.imageDataPixels8;
-    const imageDataPixels32 = this.imageDataPixels32;
-    const screenWidth = this.pixelsWidth;
+    const imageDataPixels8 = this.layers[layer].imageDataPixels8;
+    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+    const screenWidth = this.layers[layer].pixelsWidth;
 
     const tileWidth = t.width;
     const tileHeight = t.height;
@@ -284,16 +348,17 @@ export class DrawingReal implements Drawing {
   }
 
   public fillRect(
+    layer: number,
     color: Color,
     x: number,
     y: number,
     width: number,
     height: number,
   ) {
-    this.setDirty(x, y, width, height);
+    this.setDirty(layer, x, y, width, height);
 
-    const imageDataPixels32 = this.imageDataPixels32;
-    const screenWidth = this.pixelsWidth;
+    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+    const screenWidth = this.layers[layer].pixelsWidth;
 
     let p = 0;
 
@@ -306,6 +371,7 @@ export class DrawingReal implements Drawing {
   }
 
   public scrollRect(
+    layer: number,
     x: number,
     y: number,
     width: number,
@@ -313,11 +379,11 @@ export class DrawingReal implements Drawing {
     dx: number,
     dy: number,
   ) {
-    this.setDirty(x, y, width, height);
+    this.setDirty(layer, x, y, width, height);
 
-    const imageDataPixels32 = this.imageDataPixels32;
-    const screenWidth = this.pixelsWidth;
-    const screenHeight = this.pixelsHeight;
+    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+    const screenWidth = this.layers[layer].pixelsWidth;
+    const screenHeight = this.layers[layer].pixelsHeight;
 
     if (
       dy !== 0 && x == 0 &&
@@ -366,50 +432,36 @@ export class DrawingReal implements Drawing {
     }
   }
 
-  private getDirtyRect(): Rect {
-    const dirtyLeft = Math.max(
-      Math.min(this.dirtyLeft, this.pixelsWidth),
-      0,
-    );
-    const dirtyRight = Math.max(
-      Math.min(this.dirtyRight, this.pixelsWidth),
-      0,
-    );
-    const dirtyTop = Math.max(
-      Math.min(this.dirtyTop, this.pixelsHeight),
-      0,
-    );
-    const dirtyBottom = Math.max(
-      Math.min(this.dirtyBottom, this.pixelsHeight),
-      0,
-    );
-
-    return new Rect(
-      dirtyLeft,
-      dirtyTop,
-      dirtyRight - dirtyLeft,
-      dirtyBottom - dirtyTop,
-    );
-  }
-
   public dispatch() {
+    const dirtyParams: DrawingDoneDirtyParams[] = [];
+    let drawnPixels = 0;
+
+    for (let i = 0; i < this.layers.length; i++) {
+      const layer = this.layers[i];
+      if (layer.dirty) {
+        dirtyParams.push(
+          {
+            layer: i,
+            dirtyRect: layer.getDirtyRect(),
+            pixels: layer.pixels,
+            pixelsWidth: layer.pixelsWidth,
+            pixelsHeight: layer.pixelsHeight,
+          },
+        );
+        drawnPixels += layer.dirtyPixels;
+      }
+    }
+
     this.drawingDone({
-      dirty: this.dirty,
-      dirtyParams: this.dirty
-        ? {
-          dirtyRect: this.getDirtyRect(),
-          pixels: this.pixels,
-          pixelsWidth: this.pixelsWidth,
-          pixelsHeight: this.pixelsHeight,
-        }
-        : undefined,
+      dirtyParams,
       stats: {
-        drawnPixels: this.dirtyPixels,
+        drawnPixels,
         time: this.dirty ? performance.now() - this.dirtyTime : 0,
       },
     });
 
     this.dirty = false;
+    for (let i = 0; i < this.layers.length; i++) this.layers[i].dirty = false;
   }
 
   public willDispatch() {

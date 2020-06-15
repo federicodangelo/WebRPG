@@ -661,35 +661,37 @@ System.register("engine/src/native-types", [], function (exports_5, context_5) {
 });
 System.register("web/src/drawing/types", [], function (exports_6, context_6) {
     "use strict";
+    var LAYERS_COUNT;
     var __moduleName = context_6 && context_6.id;
     return {
         setters: [],
         execute: function () {
+            exports_6("LAYERS_COUNT", LAYERS_COUNT = 2);
         }
     };
 });
-System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_7, context_7) {
+System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/drawing/types"], function (exports_7, context_7) {
     "use strict";
-    var types_ts_3, DrawingReal;
+    var types_ts_3, types_ts_4, DrawingRealLayer, DrawingReal;
     var __moduleName = context_7 && context_7.id;
     return {
         setters: [
             function (types_ts_3_1) {
                 types_ts_3 = types_ts_3_1;
+            },
+            function (types_ts_4_1) {
+                types_ts_4 = types_ts_4_1;
             }
         ],
         execute: function () {
-            DrawingReal = class DrawingReal {
-                constructor(width, height, drawingDone) {
-                    this.colorsRGB = new Uint32Array(2);
+            DrawingRealLayer = class DrawingRealLayer {
+                constructor(width, height) {
                     this.dirty = false;
                     this.dirtyPixels = 0;
                     this.dirtyLeft = 0;
                     this.dirtyRight = 0;
                     this.dirtyTop = 0;
                     this.dirtyBottom = 0;
-                    this.dirtyTime = 0;
-                    this.drawingDone = drawingDone;
                     this.pixels = new ArrayBuffer(width * height * 4);
                     this.pixelsWidth = width;
                     this.pixelsHeight = height;
@@ -711,7 +713,6 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         this.dirtyTop = y;
                         this.dirtyRight = x + width;
                         this.dirtyBottom = y + height;
-                        this.dirtyTime = performance.now();
                     }
                     else {
                         this.dirtyLeft = Math.min(this.dirtyLeft, x);
@@ -721,11 +722,42 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     }
                     this.dirtyPixels += width * height;
                 }
-                tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.setDirty(x, y, t.width, t.height);
+                getDirtyRect() {
+                    const dirtyLeft = Math.max(Math.min(this.dirtyLeft, this.pixelsWidth), 0);
+                    const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
+                    const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
+                    const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
+                    return new types_ts_3.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
+                }
+            };
+            DrawingReal = class DrawingReal {
+                constructor(width, height, drawingDone) {
+                    this.layers = [];
+                    this.colorsRGB = new Uint32Array(2);
+                    this.dirty = false;
+                    this.dirtyTime = 0;
+                    this.drawingDone = drawingDone;
+                    for (let i = 0; i < types_ts_4.LAYERS_COUNT; i++) {
+                        this.layers.push(new DrawingRealLayer(width, height));
+                    }
+                }
+                setSize(width, height) {
+                    for (let i = 0; i < this.layers.length; i++) {
+                        this.layers[i].setSize(width, height);
+                    }
+                }
+                setDirty(layer, x, y, width, height) {
+                    if (!this.dirty) {
+                        this.dirty = true;
+                        this.dirtyTime = performance.now();
+                    }
+                    this.layers[layer].setDirty(x, y, width, height);
+                }
+                tintTile(layer, t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(layer, x, y, t.width, t.height);
                     const colorsRGB = this.colorsRGB;
-                    const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsWidth;
+                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+                    const screenWidth = this.layers[layer].pixelsWidth;
                     colorsRGB[1] = foreColor;
                     colorsRGB[0] = backColor;
                     const tilePixels = t.pixels32;
@@ -799,11 +831,11 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         }
                     }
                 }
-                setTile(t, x, y, cfx, cfy, ctx, cty) {
-                    this.setDirty(x, y, t.width, t.height);
-                    const imageDataPixels8 = this.imageDataPixels8;
-                    const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsWidth;
+                setTile(layer, t, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(layer, x, y, t.width, t.height);
+                    const imageDataPixels8 = this.layers[layer].imageDataPixels8;
+                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+                    const screenWidth = this.layers[layer].pixelsWidth;
                     const tileWidth = t.width;
                     const tileHeight = t.height;
                     let p = 0;
@@ -924,10 +956,10 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                             break;
                     }
                 }
-                fillRect(color, x, y, width, height) {
-                    this.setDirty(x, y, width, height);
-                    const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsWidth;
+                fillRect(layer, color, x, y, width, height) {
+                    this.setDirty(layer, x, y, width, height);
+                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+                    const screenWidth = this.layers[layer].pixelsWidth;
                     let p = 0;
                     for (let py = 0; py < height; py++) {
                         p = (y + py) * screenWidth + x;
@@ -936,11 +968,11 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         }
                     }
                 }
-                scrollRect(x, y, width, height, dx, dy) {
-                    this.setDirty(x, y, width, height);
-                    const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsWidth;
-                    const screenHeight = this.pixelsHeight;
+                scrollRect(layer, x, y, width, height, dx, dy) {
+                    this.setDirty(layer, x, y, width, height);
+                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+                    const screenWidth = this.layers[layer].pixelsWidth;
+                    const screenHeight = this.layers[layer].pixelsHeight;
                     if (dy !== 0 && x == 0 &&
                         width === screenWidth &&
                         height === screenHeight) {
@@ -980,30 +1012,32 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         to += copyOffset;
                     }
                 }
-                getDirtyRect() {
-                    const dirtyLeft = Math.max(Math.min(this.dirtyLeft, this.pixelsWidth), 0);
-                    const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
-                    const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
-                    const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
-                    return new types_ts_3.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
-                }
                 dispatch() {
+                    const dirtyParams = [];
+                    let drawnPixels = 0;
+                    for (let i = 0; i < this.layers.length; i++) {
+                        const layer = this.layers[i];
+                        if (layer.dirty) {
+                            dirtyParams.push({
+                                layer: i,
+                                dirtyRect: layer.getDirtyRect(),
+                                pixels: layer.pixels,
+                                pixelsWidth: layer.pixelsWidth,
+                                pixelsHeight: layer.pixelsHeight,
+                            });
+                            drawnPixels += layer.dirtyPixels;
+                        }
+                    }
                     this.drawingDone({
-                        dirty: this.dirty,
-                        dirtyParams: this.dirty
-                            ? {
-                                dirtyRect: this.getDirtyRect(),
-                                pixels: this.pixels,
-                                pixelsWidth: this.pixelsWidth,
-                                pixelsHeight: this.pixelsHeight,
-                            }
-                            : undefined,
+                        dirtyParams,
                         stats: {
-                            drawnPixels: this.dirtyPixels,
+                            drawnPixels,
                             time: this.dirty ? performance.now() - this.dirtyTime : 0,
                         },
                     });
                     this.dirty = false;
+                    for (let i = 0; i < this.layers.length; i++)
+                        this.layers[i].dirty = false;
                 }
                 willDispatch() {
                     return this.dirty;
@@ -1031,13 +1065,15 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
     var drawing_real_ts_1, drawing, tilesMapping;
     var __moduleName = context_9 && context_9.id;
     function sendResponse(response) {
-        if (response.type === "result" &&
-            response.result.dirty &&
-            response.result.dirtyParams) {
-            const pixelsCopy = response.result.dirtyParams.pixels.slice(0);
-            response.result.dirtyParams.pixels = pixelsCopy;
+        if (response.type === "result") {
+            const transferables = [];
+            for (let i = 0; i < response.result.dirtyParams.length; i++) {
+                const pixelsCopy = response.result.dirtyParams[i].pixels.slice(0);
+                response.result.dirtyParams[i].pixels = pixelsCopy;
+                transferables.push(pixelsCopy);
+            }
             //@ts-ignore
-            self.postMessage(response, [pixelsCopy]);
+            self.postMessage(response, transferables);
         }
         else {
             //@ts-ignore
@@ -1060,16 +1096,16 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             const argsLen = commands[index++];
             switch (cmd) {
                 case 0 /* SetTile */:
-                    drawing.setTile(getTile(commands[index + 0]), commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6]);
+                    drawing.setTile(commands[index + 0], getTile(commands[index + 1]), commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6], commands[index + 7]);
                     break;
                 case 1 /* TintTile */:
-                    drawing.tintTile(getTile(commands[index + 0]), commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6], commands[index + 7], commands[index + 8]);
+                    drawing.tintTile(commands[index + 0], getTile(commands[index + 1]), commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6], commands[index + 7], commands[index + 8], commands[index + 9]);
                     break;
                 case 2 /* FillRect */:
-                    drawing.fillRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4]);
+                    drawing.fillRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5]);
                     break;
                 case 3 /* ScrollRect */:
-                    drawing.scrollRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5]);
+                    drawing.scrollRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6]);
                     break;
                 case 4 /* SetSize */:
                     drawing.setSize(commands[index + 0], commands[index + 1]);

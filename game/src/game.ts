@@ -19,8 +19,8 @@ import {
 } from "./utils.ts";
 import { initUI } from "./ui2.ts";
 
-const NPCS_COUNT = 10;
-const ENABLE_P2 = true;
+const NPCS_COUNT = 0;
+const ENABLE_P2 = false;
 
 function onKeyEvent(game: Game, e: EngineKeyEvent) {
   if (e.char) {

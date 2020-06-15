@@ -127,6 +127,7 @@ export class DrawingWorker implements Drawing {
   }
 
   public tintTile(
+    layer: number,
     t: DrawingTile,
     foreColor: Color,
     backColor: Color,
@@ -139,6 +140,7 @@ export class DrawingWorker implements Drawing {
   ) {
     this.enqueueOptimizedCommand(
       DrawingCommandType.TintTile,
+      layer,
       this.getTileId(t),
       foreColor,
       backColor,
@@ -152,6 +154,7 @@ export class DrawingWorker implements Drawing {
   }
 
   public setTile(
+    layer: number,
     t: DrawingTile,
     x: number,
     y: number,
@@ -162,6 +165,7 @@ export class DrawingWorker implements Drawing {
   ) {
     this.enqueueOptimizedCommand(
       DrawingCommandType.SetTile,
+      layer,
       this.getTileId(t),
       x,
       y,
@@ -173,6 +177,7 @@ export class DrawingWorker implements Drawing {
   }
 
   public fillRect(
+    layer: number,
     color: Color,
     x: number,
     y: number,
@@ -181,6 +186,7 @@ export class DrawingWorker implements Drawing {
   ) {
     this.enqueueOptimizedCommand(
       DrawingCommandType.FillRect,
+      layer,
       color,
       x,
       y,
@@ -190,6 +196,7 @@ export class DrawingWorker implements Drawing {
   }
 
   public scrollRect(
+    layer: number,
     x: number,
     y: number,
     width: number,
@@ -199,6 +206,7 @@ export class DrawingWorker implements Drawing {
   ) {
     this.enqueueOptimizedCommand(
       DrawingCommandType.ScrollRect,
+      layer,
       x,
       y,
       width,
@@ -239,17 +247,13 @@ export class DrawingWorker implements Drawing {
   public processPendingFrames() {
     if (this.pendingDoneResults.length > 0) {
       const result = this.pendingDoneResults.shift() as DrawingDoneResult;
-      if (
-        result.dirty &&
-        result.dirtyParams
-      ) {
+      for (let i = result.dirtyParams.length - 1; i >= 0; i--) {
         if (
-          result.dirtyParams.pixelsWidth !== this.pixelsWidth ||
-          result.dirtyParams.pixelsHeight !== this.pixelsHeight
+          result.dirtyParams[i].pixelsWidth !== this.pixelsWidth ||
+          result.dirtyParams[i].pixelsHeight !== this.pixelsHeight
         ) {
           //Ignore dirty from different size, must be an old frame
-          result.dirty = false;
-          result.dirtyParams = undefined;
+          result.dirtyParams.splice(i, 1);
         }
       }
       this.drawingDone(result);

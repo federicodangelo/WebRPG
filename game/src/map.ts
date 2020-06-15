@@ -6,8 +6,8 @@ import { randomIntervalInt, random } from "./random.ts";
 
 const MAP_SIZE = 512;
 
-const DECOS_COUNT = 1024;
-const ALT_TERRAINS_COUNT = 256;
+const DECOS_COUNT = 0;
+const ALT_TERRAINS_COUNT = 0;
 const ALT_TERRAINS_MIN_SIZE = 8;
 const ALT_TERRAINS_MAX_SIZE = 16;
 

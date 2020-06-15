@@ -719,6 +719,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
             ];
             EngineContextImpl = class EngineContextImpl {
                 constructor(nativeContext) {
+                    this.layer = 0;
                     this.bounds = new types_ts_3.Rect();
                     this.clip = new types_ts_3.Rect();
                     this.tx = 0;
@@ -733,6 +734,9 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                 }
                 beginDraw() {
                     this.nativeContext.beginDraw();
+                }
+                setTargetLayer(layer) {
+                    this.layer = layer;
                 }
                 beginClip(x, y, width, height) {
                     this.bounds.set(x, y, width, height);
@@ -804,6 +808,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const screenX = this.x + this.tx;
                     const screenY = this.y + this.ty;
                     const clip = this.clip;
+                    const layer = this.layer;
                     const width = font.tileWidth;
                     const height = font.tileHeight;
                     if (screenX + width > clip.x &&
@@ -815,7 +820,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                         const cfy = Math.max(clip.y - screenY, 0);
                         const ctx = Math.min(clip.x1 - screenX, width);
                         const cty = Math.min(clip.y1 - screenY, height);
-                        this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
+                        this.nativeContext.tintTile(layer, fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
                     }
                     this.x += width;
                     return this;
@@ -881,6 +886,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const clip = this.clip;
                     const tx = this.tx;
                     const ty = this.ty;
+                    const layer = this.layer;
                     const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, fontWidth));
                     const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, fontHeight));
                     const x1 = Math.min(tx + x + width, ceilToMultipleOf(clip.x1, fontWidth));
@@ -896,7 +902,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                             const cfy = Math.max(clip.y - screenY, 0);
                             const ctx = Math.min(clip.x1 - screenX, fontWidth);
                             const cty = Math.min(clip.y1 - screenY, fontHeight);
-                            this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
+                            this.nativeContext.tintTile(layer, fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
                         }
                     }
                     return this;
@@ -907,6 +913,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const clip = this.clip;
                     const tx = this.tx;
                     const ty = this.ty;
+                    const layer = this.layer;
                     if (indexes.length == 0)
                         return this;
                     const height = indexes.length * tileHeight;
@@ -932,7 +939,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                                 const cfy = Math.max(clip.y - screenY, 0);
                                 const ctx = Math.min(clip.x1 - screenX, tileWidth);
                                 const cty = Math.min(clip.y1 - screenY, tileHeight);
-                                this.nativeContext.setTile(tiles[tileIndex], screenX, screenY, cfx, cfy, ctx, cty);
+                                this.nativeContext.setTile(layer, tiles[tileIndex], screenX, screenY, cfx, cfy, ctx, cty);
                             }
                         }
                     }
@@ -944,6 +951,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const clip = this.clip;
                     const width = t.width;
                     const height = t.height;
+                    const layer = this.layer;
                     if (screenX + width > clip.x &&
                         screenX < clip.x1 &&
                         screenY + height > clip.y &&
@@ -952,7 +960,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                         const cfy = Math.max(clip.y - screenY, 0);
                         const ctx = Math.min(clip.x1 - screenX, width);
                         const cty = Math.min(clip.y1 - screenY, height);
-                        this.nativeContext.setTile(t, screenX, screenY, cfx, cfy, ctx, cty);
+                        this.nativeContext.setTile(layer, t, screenX, screenY, cfx, cfy, ctx, cty);
                     }
                     return this;
                 }
@@ -960,6 +968,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const clip = this.clip;
                     const tx = this.tx;
                     const ty = this.ty;
+                    const layer = this.layer;
                     const x0 = Math.max(tx + x, clip.x);
                     const y0 = Math.max(ty + y, clip.y);
                     const x1 = Math.min(tx + x + width, clip.x1);
@@ -967,7 +976,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     if (x1 <= x0 || y1 <= y0) {
                         return this;
                     }
-                    this.nativeContext.fillRect(color, x0, y0, x1 - x0, y1 - y0);
+                    this.nativeContext.fillRect(layer, color, x0, y0, x1 - x0, y1 - y0);
                     return this;
                 }
             };
@@ -1084,7 +1093,7 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                             const bbox = this.mainScrollable.getBoundingBox();
                             if (Math.abs(dx) < bbox.width && Math.abs(dy) < bbox.height) {
                                 this.mainScrollable.setOffset(this.mainScrollableOffset.x, this.mainScrollableOffset.y, false);
-                                this.nativeContext.screen.scrollRect(bbox.x, bbox.y, bbox.width, bbox.height, dx, dy);
+                                this.nativeContext.screen.scrollRect(0, bbox.x, bbox.y, bbox.width, bbox.height, dx, dy);
                                 if (dy > 0) {
                                     this.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y, bbox.width, dy));
                                 }
@@ -1739,8 +1748,8 @@ System.register("game/src/map", ["engine/src/types", "engine/src/widgets/tile", 
         ],
         execute: function () {
             MAP_SIZE = 512;
-            DECOS_COUNT = 1024;
-            ALT_TERRAINS_COUNT = 256;
+            DECOS_COUNT = 0;
+            ALT_TERRAINS_COUNT = 0;
             ALT_TERRAINS_MIN_SIZE = 8;
             ALT_TERRAINS_MAX_SIZE = 16;
             mainTerrain = "grass";
@@ -2237,8 +2246,8 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
             }
         ],
         execute: function () {
-            NPCS_COUNT = 10;
-            ENABLE_P2 = true;
+            NPCS_COUNT = 0;
+            ENABLE_P2 = false;
             movingWithMouse = false;
             mouseKeyCodes = [];
         }
@@ -2246,35 +2255,37 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
 });
 System.register("web/src/drawing/types", [], function (exports_24, context_24) {
     "use strict";
+    var LAYERS_COUNT;
     var __moduleName = context_24 && context_24.id;
     return {
         setters: [],
         execute: function () {
+            exports_24("LAYERS_COUNT", LAYERS_COUNT = 2);
         }
     };
 });
-System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_25, context_25) {
+System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/drawing/types"], function (exports_25, context_25) {
     "use strict";
-    var types_ts_9, DrawingReal;
+    var types_ts_9, types_ts_10, DrawingRealLayer, DrawingReal;
     var __moduleName = context_25 && context_25.id;
     return {
         setters: [
             function (types_ts_9_1) {
                 types_ts_9 = types_ts_9_1;
+            },
+            function (types_ts_10_1) {
+                types_ts_10 = types_ts_10_1;
             }
         ],
         execute: function () {
-            DrawingReal = class DrawingReal {
-                constructor(width, height, drawingDone) {
-                    this.colorsRGB = new Uint32Array(2);
+            DrawingRealLayer = class DrawingRealLayer {
+                constructor(width, height) {
                     this.dirty = false;
                     this.dirtyPixels = 0;
                     this.dirtyLeft = 0;
                     this.dirtyRight = 0;
                     this.dirtyTop = 0;
                     this.dirtyBottom = 0;
-                    this.dirtyTime = 0;
-                    this.drawingDone = drawingDone;
                     this.pixels = new ArrayBuffer(width * height * 4);
                     this.pixelsWidth = width;
                     this.pixelsHeight = height;
@@ -2296,7 +2307,6 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         this.dirtyTop = y;
                         this.dirtyRight = x + width;
                         this.dirtyBottom = y + height;
-                        this.dirtyTime = performance.now();
                     }
                     else {
                         this.dirtyLeft = Math.min(this.dirtyLeft, x);
@@ -2306,11 +2316,42 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     }
                     this.dirtyPixels += width * height;
                 }
-                tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.setDirty(x, y, t.width, t.height);
+                getDirtyRect() {
+                    const dirtyLeft = Math.max(Math.min(this.dirtyLeft, this.pixelsWidth), 0);
+                    const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
+                    const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
+                    const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
+                    return new types_ts_9.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
+                }
+            };
+            DrawingReal = class DrawingReal {
+                constructor(width, height, drawingDone) {
+                    this.layers = [];
+                    this.colorsRGB = new Uint32Array(2);
+                    this.dirty = false;
+                    this.dirtyTime = 0;
+                    this.drawingDone = drawingDone;
+                    for (let i = 0; i < types_ts_10.LAYERS_COUNT; i++) {
+                        this.layers.push(new DrawingRealLayer(width, height));
+                    }
+                }
+                setSize(width, height) {
+                    for (let i = 0; i < this.layers.length; i++) {
+                        this.layers[i].setSize(width, height);
+                    }
+                }
+                setDirty(layer, x, y, width, height) {
+                    if (!this.dirty) {
+                        this.dirty = true;
+                        this.dirtyTime = performance.now();
+                    }
+                    this.layers[layer].setDirty(x, y, width, height);
+                }
+                tintTile(layer, t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(layer, x, y, t.width, t.height);
                     const colorsRGB = this.colorsRGB;
-                    const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsWidth;
+                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+                    const screenWidth = this.layers[layer].pixelsWidth;
                     colorsRGB[1] = foreColor;
                     colorsRGB[0] = backColor;
                     const tilePixels = t.pixels32;
@@ -2384,11 +2425,11 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         }
                     }
                 }
-                setTile(t, x, y, cfx, cfy, ctx, cty) {
-                    this.setDirty(x, y, t.width, t.height);
-                    const imageDataPixels8 = this.imageDataPixels8;
-                    const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsWidth;
+                setTile(layer, t, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(layer, x, y, t.width, t.height);
+                    const imageDataPixels8 = this.layers[layer].imageDataPixels8;
+                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+                    const screenWidth = this.layers[layer].pixelsWidth;
                     const tileWidth = t.width;
                     const tileHeight = t.height;
                     let p = 0;
@@ -2509,10 +2550,10 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                             break;
                     }
                 }
-                fillRect(color, x, y, width, height) {
-                    this.setDirty(x, y, width, height);
-                    const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsWidth;
+                fillRect(layer, color, x, y, width, height) {
+                    this.setDirty(layer, x, y, width, height);
+                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+                    const screenWidth = this.layers[layer].pixelsWidth;
                     let p = 0;
                     for (let py = 0; py < height; py++) {
                         p = (y + py) * screenWidth + x;
@@ -2521,11 +2562,11 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         }
                     }
                 }
-                scrollRect(x, y, width, height, dx, dy) {
-                    this.setDirty(x, y, width, height);
-                    const imageDataPixels32 = this.imageDataPixels32;
-                    const screenWidth = this.pixelsWidth;
-                    const screenHeight = this.pixelsHeight;
+                scrollRect(layer, x, y, width, height, dx, dy) {
+                    this.setDirty(layer, x, y, width, height);
+                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
+                    const screenWidth = this.layers[layer].pixelsWidth;
+                    const screenHeight = this.layers[layer].pixelsHeight;
                     if (dy !== 0 && x == 0 &&
                         width === screenWidth &&
                         height === screenHeight) {
@@ -2565,30 +2606,32 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         to += copyOffset;
                     }
                 }
-                getDirtyRect() {
-                    const dirtyLeft = Math.max(Math.min(this.dirtyLeft, this.pixelsWidth), 0);
-                    const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
-                    const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
-                    const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
-                    return new types_ts_9.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
-                }
                 dispatch() {
+                    const dirtyParams = [];
+                    let drawnPixels = 0;
+                    for (let i = 0; i < this.layers.length; i++) {
+                        const layer = this.layers[i];
+                        if (layer.dirty) {
+                            dirtyParams.push({
+                                layer: i,
+                                dirtyRect: layer.getDirtyRect(),
+                                pixels: layer.pixels,
+                                pixelsWidth: layer.pixelsWidth,
+                                pixelsHeight: layer.pixelsHeight,
+                            });
+                            drawnPixels += layer.dirtyPixels;
+                        }
+                    }
                     this.drawingDone({
-                        dirty: this.dirty,
-                        dirtyParams: this.dirty
-                            ? {
-                                dirtyRect: this.getDirtyRect(),
-                                pixels: this.pixels,
-                                pixelsWidth: this.pixelsWidth,
-                                pixelsHeight: this.pixelsHeight,
-                            }
-                            : undefined,
+                        dirtyParams,
                         stats: {
-                            drawnPixels: this.dirtyPixels,
+                            drawnPixels,
                             time: this.dirty ? performance.now() - this.dirtyTime : 0,
                         },
                     });
                     this.dirty = false;
+                    for (let i = 0; i < this.layers.length; i++)
+                        this.layers[i].dirty = false;
                 }
                 willDispatch() {
                     return this.dirty;
@@ -2688,17 +2731,17 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     this.resetQueues();
                     this.enqueueOptimizedCommand(4 /* SetSize */, width, height);
                 }
-                tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.enqueueOptimizedCommand(1 /* TintTile */, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
+                tintTile(layer, t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
+                    this.enqueueOptimizedCommand(1 /* TintTile */, layer, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
                 }
-                setTile(t, x, y, cfx, cfy, ctx, cty) {
-                    this.enqueueOptimizedCommand(0 /* SetTile */, this.getTileId(t), x, y, cfx, cfy, ctx, cty);
+                setTile(layer, t, x, y, cfx, cfy, ctx, cty) {
+                    this.enqueueOptimizedCommand(0 /* SetTile */, layer, this.getTileId(t), x, y, cfx, cfy, ctx, cty);
                 }
-                fillRect(color, x, y, width, height) {
-                    this.enqueueOptimizedCommand(2 /* FillRect */, color, x, y, width, height);
+                fillRect(layer, color, x, y, width, height) {
+                    this.enqueueOptimizedCommand(2 /* FillRect */, layer, color, x, y, width, height);
                 }
-                scrollRect(x, y, width, height, dx, dy) {
-                    this.enqueueOptimizedCommand(3 /* ScrollRect */, x, y, width, height, dx, dy);
+                scrollRect(layer, x, y, width, height, dx, dy) {
+                    this.enqueueOptimizedCommand(3 /* ScrollRect */, layer, x, y, width, height, dx, dy);
                 }
                 dispatch() {
                     if (!this.ready)
@@ -2729,13 +2772,11 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                 processPendingFrames() {
                     if (this.pendingDoneResults.length > 0) {
                         const result = this.pendingDoneResults.shift();
-                        if (result.dirty &&
-                            result.dirtyParams) {
-                            if (result.dirtyParams.pixelsWidth !== this.pixelsWidth ||
-                                result.dirtyParams.pixelsHeight !== this.pixelsHeight) {
+                        for (let i = result.dirtyParams.length - 1; i >= 0; i--) {
+                            if (result.dirtyParams[i].pixelsWidth !== this.pixelsWidth ||
+                                result.dirtyParams[i].pixelsHeight !== this.pixelsHeight) {
                                 //Ignore dirty from different size, must be an old frame
-                                result.dirty = false;
-                                result.dirtyParams = undefined;
+                                result.dirtyParams.splice(i, 1);
                             }
                         }
                         this.drawingDone(result);
@@ -2748,9 +2789,9 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
 });
 System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-real", "web/src/drawing/drawing-worker"], function (exports_28, context_28) {
     "use strict";
-    var types_ts_10, drawing_real_ts_1, drawing_worker_ts_1, USE_DEVICE_PIXEL_RATIO, USE_WORKER;
+    var types_ts_11, drawing_real_ts_1, drawing_worker_ts_1, USE_DEVICE_PIXEL_RATIO, USE_WORKER;
     var __moduleName = context_28 && context_28.id;
-    function updateCanvasSize(canvas) {
+    function updateCanvasSize(canvas, zIndex) {
         const width = window.innerWidth;
         const height = window.innerHeight;
         const devicePixelRatio = USE_DEVICE_PIXEL_RATIO
@@ -2759,23 +2800,45 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         canvas.width = width * devicePixelRatio;
         canvas.height = height * devicePixelRatio;
         if (USE_DEVICE_PIXEL_RATIO) {
-            canvas.setAttribute("style", `width: ${width}px;height: ${height}px;image-rendering: pixelated;`);
+            canvas.setAttribute("style", `width: ${width}px;height: ${height}px;image-rendering: pixelated;position: absolute; left: 0; top: 0; z-index:${zIndex};`);
+        }
+        else {
+            canvas.setAttribute("style", `position: absolute; left: 0; top: 0; z-index:${zIndex};`);
         }
         return devicePixelRatio;
     }
-    function createFullScreenCanvas() {
+    function createFullScreenCanvas(zIndex) {
         const canvas = document.createElement("canvas");
-        const multiplier = updateCanvasSize(canvas);
+        const multiplier = updateCanvasSize(canvas, zIndex);
         document.body.appendChild(canvas);
         return { canvas, multiplier };
     }
+    function initLayers() {
+        const tmpGameCanvas = createFullScreenCanvas(0);
+        const tmpUICanvas = createFullScreenCanvas(1);
+        const gameCanvas = tmpGameCanvas.canvas;
+        const gameCtx = gameCanvas.getContext("2d", { alpha: false });
+        const uiCanvas = tmpUICanvas.canvas;
+        const uiCtx = uiCanvas.getContext("2d");
+        const layers = [gameCanvas, uiCanvas];
+        const layersCtx = [gameCtx, uiCtx];
+        gameCtx.imageSmoothingEnabled = false;
+        uiCtx.imageSmoothingEnabled = false;
+        return { layers, layersCtx, multiplier: tmpGameCanvas.multiplier };
+    }
+    function resizeLayers(layers) {
+        let multiplier = 1;
+        for (let i = 0; i < layers.length; i++) {
+            multiplier = Math.max(multiplier, updateCanvasSize(layers[i], i));
+        }
+        return multiplier;
+    }
     function getWebNativeContext(onStats) {
-        const tmp = createFullScreenCanvas();
-        const canvas = tmp.canvas;
-        const ctx = canvas.getContext("2d");
-        let screenMultiplier = tmp.multiplier;
-        const screenSize = new types_ts_10.Size(256, 256);
-        ctx.imageSmoothingEnabled = false;
+        const initCanvasResult = initLayers();
+        const layers = initCanvasResult.layers;
+        const layersCtx = initCanvasResult.layersCtx;
+        let screenMultiplier = initCanvasResult.multiplier;
+        const screenSize = new types_ts_11.Size(256, 256);
         let screenSizeChangedListeners = [];
         let keyListeners = [];
         let mouseListeners = [];
@@ -2786,7 +2849,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
             mouseListeners.forEach((l) => l(e));
         };
         const updateScreenSize = () => {
-            screenSize.set(canvas.width, canvas.height);
+            screenSize.set(layers[0].width, layers[0].height);
         };
         const handleKey = (e, type) => {
             const key = e.key;
@@ -2839,7 +2902,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
             mouseDown = false;
         };
         const handleResize = () => {
-            screenMultiplier = updateCanvasSize(canvas);
+            screenMultiplier = resizeLayers(layers);
             updateScreenSize();
             drawing.setSize(screenSize.width, screenSize.height);
             screenSizeChangedListeners.forEach((l) => l(screenSize));
@@ -2859,9 +2922,9 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         }
         window.addEventListener("resize", handleResize);
         const drawingDone = (result) => {
-            if (result.dirty && result.dirtyParams) {
-                const params = result.dirtyParams;
-                ctx.putImageData(new ImageData(new Uint8ClampedArray(params.pixels), params.pixelsWidth, params.pixelsHeight), 0, 0, params.dirtyRect.x, params.dirtyRect.y, params.dirtyRect.width, params.dirtyRect.height);
+            for (let i = 0; i < result.dirtyParams.length; i++) {
+                const params = result.dirtyParams[i];
+                layersCtx[params.layer].putImageData(new ImageData(new Uint8ClampedArray(params.pixels), params.pixelsWidth, params.pixelsHeight), 0, 0, params.dirtyRect.x, params.dirtyRect.y, params.dirtyRect.width, params.dirtyRect.height);
             }
             onStats(result.stats);
         };
@@ -2923,8 +2986,8 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
     exports_28("getWebNativeContext", getWebNativeContext);
     return {
         setters: [
-            function (types_ts_10_1) {
-                types_ts_10 = types_ts_10_1;
+            function (types_ts_11_1) {
+                types_ts_11 = types_ts_11_1;
             },
             function (drawing_real_ts_1_1) {
                 drawing_real_ts_1 = drawing_real_ts_1_1;
@@ -2941,7 +3004,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
 });
 System.register("web/src/assets", ["engine/src/types"], function (exports_29, context_29) {
     "use strict";
-    var types_ts_11;
+    var types_ts_12;
     var __moduleName = context_29 && context_29.id;
     async function loadImage(src) {
         return new Promise((resolve, reject) => {
@@ -2976,7 +3039,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
             getTile: (id) => tilesById.get(id),
             getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
             getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
-            getTileXYByIndex: (index) => new types_ts_11.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
+            getTileXYByIndex: (index) => new types_ts_12.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
         };
         const setTileId = (index, id) => {
             tiles[index].id = id;
@@ -3211,8 +3274,8 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
     exports_29("initAssets", initAssets);
     return {
         setters: [
-            function (types_ts_11_1) {
-                types_ts_11 = types_ts_11_1;
+            function (types_ts_12_1) {
+                types_ts_12 = types_ts_12_1;
             }
         ],
         execute: function () {
@@ -3268,7 +3331,7 @@ System.register("web/src/stats", [], function (exports_30, context_30) {
 });
 System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_31, context_31) {
     "use strict";
-    var types_ts_12, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, engine, nativeContext, fpsLabel, game, updateFpsFrames, updateFpsTime, engineStats, firstUpdate, lastUpdateTime, timeToNextUpdate;
+    var types_ts_13, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, engine, nativeContext, fpsLabel, game, updateFpsFrames, updateFpsTime, engineStats, firstUpdate, lastUpdateTime, timeToNextUpdate;
     var __moduleName = context_31 && context_31.id;
     function updateFps() {
         const now = performance.now();
@@ -3302,7 +3365,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         console.log("Engine Initialized");
         game = game_ts_1.initGame(engine, assets);
         console.log("Game Initialized");
-        fpsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_12.FixedColor.White, game.statsContainer.backColor);
+        fpsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_13.FixedColor.White, game.statsContainer.backColor);
         fpsLabel.parent = game.statsContainer;
         return engine;
     }
@@ -3352,8 +3415,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     }
     return {
         setters: [
-            function (types_ts_12_1) {
-                types_ts_12 = types_ts_12_1;
+            function (types_ts_13_1) {
+                types_ts_13 = types_ts_13_1;
             },
             function (engine_ts_1_1) {
                 engine_ts_1 = engine_ts_1_1;

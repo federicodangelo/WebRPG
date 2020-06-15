@@ -15,6 +15,7 @@ const USE_WORKER = true;
 
 function updateCanvasSize(
   canvas: HTMLCanvasElement,
+  zIndex: number,
 ) {
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -27,33 +28,66 @@ function updateCanvasSize(
   if (USE_DEVICE_PIXEL_RATIO) {
     canvas.setAttribute(
       "style",
-      `width: ${width}px;height: ${height}px;image-rendering: pixelated;`,
+      `width: ${width}px;height: ${height}px;image-rendering: pixelated;position: absolute; left: 0; top: 0; z-index:${zIndex};`,
+    );
+  } else {
+    canvas.setAttribute(
+      "style",
+      `position: absolute; left: 0; top: 0; z-index:${zIndex};`,
     );
   }
 
   return devicePixelRatio;
 }
 
-function createFullScreenCanvas() {
+function createFullScreenCanvas(zIndex: number) {
   const canvas = document.createElement("canvas");
-  const multiplier = updateCanvasSize(canvas);
+  const multiplier = updateCanvasSize(canvas, zIndex);
   document.body.appendChild(canvas);
   return { canvas, multiplier };
+}
+
+function initLayers() {
+  const tmpGameCanvas = createFullScreenCanvas(0);
+  const tmpUICanvas = createFullScreenCanvas(1);
+
+  const gameCanvas = tmpGameCanvas.canvas;
+  const gameCtx = gameCanvas.getContext(
+    "2d",
+    { alpha: false },
+  ) as CanvasRenderingContext2D;
+
+  const uiCanvas = tmpUICanvas.canvas;
+  const uiCtx = uiCanvas.getContext("2d") as CanvasRenderingContext2D;
+
+  const layers = [gameCanvas, uiCanvas];
+  const layersCtx = [gameCtx, uiCtx];
+
+  gameCtx.imageSmoothingEnabled = false;
+  uiCtx.imageSmoothingEnabled = false;
+
+  return { layers, layersCtx, multiplier: tmpGameCanvas.multiplier };
+}
+
+function resizeLayers(layers: HTMLCanvasElement[]) {
+  let multiplier = 1;
+
+  for (let i = 0; i < layers.length; i++) {
+    multiplier = Math.max(multiplier, updateCanvasSize(layers[i], i));
+  }
+
+  return multiplier;
 }
 
 export function getWebNativeContext(
   onStats: (stats: NativeDrawStats) => void,
 ): NativeContext {
-  const tmp = createFullScreenCanvas();
-
-  const canvas = tmp.canvas;
-  const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-
-  let screenMultiplier = tmp.multiplier;
+  const initCanvasResult = initLayers();
+  const layers = initCanvasResult.layers;
+  const layersCtx = initCanvasResult.layersCtx;
+  let screenMultiplier = initCanvasResult.multiplier;
 
   const screenSize = new Size(256, 256);
-
-  ctx.imageSmoothingEnabled = false;
 
   let screenSizeChangedListeners: ((size: Size) => void)[] = [];
   let keyListeners: ((e: EngineKeyEvent) => void)[] = [];
@@ -68,7 +102,7 @@ export function getWebNativeContext(
   };
 
   const updateScreenSize = () => {
-    screenSize.set(canvas.width, canvas.height);
+    screenSize.set(layers[0].width, layers[0].height);
   };
 
   const handleKey = (e: KeyboardEvent, type: EngineKeyEventType) => {
@@ -132,7 +166,7 @@ export function getWebNativeContext(
   };
 
   const handleResize = () => {
-    screenMultiplier = updateCanvasSize(canvas);
+    screenMultiplier = resizeLayers(layers);
     updateScreenSize();
     drawing.setSize(screenSize.width, screenSize.height);
     screenSizeChangedListeners.forEach((l) => l(screenSize));
@@ -155,9 +189,9 @@ export function getWebNativeContext(
   window.addEventListener("resize", handleResize);
 
   const drawingDone = (result: DrawingDoneResult) => {
-    if (result.dirty && result.dirtyParams) {
-      const params = result.dirtyParams;
-      ctx.putImageData(
+    for (let i = 0; i < result.dirtyParams.length; i++) {
+      const params = result.dirtyParams[i];
+      layersCtx[params.layer].putImageData(
         new ImageData(
           new Uint8ClampedArray(params.pixels),
           params.pixelsWidth,
