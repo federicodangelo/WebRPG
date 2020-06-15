@@ -246,8 +246,10 @@ export function getWebNativeContext(
           (globalThis as any).pauseStats();
         }
       },
+      preloadTiles: drawing.preloadTiles.bind(drawing),
       readyForNextFrame: drawing.readyForNextFrame.bind(drawing),
       processPendingFrames: drawing.processPendingFrames.bind(drawing),
+      setTargetLayer: drawing.setLayer.bind(drawing),
       tintTile: drawing.tintTile.bind(drawing),
       setTile: drawing.setTile.bind(drawing),
       fillRect: drawing.fillRect.bind(drawing),

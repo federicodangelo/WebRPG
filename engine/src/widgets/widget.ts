@@ -7,6 +7,7 @@ import {
   DrawContext,
   EngineContext,
   EngineMouseEvent,
+  LayerId,
 } from "../types.ts";
 
 export abstract class BaseWidget implements Widget {
@@ -16,7 +17,8 @@ export abstract class BaseWidget implements Widget {
   private _height: number = 0;
   private _pivotX: number = 0;
   private _pivotY: number = 0;
-  private _layer: number = 0;
+  private _sortingLayer: number = 0;
+  private _layer: LayerId = 0;
   private _parent: WidgetContainer | null = null;
   private _engine: Engine | null = null;
   private _boundingBox: Rect = new Rect();
@@ -135,15 +137,27 @@ export abstract class BaseWidget implements Widget {
     return this._y + this._pivotY;
   }
 
+  public get sortingLayer() {
+    return this._sortingLayer;
+  }
+
+  public set sortingLayer(v: number) {
+    if (v !== this._sortingLayer) {
+      this._sortingLayer = v;
+      this.invalidate();
+      this._parent?.onChildrenTransformChanged(this);
+    }
+  }
+
   public get layer() {
     return this._layer;
   }
 
-  public set layer(v: number) {
+  public set layer(v: LayerId) {
     if (v !== this._layer) {
+      this.invalidate();
       this._layer = v;
       this.invalidate();
-      this._parent?.onChildrenTransformChanged(this);
     }
   }
 
@@ -160,6 +174,7 @@ export abstract class BaseWidget implements Widget {
       }
       this._parent = v;
       if (this._parent !== null) {
+        this.layer = this._parent.layer;
         this._parent.children.push(this);
         this.engine = this._parent.engine;
         this._parent.onChildrenAdded(this);
@@ -237,7 +252,7 @@ export abstract class BaseWidget implements Widget {
   public invalidate() {
     const engine = this.engine;
     const bbox = this.getBoundingBox();
-    engine?.invalidateRect(bbox);
+    engine?.invalidateRect(bbox, this.layer);
   }
 
   public mouse(e: EngineMouseEvent) {}

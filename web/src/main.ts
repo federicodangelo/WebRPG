@@ -1,4 +1,4 @@
-import { FixedColor, Engine } from "engine/types.ts";
+import { FixedColor, Engine, Tilemap, Tile } from "engine/types.ts";
 import { buildEngine } from "engine/engine.ts";
 import { LabelWidget } from "engine/widgets/label.ts";
 import { initGame, updateGame } from "game/game.ts";
@@ -9,6 +9,7 @@ import { NativeContext } from "../../engine/src/native-types.ts";
 import { EngineStats } from "./stats.ts";
 
 const TARGET_FPS = 30;
+const MAX_PENDING_FRAMES = 1;
 
 let engine: Engine;
 let nativeContext: NativeContext;
@@ -74,12 +75,54 @@ async function init() {
 
   fpsLabel.parent = game.statsContainer;
 
+  //Wait engine ready
+  while (!nativeContext.screen.readyForNextFrame(0)) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    nativeContext.screen.processPendingFrames();
+  }
+
+  //Preload tiles
+  const tiles: Tile[] = [];
+
+  for (const tilemap of assets.tilemaps.values()) {
+    tiles.push(...tilemap.tiles);
+  }
+
+  nativeContext.screen.preloadTiles(tiles);
+
+  //Wait preload tiles ready
+  while (!nativeContext.screen.readyForNextFrame(0)) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    nativeContext.screen.processPendingFrames();
+  }
+
   return engine;
 }
 
 let firstUpdate = true;
-let lastUpdateTime = performance.now();
+let lastUpdateTime = 0;
 let timeToNextUpdate = 0;
+
+function updateReal() {
+  updateFps();
+
+  const preUpdateTime = performance.now();
+
+  engine.update();
+
+  updateGame(engine, game);
+
+  const postUpdateTime = performance.now();
+
+  engineStats.update.addSample(postUpdateTime - preUpdateTime);
+}
+
+function drawReal() {
+  const drawStats = engine.draw();
+  if (drawStats.rects > 0) {
+    engineStats.render.addSample(drawStats.time);
+  }
+}
 
 function update() {
   nativeContext.screen.processPendingFrames();
@@ -100,23 +143,10 @@ function update() {
 
   timeToNextUpdate += 1000 / TARGET_FPS;
 
-  updateFps();
+  updateReal();
 
-  const preUpdateTime = performance.now();
-
-  engine.update();
-
-  updateGame(engine, game);
-
-  const postUpdateTime = performance.now();
-
-  engineStats.update.addSample(postUpdateTime - preUpdateTime);
-
-  if (nativeContext.screen.readyForNextFrame()) {
-    const drawStats = engine.draw();
-    if (drawStats.rects > 0) {
-      engineStats.render.addSample(drawStats.time);
-    }
+  if (nativeContext.screen.readyForNextFrame(MAX_PENDING_FRAMES)) {
+    drawReal();
   }
 }
 
@@ -127,6 +157,16 @@ function hideLoader() {
 
 async function run() {
   const engine = await init();
+
+  updateReal();
+  drawReal();
+
+  while (!nativeContext.screen.readyForNextFrame(0)) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    nativeContext.screen.processPendingFrames();
+  }
+
+  lastUpdateTime = performance.now();
 
   hideLoader();
 

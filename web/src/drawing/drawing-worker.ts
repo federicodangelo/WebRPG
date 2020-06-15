@@ -1,5 +1,6 @@
 import {
   Color,
+  LayerId,
 } from "engine/types.ts";
 import {
   Drawing,
@@ -9,13 +10,10 @@ import {
 } from "./types.ts";
 import {
   DrawingResponse,
-  DrawingRequest,
   TileId,
   DrawingRequestBatch,
   DrawingCommandType,
 } from "./worker/types.ts";
-
-const MAX_PENDING_FRAMES = 2;
 
 export class DrawingWorker implements Drawing {
   private ready = false;
@@ -24,7 +22,6 @@ export class DrawingWorker implements Drawing {
   private pixelsWidth: number;
   private pixelsHeight: number;
 
-  private queue: DrawingRequest[];
   private drawQueue: ArrayBuffer;
   private drawQueue32: Int32Array;
   private drawQueueLen = 0;
@@ -46,16 +43,11 @@ export class DrawingWorker implements Drawing {
     this.drawingDone = drawingDone;
     this.pixelsWidth = -1;
     this.pixelsHeight = -1;
-    this.queue = [];
     this.drawQueue = new ArrayBuffer(1024 * 1024);
     this.drawQueue32 = new Int32Array(this.drawQueue);
     this.drawQueueLen = 0;
 
     this.setSize(width, height);
-  }
-
-  private enqueueCommand(command: DrawingRequest) {
-    this.queue.push(command);
   }
 
   private enqueueOptimizedCommand(
@@ -122,12 +114,15 @@ export class DrawingWorker implements Drawing {
     if (width === this.pixelsWidth && height === this.pixelsHeight) return;
     this.pixelsWidth = width;
     this.pixelsHeight = height;
-    this.resetQueues();
+    if (this.ready) this.resetQueues();
     this.enqueueOptimizedCommand(DrawingCommandType.SetSize, width, height);
   }
 
+  public setLayer(layer: LayerId) {
+    this.enqueueOptimizedCommand(DrawingCommandType.SetLayer, layer);
+  }
+
   public tintTile(
-    layer: number,
     t: DrawingTile,
     foreColor: Color,
     backColor: Color,
@@ -140,7 +135,6 @@ export class DrawingWorker implements Drawing {
   ) {
     this.enqueueOptimizedCommand(
       DrawingCommandType.TintTile,
-      layer,
       this.getTileId(t),
       foreColor,
       backColor,
@@ -154,7 +148,6 @@ export class DrawingWorker implements Drawing {
   }
 
   public setTile(
-    layer: number,
     t: DrawingTile,
     x: number,
     y: number,
@@ -165,7 +158,6 @@ export class DrawingWorker implements Drawing {
   ) {
     this.enqueueOptimizedCommand(
       DrawingCommandType.SetTile,
-      layer,
       this.getTileId(t),
       x,
       y,
@@ -177,7 +169,6 @@ export class DrawingWorker implements Drawing {
   }
 
   public fillRect(
-    layer: number,
     color: Color,
     x: number,
     y: number,
@@ -186,7 +177,6 @@ export class DrawingWorker implements Drawing {
   ) {
     this.enqueueOptimizedCommand(
       DrawingCommandType.FillRect,
-      layer,
       color,
       x,
       y,
@@ -196,7 +186,6 @@ export class DrawingWorker implements Drawing {
   }
 
   public scrollRect(
-    layer: number,
     x: number,
     y: number,
     width: number,
@@ -206,7 +195,6 @@ export class DrawingWorker implements Drawing {
   ) {
     this.enqueueOptimizedCommand(
       DrawingCommandType.ScrollRect,
-      layer,
       x,
       y,
       width,
@@ -218,7 +206,7 @@ export class DrawingWorker implements Drawing {
 
   public dispatch() {
     if (!this.ready) return;
-    if (this.queue.length === 0 && this.drawQueueLen === 0) return;
+    if (this.drawQueueLen === 0) return;
 
     const copy = new ArrayBuffer(this.drawQueueLen * 4);
     const copy32 = new Int32Array(copy);
@@ -227,7 +215,6 @@ export class DrawingWorker implements Drawing {
       type: "batch",
       commands: copy,
       commandsLen: this.drawQueueLen,
-      requests: this.queue,
     };
     this.worker.postMessage(batch, [copy]);
     this.resetQueues();
@@ -235,13 +222,12 @@ export class DrawingWorker implements Drawing {
   }
 
   private resetQueues() {
-    this.queue.length = 0;
     this.drawQueueLen = 0;
   }
 
-  public readyForNextFrame() {
-    return this.pendingFrames < MAX_PENDING_FRAMES &&
-      this.pendingDoneResults.length < MAX_PENDING_FRAMES;
+  public readyForNextFrame(maxPendingFrames: number) {
+    return this.ready && this.pendingFrames <= maxPendingFrames &&
+      this.pendingDoneResults.length <= maxPendingFrames;
   }
 
   public processPendingFrames() {
@@ -258,5 +244,12 @@ export class DrawingWorker implements Drawing {
       }
       this.drawingDone(result);
     }
+  }
+
+  public preloadTiles(tiles: DrawingTile[]) {
+    for (let i = 0; i < tiles.length; i++) {
+      this.getTileId(tiles[i]);
+    }
+    this.dispatch();
   }
 }

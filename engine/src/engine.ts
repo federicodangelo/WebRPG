@@ -7,17 +7,27 @@ import {
   Point,
   EngineMouseEvent,
   DrawStats,
+  LayerId,
+  LAYERS_COUNT,
 } from "./types.ts";
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
 import { ScrollableContainerWidget } from "./widgets/scrollable.ts";
 
+class EngineLayer {
+  public id: LayerId;
+  public invalidRects: Rect[] = [];
+  public children: Widget[] = [];
+  constructor(id: LayerId) {
+    this.id = id;
+  }
+}
+
 class EngineImpl implements Engine {
-  private children: Widget[] = [];
   private nativeContext: NativeContext;
   private context: EngineContextImpl;
   private screenSize = new Size();
-  private invalidRects: Rect[] = [];
+  private layers: EngineLayer[] = [];
   private mainScrollable: ScrollableContainerWidget | null = null;
   private mainScrollableOffset = new Point();
 
@@ -25,6 +35,10 @@ class EngineImpl implements Engine {
     this.nativeContext = nativeContext;
     this.context = new EngineContextImpl(this.nativeContext.screen);
     this.nativeContext.input.onMouseEvent((e) => this.onMouseEventInternal(e));
+
+    for (let i = 0; i < LAYERS_COUNT; i++) {
+      this.layers.push(new EngineLayer(i));
+    }
   }
 
   async init() {
@@ -45,24 +59,28 @@ class EngineImpl implements Engine {
   private onScreenSizeChanged(size: Size): void {
     if (!size.equals(this.screenSize)) {
       this.screenSize.set(size.width, size.height);
-      this.invalidateRect(
-        new Rect(0, 0, this.screenSize.width, this.screenSize.height),
-      );
+      for (let i = 0; i < this.layers.length; i++) {
+        this.invalidateRect(
+          new Rect(0, 0, this.screenSize.width, this.screenSize.height),
+          this.layers[i].id,
+        );
+      }
     }
   }
 
-  private drawInvalidRects() {
+  private drawInvalidRects(layer: EngineLayer) {
     let drawnRects = 0;
     let drawnArea = 0;
 
-    if (this.invalidRects.length > 0) {
+    if (layer.invalidRects.length > 0) {
       let pendingLayout = true;
 
       const clip = new Rect();
       const screenSize = this.screenSize;
+      const children = layer.children;
 
-      for (let i = 0; i < this.invalidRects.length; i++) {
-        clip.copyFrom(this.invalidRects[i]);
+      for (let i = 0; i < layer.invalidRects.length; i++) {
+        clip.copyFrom(layer.invalidRects[i]);
         if (clip.x < 0) {
           clip.width += clip.x;
           clip.x = 0;
@@ -89,7 +107,7 @@ class EngineImpl implements Engine {
 
         if (pendingLayout) {
           pendingLayout = false;
-          this.updateLayout();
+          this.updateLayout(layer);
         }
 
         drawnRects++;
@@ -97,14 +115,14 @@ class EngineImpl implements Engine {
 
         this.context.beginClip(clip.x, clip.y, clip.width, clip.height);
 
-        for (let i = 0; i < this.children.length; i++) {
-          this.children[i].draw(this.context);
+        for (let i = 0; i < children.length; i++) {
+          children[i].draw(this.context);
         }
 
         this.context.endClip();
       }
 
-      this.invalidRects.length = 0;
+      layer.invalidRects.length = 0;
     }
 
     return { drawnRects, drawnArea };
@@ -115,68 +133,79 @@ class EngineImpl implements Engine {
 
     this.context.beginDraw();
 
-    let { drawnRects } = this.drawInvalidRects();
+    let drawnRects = 0;
 
-    if (this.mainScrollable !== null) {
-      const dx = this.mainScrollableOffset.x - this.mainScrollable.offsetX;
-      const dy = this.mainScrollableOffset.y - this.mainScrollable.offsetY;
-      if (dx !== 0 || dy !== 0) {
-        const bbox = this.mainScrollable.getBoundingBox();
+    for (let i = 0; i < this.layers.length; i++) {
+      const layer = this.layers[i];
+      this.context.setTargetLayer(layer.id);
 
-        if (Math.abs(dx) < bbox.width && Math.abs(dy) < bbox.height) {
-          this.mainScrollable.setOffset(
-            this.mainScrollableOffset.x,
-            this.mainScrollableOffset.y,
-            false,
-          );
+      let { drawnRects: drawnRects1 } = this.drawInvalidRects(layer);
 
-          this.nativeContext.screen.scrollRect(
-            0,
-            bbox.x,
-            bbox.y,
-            bbox.width,
-            bbox.height,
-            dx,
-            dy,
-          );
+      drawnRects += drawnRects1;
 
-          if (dy > 0) {
-            this.invalidRects.push(
-              new Rect(bbox.x, bbox.y, bbox.width, dy),
+      if (
+        this.mainScrollable !== null &&
+        this.mainScrollable.layer === layer.id
+      ) {
+        const dx = this.mainScrollableOffset.x - this.mainScrollable.offsetX;
+        const dy = this.mainScrollableOffset.y - this.mainScrollable.offsetY;
+        if (dx !== 0 || dy !== 0) {
+          const bbox = this.mainScrollable.getBoundingBox();
+
+          if (Math.abs(dx) < bbox.width && Math.abs(dy) < bbox.height) {
+            this.mainScrollable.setOffset(
+              this.mainScrollableOffset.x,
+              this.mainScrollableOffset.y,
+              false,
             );
-          } else if (dy < 0) {
-            this.invalidRects.push(
-              new Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy),
+
+            this.nativeContext.screen.scrollRect(
+              bbox.x,
+              bbox.y,
+              bbox.width,
+              bbox.height,
+              dx,
+              dy,
+            );
+
+            if (dy > 0) {
+              layer.invalidRects.push(
+                new Rect(bbox.x, bbox.y, bbox.width, dy),
+              );
+            } else if (dy < 0) {
+              layer.invalidRects.push(
+                new Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy),
+              );
+            }
+
+            if (dx > 0) {
+              layer.invalidRects.push(
+                new Rect(bbox.x, bbox.y, dx, bbox.height),
+              );
+            } else if (dx < 0) {
+              layer.invalidRects.push(
+                new Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height),
+              );
+            }
+
+            this.mainScrollable.overlappingFixedWidgets.forEach((w) => {
+              layer.invalidRects.push(
+                w.getBoundingBox().clone().expand(
+                  Math.max(Math.abs(dx), Math.abs(dy)),
+                ),
+              );
+            });
+          } else {
+            this.mainScrollable.setOffset(
+              this.mainScrollableOffset.x,
+              this.mainScrollableOffset.y,
             );
           }
 
-          if (dx > 0) {
-            this.invalidRects.push(
-              new Rect(bbox.x, bbox.y, dx, bbox.height),
-            );
-          } else if (dx < 0) {
-            this.invalidRects.push(
-              new Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height),
-            );
-          }
+          const { drawnRects: drawnRects2 } = this.drawInvalidRects(layer);
 
-          this.mainScrollable.overlappingFixedWidgets.forEach((w) => {
-            this.invalidRects.push(
-              w.getBoundingBox().clone().expand(
-                Math.max(Math.abs(dx), Math.abs(dy)),
-              ),
-            );
-          });
-        } else {
-          this.mainScrollable.setOffset(
-            this.mainScrollableOffset.x,
-            this.mainScrollableOffset.y,
-          );
+          drawnRects += drawnRects2;
         }
-
-        const { drawnRects: drawnRects2 } = this.drawInvalidRects();
-
-        drawnRects += drawnRects2;
       }
     }
 
@@ -190,9 +219,9 @@ class EngineImpl implements Engine {
     };
   }
 
-  private updateLayout() {
-    for (let i = 0; i < this.children.length; i++) {
-      this.children[i].updateLayout(
+  private updateLayout(layer: EngineLayer) {
+    for (let i = 0; i < layer.children.length; i++) {
+      layer.children[i].updateLayout(
         this.screenSize.width,
         this.screenSize.height,
       );
@@ -201,17 +230,20 @@ class EngineImpl implements Engine {
 
   public update(): void {}
 
-  public addWidget(widget: Widget): void {
-    this.children.push(widget);
+  public addWidget(widget: Widget, layer: LayerId): void {
+    widget.layer = layer;
+    this.layers[layer].children.push(widget);
     widget.engine = this;
     widget.updateLayout(this.screenSize.width, this.screenSize.height);
-    this.invalidateRect(widget.getBoundingBox());
+    this.invalidateRect(widget.getBoundingBox(), widget.layer);
   }
 
   public removeWidget(widget: Widget): void {
-    const ix = this.children.indexOf(widget);
-    if (ix >= 0) this.children.splice(ix, 1);
-    this.invalidateRect(widget.getBoundingBox());
+    const layer = this.layers[widget.layer];
+
+    const ix = layer.children.indexOf(widget);
+    if (ix >= 0) layer.children.splice(ix, 1);
+    this.invalidateRect(widget.getBoundingBox(), layer.id);
   }
 
   public onKeyEvent(listener: (e: EngineKeyEvent) => void): void {
@@ -222,9 +254,11 @@ class EngineImpl implements Engine {
     this.nativeContext.input.onMouseEvent(listener);
   }
 
-  public invalidateRect(rect: Rect) {
-    let lastRect = this.invalidRects.length > 0
-      ? this.invalidRects[this.invalidRects.length - 1]
+  public invalidateRect(rect: Rect, layer: LayerId) {
+    const invalidRects = this.layers[layer].invalidRects;
+
+    let lastRect = invalidRects.length > 0
+      ? invalidRects[invalidRects.length - 1]
       : null;
 
     if (lastRect !== null && lastRect.intersects(rect)) {
@@ -232,7 +266,7 @@ class EngineImpl implements Engine {
       return;
     }
 
-    this.invalidRects.push(rect.clone());
+    invalidRects.push(rect.clone());
   }
 
   public destroy() {
@@ -249,10 +283,13 @@ class EngineImpl implements Engine {
   }
 
   public getWidgetAt(x: number, y: number): Widget | null {
-    for (let i = this.children.length - 1; i >= 0; i--) {
-      const child = this.children[i];
-      const w = child.getAt(x - child.visibleX, y - child.visibleY);
-      if (w !== null) return w;
+    for (let l = this.layers.length - 1; l >= 0; l--) {
+      const children = this.layers[l].children;
+      for (let i = children.length - 1; i >= 0; i--) {
+        const child = children[i];
+        const w = child.getAt(x - child.visibleX, y - child.visibleY);
+        if (w !== null) return w;
+      }
     }
 
     return null;

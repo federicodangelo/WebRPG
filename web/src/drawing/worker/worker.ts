@@ -53,20 +53,19 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
     switch (cmd) {
       case DrawingCommandType.SetTile:
         drawing.setTile(
-          commands[index + 0],
-          getTile(commands[index + 1]),
+          getTile(commands[index + 0]),
+          commands[index + 1],
           commands[index + 2],
           commands[index + 3],
           commands[index + 4],
           commands[index + 5],
           commands[index + 6],
-          commands[index + 7],
         );
         break;
       case DrawingCommandType.TintTile:
         drawing.tintTile(
-          commands[index + 0],
-          getTile(commands[index + 1]),
+          getTile(commands[index + 0]),
+          commands[index + 1],
           commands[index + 2],
           commands[index + 3],
           commands[index + 4],
@@ -74,7 +73,6 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
           commands[index + 6],
           commands[index + 7],
           commands[index + 8],
-          commands[index + 9],
         );
         break;
       case DrawingCommandType.FillRect:
@@ -84,7 +82,6 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
           commands[index + 2],
           commands[index + 3],
           commands[index + 4],
-          commands[index + 5],
         );
         break;
       case DrawingCommandType.ScrollRect:
@@ -95,13 +92,17 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
           commands[index + 3],
           commands[index + 4],
           commands[index + 5],
-          commands[index + 6],
         );
         break;
       case DrawingCommandType.SetSize:
         drawing.setSize(
           commands[index + 0],
           commands[index + 1],
+        );
+        break;
+      case DrawingCommandType.SetLayer:
+        drawing.setLayer(
+          commands[index + 0],
         );
         break;
       case DrawingCommandType.AddTile: {
@@ -130,7 +131,6 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
 function handleRequest(request: DrawingRequest) {
   switch (request.type) {
     case "batch":
-      request.requests.forEach((c) => handleRequest(c));
       handleCommands(
         new Int32Array(request.commands),
         request.commandsLen,

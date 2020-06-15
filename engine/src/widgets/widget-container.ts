@@ -4,12 +4,14 @@ import {
   ChildrenLayout,
   Engine,
   Widget,
+  LayerId,
 } from "../types.ts";
 import { BaseWidget } from "./widget.ts";
 
 export abstract class BaseWidgetContainer extends BaseWidget
   implements WidgetContainer {
   protected _children: Widget[] = [];
+  private _selfSolid = true;
 
   public childrenLayout: ChildrenLayout | null = null;
 
@@ -28,6 +30,29 @@ export abstract class BaseWidgetContainer extends BaseWidget
       for (let i = 0; i < this._children.length; i++) {
         this._children[i].engine = val;
       }
+    }
+  }
+
+  public get layer() {
+    return super.layer;
+  }
+
+  public set layer(v: LayerId) {
+    if (v !== this.layer) {
+      super.layer = v;
+      for (let i = 0; i < this._children.length; i++) {
+        this._children[i].layer = this.layer;
+      }
+    }
+  }
+
+  public get selfSolid() {
+    return this._selfSolid;
+  }
+
+  public set selfSolid(val: boolean) {
+    if (val !== this._selfSolid) {
+      this._selfSolid = val;
     }
   }
 
@@ -94,7 +119,7 @@ export abstract class BaseWidgetContainer extends BaseWidget
       );
       if (w !== null) return w;
     }
-    return this;
+    return this.selfSolid ? this : null;
   }
 
   public draw(context: EngineContext): void {

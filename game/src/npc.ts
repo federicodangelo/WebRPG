@@ -2,11 +2,17 @@ import { Avatar } from "./avatar.ts";
 import { randomIntervalInt, randomDirection } from "./random.ts";
 
 export class Npc extends Avatar {
+  private startingDelay = 5;
   private dx = 0;
   private dy = 0;
   private steps = 0;
 
   public update() {
+    if (this.startingDelay > 0) {
+      this.startingDelay--;
+      return;
+    }
+
     if (this.steps <= 0) {
       this.dx = randomDirection();
       this.dy = randomDirection();

@@ -87,6 +87,12 @@ export function rgba(r: number, g: number, b: number, a: number): RGB {
   );
 }
 
+export const LAYERS_COUNT = 2;
+export const enum LayerId {
+  Game,
+  UI,
+}
+
 export interface WidgetLayout {
   widthPercent?: number;
   heightPercent?: number;
@@ -115,6 +121,7 @@ export interface WidgetContainer extends Widget {
   readonly innerY: number;
   readonly innerWidth: number;
   readonly innerHeight: number;
+  selfSolid: boolean;
   childrenLayout: ChildrenLayout | null;
   setChildrenLayout(layout: ChildrenLayout | null): Widget;
   onChildrenTransformChanged(child: Widget): void;
@@ -132,7 +139,8 @@ export interface Widget {
   readonly visibleY: number;
   readonly visibleX: number;
   solid: boolean;
-  layer: number;
+  sortingLayer: number;
+  layer: LayerId;
   parent: WidgetContainer | null;
   draw(context: EngineContext): void;
   layout: WidgetLayout | null;
@@ -455,9 +463,9 @@ export type DrawStats = {
 export interface Engine {
   draw(): DrawStats;
   update(): void;
-  addWidget(widget: Widget): void;
+  addWidget(widget: Widget, layer: LayerId): void;
   removeWidget(widget: Widget): void;
-  invalidateRect(rect: Rect): void;
+  invalidateRect(rect: Rect, layer: LayerId): void;
   onKeyEvent(listener: (e: EngineKeyEvent) => void): void;
   onMouseEvent(listener: (e: EngineMouseEvent) => void): void;
   setMainScrollable(scrollable: ScrollableContainerWidget): void;

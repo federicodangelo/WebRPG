@@ -2,13 +2,14 @@ import {
   Color,
   AlphaType,
   Rect,
+  LAYERS_COUNT,
+  LayerId,
 } from "engine/types.ts";
 import {
   Drawing,
   DrawingDoneFn,
   DrawingTile,
   DrawingDoneDirtyParams,
-  LAYERS_COUNT,
 } from "./types.ts";
 
 class DrawingRealLayer {
@@ -92,6 +93,7 @@ export class DrawingReal implements Drawing {
   private drawingDone: DrawingDoneFn;
   private dirty = false;
   private dirtyTime = 0;
+  private targetLayer: DrawingRealLayer;
 
   public constructor(
     width: number,
@@ -103,6 +105,8 @@ export class DrawingReal implements Drawing {
     for (let i = 0; i < LAYERS_COUNT; i++) {
       this.layers.push(new DrawingRealLayer(width, height));
     }
+
+    this.targetLayer = this.layers[0];
   }
 
   public setSize(width: number, height: number) {
@@ -111,8 +115,11 @@ export class DrawingReal implements Drawing {
     }
   }
 
+  public setLayer(layer: LayerId) {
+    this.targetLayer = this.layers[layer];
+  }
+
   private setDirty(
-    layer: number,
     x: number,
     y: number,
     width: number,
@@ -122,11 +129,10 @@ export class DrawingReal implements Drawing {
       this.dirty = true;
       this.dirtyTime = performance.now();
     }
-    this.layers[layer].setDirty(x, y, width, height);
+    this.targetLayer.setDirty(x, y, width, height);
   }
 
   public tintTile(
-    layer: number,
     t: DrawingTile,
     foreColor: Color,
     backColor: Color,
@@ -137,11 +143,11 @@ export class DrawingReal implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    this.setDirty(layer, x, y, t.width, t.height);
+    this.setDirty(x, y, t.width, t.height);
 
     const colorsRGB = this.colorsRGB;
-    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-    const screenWidth = this.layers[layer].pixelsWidth;
+    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+    const screenWidth = this.targetLayer.pixelsWidth;
 
     colorsRGB[1] = foreColor;
     colorsRGB[0] = backColor;
@@ -215,7 +221,6 @@ export class DrawingReal implements Drawing {
   }
 
   public setTile(
-    layer: number,
     t: DrawingTile,
     x: number,
     y: number,
@@ -224,11 +229,11 @@ export class DrawingReal implements Drawing {
     ctx: number,
     cty: number,
   ) {
-    this.setDirty(layer, x, y, t.width, t.height);
+    this.setDirty(x, y, t.width, t.height);
 
-    const imageDataPixels8 = this.layers[layer].imageDataPixels8;
-    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-    const screenWidth = this.layers[layer].pixelsWidth;
+    const imageDataPixels8 = this.targetLayer.imageDataPixels8;
+    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+    const screenWidth = this.targetLayer.pixelsWidth;
 
     const tileWidth = t.width;
     const tileHeight = t.height;
@@ -348,17 +353,16 @@ export class DrawingReal implements Drawing {
   }
 
   public fillRect(
-    layer: number,
     color: Color,
     x: number,
     y: number,
     width: number,
     height: number,
   ) {
-    this.setDirty(layer, x, y, width, height);
+    this.setDirty(x, y, width, height);
 
-    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-    const screenWidth = this.layers[layer].pixelsWidth;
+    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+    const screenWidth = this.targetLayer.pixelsWidth;
 
     let p = 0;
 
@@ -371,7 +375,6 @@ export class DrawingReal implements Drawing {
   }
 
   public scrollRect(
-    layer: number,
     x: number,
     y: number,
     width: number,
@@ -379,11 +382,11 @@ export class DrawingReal implements Drawing {
     dx: number,
     dy: number,
   ) {
-    this.setDirty(layer, x, y, width, height);
+    this.setDirty(x, y, width, height);
 
-    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-    const screenWidth = this.layers[layer].pixelsWidth;
-    const screenHeight = this.layers[layer].pixelsHeight;
+    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+    const screenWidth = this.targetLayer.pixelsWidth;
+    const screenHeight = this.targetLayer.pixelsHeight;
 
     if (
       dy !== 0 && x == 0 &&
@@ -473,4 +476,6 @@ export class DrawingReal implements Drawing {
   }
 
   processPendingFrames() {}
+
+  public preloadTiles(tiles: DrawingTile[]) {}
 }

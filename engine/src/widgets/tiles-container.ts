@@ -3,8 +3,8 @@ import { TilemapWidget } from "./tilemap.ts";
 import { ScrollableContainerWidget } from "./scrollable.ts";
 
 function compareChildren(c1: Widget, c2: Widget) {
-  if (c1.layer === c2.layer) return c1.visibleY - c2.visibleY;
-  return c1.layer - c2.layer;
+  if (c1.sortingLayer === c2.sortingLayer) return c1.visibleY - c2.visibleY;
+  return c1.sortingLayer - c2.sortingLayer;
 }
 
 export class ScrollableTilesContainerWidget extends ScrollableContainerWidget {

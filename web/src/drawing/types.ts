@@ -1,13 +1,12 @@
 import {
   Color,
   AlphaType,
+  LayerId,
 } from "engine/types.ts";
 import { NativeDrawStats } from "engine/native-types.ts";
 
-export const LAYERS_COUNT = 2;
-
 export type DrawingDoneDirtyParams = {
-  layer: number;
+  layer: LayerId;
   dirtyRect: {
     x: number;
     y: number;
@@ -37,12 +36,15 @@ export type DrawingTile = {
 export type Drawing = {
   processPendingFrames(): void;
 
-  readyForNextFrame(): boolean;
+  readyForNextFrame(maxPendingFrames: number): boolean;
+
+  preloadTiles(t: DrawingTile[]): void;
 
   setSize(width: number, height: number): void;
 
+  setLayer(layer: LayerId): void;
+
   tintTile(
-    layer: number,
     t: DrawingTile,
     foreColor: Color,
     backColor: Color,
@@ -55,7 +57,6 @@ export type Drawing = {
   ): void;
 
   setTile(
-    layer: number,
     t: DrawingTile,
     x: number,
     y: number,
@@ -66,7 +67,6 @@ export type Drawing = {
   ): void;
 
   fillRect(
-    layer: number,
     color: Color,
     x: number,
     y: number,
@@ -75,7 +75,6 @@ export type Drawing = {
   ): void;
 
   scrollRect(
-    layer: number,
     x: number,
     y: number,
     width: number,

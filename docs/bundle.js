@@ -126,6 +126,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                     this._height = 0;
                     this._pivotX = 0;
                     this._pivotY = 0;
+                    this._sortingLayer = 0;
                     this._layer = 0;
                     this._parent = null;
                     this._engine = null;
@@ -225,14 +226,24 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 get visibleY() {
                     return this._y + this._pivotY;
                 }
+                get sortingLayer() {
+                    return this._sortingLayer;
+                }
+                set sortingLayer(v) {
+                    if (v !== this._sortingLayer) {
+                        this._sortingLayer = v;
+                        this.invalidate();
+                        this._parent?.onChildrenTransformChanged(this);
+                    }
+                }
                 get layer() {
                     return this._layer;
                 }
                 set layer(v) {
                     if (v !== this._layer) {
+                        this.invalidate();
                         this._layer = v;
                         this.invalidate();
-                        this._parent?.onChildrenTransformChanged(this);
                     }
                 }
                 get parent() {
@@ -248,6 +259,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                         }
                         this._parent = v;
                         if (this._parent !== null) {
+                            this.layer = this._parent.layer;
                             this._parent.children.push(this);
                             this.engine = this._parent.engine;
                             this._parent.onChildrenAdded(this);
@@ -305,7 +317,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 invalidate() {
                     const engine = this.engine;
                     const bbox = this.getBoundingBox();
-                    engine?.invalidateRect(bbox);
+                    engine?.invalidateRect(bbox, this.layer);
                 }
                 mouse(e) { }
                 getAt(x, y) {
@@ -335,6 +347,7 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
                 constructor() {
                     super(...arguments);
                     this._children = [];
+                    this._selfSolid = true;
                     this.childrenLayout = null;
                 }
                 setChildrenLayout(layout) {
@@ -350,6 +363,25 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
                         for (let i = 0; i < this._children.length; i++) {
                             this._children[i].engine = val;
                         }
+                    }
+                }
+                get layer() {
+                    return super.layer;
+                }
+                set layer(v) {
+                    if (v !== this.layer) {
+                        super.layer = v;
+                        for (let i = 0; i < this._children.length; i++) {
+                            this._children[i].layer = this.layer;
+                        }
+                    }
+                }
+                get selfSolid() {
+                    return this._selfSolid;
+                }
+                set selfSolid(val) {
+                    if (val !== this._selfSolid) {
+                        this._selfSolid = val;
                     }
                 }
                 get innerX() {
@@ -408,7 +440,7 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
                         if (w !== null)
                             return w;
                     }
-                    return this;
+                    return this.selfSolid ? this : null;
                 }
                 draw(context) {
                     if (!context.isVisible(this.visibleX, this.visibleY, this.width, this.height)) {
@@ -493,7 +525,7 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
 });
 System.register("engine/src/types", [], function (exports_4, context_4) {
     "use strict";
-    var FixedColor, Point, Size, Rect;
+    var FixedColor, LAYERS_COUNT, Point, Size, Rect;
     var __moduleName = context_4 && context_4.id;
     function rgb(r, g, b) {
         return rgba(r, g, b, 255);
@@ -532,6 +564,7 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
                 return FixedColor;
             })();
             exports_4("FixedColor", FixedColor);
+            exports_4("LAYERS_COUNT", LAYERS_COUNT = 2);
             Point = class Point {
                 constructor(x = 0, y = 0) {
                     this.x = x;
@@ -719,7 +752,6 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
             ];
             EngineContextImpl = class EngineContextImpl {
                 constructor(nativeContext) {
-                    this.layer = 0;
                     this.bounds = new types_ts_3.Rect();
                     this.clip = new types_ts_3.Rect();
                     this.tx = 0;
@@ -736,7 +768,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     this.nativeContext.beginDraw();
                 }
                 setTargetLayer(layer) {
-                    this.layer = layer;
+                    this.nativeContext.setTargetLayer(layer);
                 }
                 beginClip(x, y, width, height) {
                     this.bounds.set(x, y, width, height);
@@ -808,7 +840,6 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const screenX = this.x + this.tx;
                     const screenY = this.y + this.ty;
                     const clip = this.clip;
-                    const layer = this.layer;
                     const width = font.tileWidth;
                     const height = font.tileHeight;
                     if (screenX + width > clip.x &&
@@ -820,7 +851,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                         const cfy = Math.max(clip.y - screenY, 0);
                         const ctx = Math.min(clip.x1 - screenX, width);
                         const cty = Math.min(clip.y1 - screenY, height);
-                        this.nativeContext.tintTile(layer, fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
+                        this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
                     }
                     this.x += width;
                     return this;
@@ -886,7 +917,6 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const clip = this.clip;
                     const tx = this.tx;
                     const ty = this.ty;
-                    const layer = this.layer;
                     const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, fontWidth));
                     const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, fontHeight));
                     const x1 = Math.min(tx + x + width, ceilToMultipleOf(clip.x1, fontWidth));
@@ -902,7 +932,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                             const cfy = Math.max(clip.y - screenY, 0);
                             const ctx = Math.min(clip.x1 - screenX, fontWidth);
                             const cty = Math.min(clip.y1 - screenY, fontHeight);
-                            this.nativeContext.tintTile(layer, fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
+                            this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
                         }
                     }
                     return this;
@@ -913,7 +943,6 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const clip = this.clip;
                     const tx = this.tx;
                     const ty = this.ty;
-                    const layer = this.layer;
                     if (indexes.length == 0)
                         return this;
                     const height = indexes.length * tileHeight;
@@ -939,7 +968,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                                 const cfy = Math.max(clip.y - screenY, 0);
                                 const ctx = Math.min(clip.x1 - screenX, tileWidth);
                                 const cty = Math.min(clip.y1 - screenY, tileHeight);
-                                this.nativeContext.setTile(layer, tiles[tileIndex], screenX, screenY, cfx, cfy, ctx, cty);
+                                this.nativeContext.setTile(tiles[tileIndex], screenX, screenY, cfx, cfy, ctx, cty);
                             }
                         }
                     }
@@ -951,7 +980,6 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const clip = this.clip;
                     const width = t.width;
                     const height = t.height;
-                    const layer = this.layer;
                     if (screenX + width > clip.x &&
                         screenX < clip.x1 &&
                         screenY + height > clip.y &&
@@ -960,7 +988,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                         const cfy = Math.max(clip.y - screenY, 0);
                         const ctx = Math.min(clip.x1 - screenX, width);
                         const cty = Math.min(clip.y1 - screenY, height);
-                        this.nativeContext.setTile(layer, t, screenX, screenY, cfx, cfy, ctx, cty);
+                        this.nativeContext.setTile(t, screenX, screenY, cfx, cfy, ctx, cty);
                     }
                     return this;
                 }
@@ -968,7 +996,6 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     const clip = this.clip;
                     const tx = this.tx;
                     const ty = this.ty;
-                    const layer = this.layer;
                     const x0 = Math.max(tx + x, clip.x);
                     const y0 = Math.max(ty + y, clip.y);
                     const x1 = Math.min(tx + x + width, clip.x1);
@@ -976,7 +1003,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
                     if (x1 <= x0 || y1 <= y0) {
                         return this;
                     }
-                    this.nativeContext.fillRect(layer, color, x0, y0, x1 - x0, y1 - y0);
+                    this.nativeContext.fillRect(color, x0, y0, x1 - x0, y1 - y0);
                     return this;
                 }
             };
@@ -986,7 +1013,7 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_6,
 });
 System.register("engine/src/engine", ["engine/src/types", "engine/src/context"], function (exports_7, context_7) {
     "use strict";
-    var types_ts_4, context_ts_1, EngineImpl;
+    var types_ts_4, context_ts_1, EngineLayer, EngineImpl;
     var __moduleName = context_7 && context_7.id;
     async function buildEngine(nativeContext) {
         const engine = new EngineImpl(nativeContext);
@@ -1008,16 +1035,25 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
             }
         ],
         execute: function () {
+            EngineLayer = class EngineLayer {
+                constructor(id) {
+                    this.invalidRects = [];
+                    this.children = [];
+                    this.id = id;
+                }
+            };
             EngineImpl = class EngineImpl {
                 constructor(nativeContext) {
-                    this.children = [];
                     this.screenSize = new types_ts_4.Size();
-                    this.invalidRects = [];
+                    this.layers = [];
                     this.mainScrollable = null;
                     this.mainScrollableOffset = new types_ts_4.Point();
                     this.nativeContext = nativeContext;
                     this.context = new context_ts_1.EngineContextImpl(this.nativeContext.screen);
                     this.nativeContext.input.onMouseEvent((e) => this.onMouseEventInternal(e));
+                    for (let i = 0; i < types_ts_4.LAYERS_COUNT; i++) {
+                        this.layers.push(new EngineLayer(i));
+                    }
                 }
                 async init() {
                     await this.nativeContext.init();
@@ -1034,18 +1070,21 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                 onScreenSizeChanged(size) {
                     if (!size.equals(this.screenSize)) {
                         this.screenSize.set(size.width, size.height);
-                        this.invalidateRect(new types_ts_4.Rect(0, 0, this.screenSize.width, this.screenSize.height));
+                        for (let i = 0; i < this.layers.length; i++) {
+                            this.invalidateRect(new types_ts_4.Rect(0, 0, this.screenSize.width, this.screenSize.height), this.layers[i].id);
+                        }
                     }
                 }
-                drawInvalidRects() {
+                drawInvalidRects(layer) {
                     let drawnRects = 0;
                     let drawnArea = 0;
-                    if (this.invalidRects.length > 0) {
+                    if (layer.invalidRects.length > 0) {
                         let pendingLayout = true;
                         const clip = new types_ts_4.Rect();
                         const screenSize = this.screenSize;
-                        for (let i = 0; i < this.invalidRects.length; i++) {
-                            clip.copyFrom(this.invalidRects[i]);
+                        const children = layer.children;
+                        for (let i = 0; i < layer.invalidRects.length; i++) {
+                            clip.copyFrom(layer.invalidRects[i]);
                             if (clip.x < 0) {
                                 clip.width += clip.x;
                                 clip.x = 0;
@@ -1068,53 +1107,60 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                             }
                             if (pendingLayout) {
                                 pendingLayout = false;
-                                this.updateLayout();
+                                this.updateLayout(layer);
                             }
                             drawnRects++;
                             drawnArea += clip.width * clip.height;
                             this.context.beginClip(clip.x, clip.y, clip.width, clip.height);
-                            for (let i = 0; i < this.children.length; i++) {
-                                this.children[i].draw(this.context);
+                            for (let i = 0; i < children.length; i++) {
+                                children[i].draw(this.context);
                             }
                             this.context.endClip();
                         }
-                        this.invalidRects.length = 0;
+                        layer.invalidRects.length = 0;
                     }
                     return { drawnRects, drawnArea };
                 }
                 draw() {
                     const startTime = performance.now();
                     this.context.beginDraw();
-                    let { drawnRects } = this.drawInvalidRects();
-                    if (this.mainScrollable !== null) {
-                        const dx = this.mainScrollableOffset.x - this.mainScrollable.offsetX;
-                        const dy = this.mainScrollableOffset.y - this.mainScrollable.offsetY;
-                        if (dx !== 0 || dy !== 0) {
-                            const bbox = this.mainScrollable.getBoundingBox();
-                            if (Math.abs(dx) < bbox.width && Math.abs(dy) < bbox.height) {
-                                this.mainScrollable.setOffset(this.mainScrollableOffset.x, this.mainScrollableOffset.y, false);
-                                this.nativeContext.screen.scrollRect(0, bbox.x, bbox.y, bbox.width, bbox.height, dx, dy);
-                                if (dy > 0) {
-                                    this.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y, bbox.width, dy));
+                    let drawnRects = 0;
+                    for (let i = 0; i < this.layers.length; i++) {
+                        const layer = this.layers[i];
+                        this.context.setTargetLayer(layer.id);
+                        let { drawnRects: drawnRects1 } = this.drawInvalidRects(layer);
+                        drawnRects += drawnRects1;
+                        if (this.mainScrollable !== null &&
+                            this.mainScrollable.layer === layer.id) {
+                            const dx = this.mainScrollableOffset.x - this.mainScrollable.offsetX;
+                            const dy = this.mainScrollableOffset.y - this.mainScrollable.offsetY;
+                            if (dx !== 0 || dy !== 0) {
+                                const bbox = this.mainScrollable.getBoundingBox();
+                                if (Math.abs(dx) < bbox.width && Math.abs(dy) < bbox.height) {
+                                    this.mainScrollable.setOffset(this.mainScrollableOffset.x, this.mainScrollableOffset.y, false);
+                                    this.nativeContext.screen.scrollRect(bbox.x, bbox.y, bbox.width, bbox.height, dx, dy);
+                                    if (dy > 0) {
+                                        layer.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y, bbox.width, dy));
+                                    }
+                                    else if (dy < 0) {
+                                        layer.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy));
+                                    }
+                                    if (dx > 0) {
+                                        layer.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y, dx, bbox.height));
+                                    }
+                                    else if (dx < 0) {
+                                        layer.invalidRects.push(new types_ts_4.Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height));
+                                    }
+                                    this.mainScrollable.overlappingFixedWidgets.forEach((w) => {
+                                        layer.invalidRects.push(w.getBoundingBox().clone().expand(Math.max(Math.abs(dx), Math.abs(dy))));
+                                    });
                                 }
-                                else if (dy < 0) {
-                                    this.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy));
+                                else {
+                                    this.mainScrollable.setOffset(this.mainScrollableOffset.x, this.mainScrollableOffset.y);
                                 }
-                                if (dx > 0) {
-                                    this.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y, dx, bbox.height));
-                                }
-                                else if (dx < 0) {
-                                    this.invalidRects.push(new types_ts_4.Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height));
-                                }
-                                this.mainScrollable.overlappingFixedWidgets.forEach((w) => {
-                                    this.invalidRects.push(w.getBoundingBox().clone().expand(Math.max(Math.abs(dx), Math.abs(dy))));
-                                });
+                                const { drawnRects: drawnRects2 } = this.drawInvalidRects(layer);
+                                drawnRects += drawnRects2;
                             }
-                            else {
-                                this.mainScrollable.setOffset(this.mainScrollableOffset.x, this.mainScrollableOffset.y);
-                            }
-                            const { drawnRects: drawnRects2 } = this.drawInvalidRects();
-                            drawnRects += drawnRects2;
                         }
                     }
                     this.context.endDraw();
@@ -1124,23 +1170,25 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                         rects: drawnRects,
                     };
                 }
-                updateLayout() {
-                    for (let i = 0; i < this.children.length; i++) {
-                        this.children[i].updateLayout(this.screenSize.width, this.screenSize.height);
+                updateLayout(layer) {
+                    for (let i = 0; i < layer.children.length; i++) {
+                        layer.children[i].updateLayout(this.screenSize.width, this.screenSize.height);
                     }
                 }
                 update() { }
-                addWidget(widget) {
-                    this.children.push(widget);
+                addWidget(widget, layer) {
+                    widget.layer = layer;
+                    this.layers[layer].children.push(widget);
                     widget.engine = this;
                     widget.updateLayout(this.screenSize.width, this.screenSize.height);
-                    this.invalidateRect(widget.getBoundingBox());
+                    this.invalidateRect(widget.getBoundingBox(), widget.layer);
                 }
                 removeWidget(widget) {
-                    const ix = this.children.indexOf(widget);
+                    const layer = this.layers[widget.layer];
+                    const ix = layer.children.indexOf(widget);
                     if (ix >= 0)
-                        this.children.splice(ix, 1);
-                    this.invalidateRect(widget.getBoundingBox());
+                        layer.children.splice(ix, 1);
+                    this.invalidateRect(widget.getBoundingBox(), layer.id);
                 }
                 onKeyEvent(listener) {
                     this.nativeContext.input.onKeyEvent(listener);
@@ -1148,15 +1196,16 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                 onMouseEvent(listener) {
                     this.nativeContext.input.onMouseEvent(listener);
                 }
-                invalidateRect(rect) {
-                    let lastRect = this.invalidRects.length > 0
-                        ? this.invalidRects[this.invalidRects.length - 1]
+                invalidateRect(rect, layer) {
+                    const invalidRects = this.layers[layer].invalidRects;
+                    let lastRect = invalidRects.length > 0
+                        ? invalidRects[invalidRects.length - 1]
                         : null;
                     if (lastRect !== null && lastRect.intersects(rect)) {
                         lastRect.union(rect);
                         return;
                     }
-                    this.invalidRects.push(rect.clone());
+                    invalidRects.push(rect.clone());
                 }
                 destroy() {
                     this.nativeContext.destroy();
@@ -1169,11 +1218,14 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                     this.mainScrollableOffset.y = offsetY | 0;
                 }
                 getWidgetAt(x, y) {
-                    for (let i = this.children.length - 1; i >= 0; i--) {
-                        const child = this.children[i];
-                        const w = child.getAt(x - child.visibleX, y - child.visibleY);
-                        if (w !== null)
-                            return w;
+                    for (let l = this.layers.length - 1; l >= 0; l--) {
+                        const children = this.layers[l].children;
+                        for (let i = children.length - 1; i >= 0; i--) {
+                            const child = children[i];
+                            const w = child.getAt(x - child.visibleX, y - child.visibleY);
+                            if (w !== null)
+                                return w;
+                        }
                     }
                     return null;
                 }
@@ -1522,9 +1574,9 @@ System.register("engine/src/widgets/tiles-container", ["engine/src/types", "engi
     var types_ts_5, scrollable_ts_1, ScrollableTilesContainerWidget;
     var __moduleName = context_14 && context_14.id;
     function compareChildren(c1, c2) {
-        if (c1.layer === c2.layer)
+        if (c1.sortingLayer === c2.sortingLayer)
             return c1.visibleY - c2.visibleY;
-        return c1.layer - c2.layer;
+        return c1.sortingLayer - c2.sortingLayer;
     }
     return {
         setters: [
@@ -1649,8 +1701,8 @@ System.register("game/src/map", ["engine/src/types", "engine/src/widgets/tile", 
         const floorTilemap = assets.getTilemap("terrain");
         const floor = new tilemap_ts_1.TilemapWidget(floorTilemap, MAP_SIZE, MAP_SIZE, 0);
         const floor2 = new tilemap_ts_1.TilemapWidget(floorTilemap, MAP_SIZE, MAP_SIZE, -1);
-        floor.layer = -3;
-        floor2.layer = -2;
+        floor.sortingLayer = -3;
+        floor2.sortingLayer = -2;
         const floorTiles = floor.tiles;
         tilesContainer.addTilemap(floor);
         tilesContainer.addTilemap(floor2);
@@ -1659,7 +1711,7 @@ System.register("game/src/map", ["engine/src/types", "engine/src/widgets/tile", 
         };
         const addTile = (x, y, id) => {
             const t = new tile_ts_1.TileWidget(assets.getTile(id));
-            t.layer = -1;
+            t.sortingLayer = -1;
             t.x = x * t.tile.width;
             t.y = y * t.tile.height;
             t.parent = tilesContainer;
@@ -1748,8 +1800,8 @@ System.register("game/src/map", ["engine/src/types", "engine/src/widgets/tile", 
         ],
         execute: function () {
             MAP_SIZE = 512;
-            DECOS_COUNT = 0;
-            ALT_TERRAINS_COUNT = 0;
+            DECOS_COUNT = 1024;
+            ALT_TERRAINS_COUNT = 256;
             ALT_TERRAINS_MIN_SIZE = 8;
             ALT_TERRAINS_MAX_SIZE = 16;
             mainTerrain = "grass";
@@ -1784,11 +1836,16 @@ System.register("game/src/npc", ["game/src/avatar", "game/src/random"], function
             Npc = class Npc extends avatar_ts_1.Avatar {
                 constructor() {
                     super(...arguments);
+                    this.startingDelay = 5;
                     this.dx = 0;
                     this.dy = 0;
                     this.steps = 0;
                 }
                 update() {
+                    if (this.startingDelay > 0) {
+                        this.startingDelay--;
+                        return;
+                    }
                     if (this.steps <= 0) {
                         this.dx = random_ts_2.randomDirection();
                         this.dy = random_ts_2.randomDirection();
@@ -1977,16 +2034,19 @@ System.register("engine/src/widgets/button", ["engine/src/widgets/widget"], func
         }
     };
 });
-System.register("game/src/ui2", ["engine/src/types", "engine/src/widgets/tiles-container", "engine/src/widgets/button", "engine/src/widgets/box"], function (exports_22, context_22) {
+System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/button", "engine/src/widgets/box"], function (exports_22, context_22) {
     "use strict";
-    var types_ts_8, tiles_container_ts_1, button_ts_1, box_ts_1;
+    var types_ts_8, button_ts_1, box_ts_1;
     var __moduleName = context_22 && context_22.id;
     function initUI(engine, assets) {
         const font = assets.defaultFont;
         const mainUI = new box_ts_1.BoxContainerWidget(font, 0);
+        mainUI.layer = 1 /* UI */;
+        mainUI.selfSolid = false;
         mainUI.layout = { widthPercent: 100, heightPercent: 100 };
         mainUI.fillChar = "";
         const statsContainer = new box_ts_1.BoxContainerWidget(font, 1);
+        statsContainer.solid = false;
         statsContainer.width = 16 * font.tileWidth;
         statsContainer.height = 7 * font.tileHeight;
         statsContainer.layout = {
@@ -2000,13 +2060,8 @@ System.register("game/src/ui2", ["engine/src/types", "engine/src/widgets/tiles-c
             verticalSpacingPercent: 100,
             horizontalSpacingPercent: 100,
         };
-        const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
-        map.layout = { heightPercent: 100, widthPercent: 100 };
-        map.setChildrenLayout({ type: "none" });
-        map.parent = mainUI;
         statsContainer.parent = mainUI;
         buttonsContainer.parent = mainUI;
-        map.overlappingFixedWidgets.push(statsContainer, buttonsContainer);
         statsContainer.titleForeColor = types_ts_8.FixedColor.BrightWhite;
         statsContainer.titleBackColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
         statsContainer.borderForeColor = types_ts_8.rgb(0 /* I0 */, 0 /* I0 */, 153 /* I60 */);
@@ -2023,16 +2078,13 @@ System.register("game/src/ui2", ["engine/src/types", "engine/src/widgets/tiles-c
         };
         new button_ts_1.ButtonWidget(font, "Full", types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, () => engine.setFullscreen(true)).parent = buttonsContainer;
         new button_ts_1.ButtonWidget(font, "Stat", types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, () => engine.toggleStats()).parent = buttonsContainer;
-        return { mainUI, statsContainer, buttonsContainer, map };
+        return { mainUI, statsContainer, buttonsContainer };
     }
     exports_22("initUI", initUI);
     return {
         setters: [
             function (types_ts_8_1) {
                 types_ts_8 = types_ts_8_1;
-            },
-            function (tiles_container_ts_1_1) {
-                tiles_container_ts_1 = tiles_container_ts_1_1;
             },
             function (button_ts_1_1) {
                 button_ts_1 = button_ts_1_1;
@@ -2045,9 +2097,9 @@ System.register("game/src/ui2", ["engine/src/types", "engine/src/widgets/tiles-c
         }
     };
 });
-System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/random", "game/src/npc", "game/src/utils", "game/src/ui2"], function (exports_23, context_23) {
+System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/random", "game/src/npc", "game/src/utils", "game/src/ui", "engine/src/widgets/tiles-container"], function (exports_23, context_23) {
     "use strict";
-    var avatar_ts_2, map_ts_1, random_ts_3, npc_ts_1, utils_ts_1, ui2_ts_1, NPCS_COUNT, ENABLE_P2, movingWithMouse, mouseKeyCodes;
+    var avatar_ts_2, map_ts_1, random_ts_3, npc_ts_1, utils_ts_1, ui_ts_1, tiles_container_ts_1, NPCS_COUNT, ENABLE_P2, movingWithMouse, mouseKeyCodes;
     var __moduleName = context_23 && context_23.id;
     function onKeyEvent(game, e) {
         if (e.char) {
@@ -2142,7 +2194,11 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
         }
     }
     function initGame(engine, assets) {
-        const { mainUI, map, statsContainer, buttonsContainer } = ui2_ts_1.initUI(engine, assets);
+        const { mainUI, statsContainer, buttonsContainer } = ui_ts_1.initUI(engine, assets);
+        const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
+        map.layer = 0 /* Game */;
+        map.layout = { heightPercent: 100, widthPercent: 100 };
+        map.setChildrenLayout({ type: "none" });
         const scrollable = map;
         const p1 = new avatar_ts_2.Avatar("female1", assets);
         const p2 = new avatar_ts_2.Avatar("female2", assets);
@@ -2178,7 +2234,8 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
             keysDown: new Map(),
             specialKeysDown: new Map(),
         };
-        engine.addWidget(mainUI);
+        engine.addWidget(map, 0 /* Game */);
+        engine.addWidget(mainUI, 1 /* UI */);
         engine.onKeyEvent((e) => onKeyEvent(game, e));
         engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
         engine.setMainScrollable(map);
@@ -2241,13 +2298,16 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
             function (utils_ts_1_1) {
                 utils_ts_1 = utils_ts_1_1;
             },
-            function (ui2_ts_1_1) {
-                ui2_ts_1 = ui2_ts_1_1;
+            function (ui_ts_1_1) {
+                ui_ts_1 = ui_ts_1_1;
+            },
+            function (tiles_container_ts_1_1) {
+                tiles_container_ts_1 = tiles_container_ts_1_1;
             }
         ],
         execute: function () {
-            NPCS_COUNT = 0;
-            ENABLE_P2 = false;
+            NPCS_COUNT = 10;
+            ENABLE_P2 = true;
             movingWithMouse = false;
             mouseKeyCodes = [];
         }
@@ -2255,26 +2315,21 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
 });
 System.register("web/src/drawing/types", [], function (exports_24, context_24) {
     "use strict";
-    var LAYERS_COUNT;
     var __moduleName = context_24 && context_24.id;
     return {
         setters: [],
         execute: function () {
-            exports_24("LAYERS_COUNT", LAYERS_COUNT = 2);
         }
     };
 });
-System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/drawing/types"], function (exports_25, context_25) {
+System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_25, context_25) {
     "use strict";
-    var types_ts_9, types_ts_10, DrawingRealLayer, DrawingReal;
+    var types_ts_9, DrawingRealLayer, DrawingReal;
     var __moduleName = context_25 && context_25.id;
     return {
         setters: [
             function (types_ts_9_1) {
                 types_ts_9 = types_ts_9_1;
-            },
-            function (types_ts_10_1) {
-                types_ts_10 = types_ts_10_1;
             }
         ],
         execute: function () {
@@ -2331,27 +2386,31 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                     this.dirty = false;
                     this.dirtyTime = 0;
                     this.drawingDone = drawingDone;
-                    for (let i = 0; i < types_ts_10.LAYERS_COUNT; i++) {
+                    for (let i = 0; i < types_ts_9.LAYERS_COUNT; i++) {
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
+                    this.targetLayer = this.layers[0];
                 }
                 setSize(width, height) {
                     for (let i = 0; i < this.layers.length; i++) {
                         this.layers[i].setSize(width, height);
                     }
                 }
-                setDirty(layer, x, y, width, height) {
+                setLayer(layer) {
+                    this.targetLayer = this.layers[layer];
+                }
+                setDirty(x, y, width, height) {
                     if (!this.dirty) {
                         this.dirty = true;
                         this.dirtyTime = performance.now();
                     }
-                    this.layers[layer].setDirty(x, y, width, height);
+                    this.targetLayer.setDirty(x, y, width, height);
                 }
-                tintTile(layer, t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.setDirty(layer, x, y, t.width, t.height);
+                tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(x, y, t.width, t.height);
                     const colorsRGB = this.colorsRGB;
-                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-                    const screenWidth = this.layers[layer].pixelsWidth;
+                    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+                    const screenWidth = this.targetLayer.pixelsWidth;
                     colorsRGB[1] = foreColor;
                     colorsRGB[0] = backColor;
                     const tilePixels = t.pixels32;
@@ -2425,11 +2484,11 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                         }
                     }
                 }
-                setTile(layer, t, x, y, cfx, cfy, ctx, cty) {
-                    this.setDirty(layer, x, y, t.width, t.height);
-                    const imageDataPixels8 = this.layers[layer].imageDataPixels8;
-                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-                    const screenWidth = this.layers[layer].pixelsWidth;
+                setTile(t, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(x, y, t.width, t.height);
+                    const imageDataPixels8 = this.targetLayer.imageDataPixels8;
+                    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+                    const screenWidth = this.targetLayer.pixelsWidth;
                     const tileWidth = t.width;
                     const tileHeight = t.height;
                     let p = 0;
@@ -2550,10 +2609,10 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                             break;
                     }
                 }
-                fillRect(layer, color, x, y, width, height) {
-                    this.setDirty(layer, x, y, width, height);
-                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-                    const screenWidth = this.layers[layer].pixelsWidth;
+                fillRect(color, x, y, width, height) {
+                    this.setDirty(x, y, width, height);
+                    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+                    const screenWidth = this.targetLayer.pixelsWidth;
                     let p = 0;
                     for (let py = 0; py < height; py++) {
                         p = (y + py) * screenWidth + x;
@@ -2562,11 +2621,11 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                         }
                     }
                 }
-                scrollRect(layer, x, y, width, height, dx, dy) {
-                    this.setDirty(layer, x, y, width, height);
-                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-                    const screenWidth = this.layers[layer].pixelsWidth;
-                    const screenHeight = this.layers[layer].pixelsHeight;
+                scrollRect(x, y, width, height, dx, dy) {
+                    this.setDirty(x, y, width, height);
+                    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+                    const screenWidth = this.targetLayer.pixelsWidth;
+                    const screenHeight = this.targetLayer.pixelsHeight;
                     if (dy !== 0 && x == 0 &&
                         width === screenWidth &&
                         height === screenHeight) {
@@ -2640,6 +2699,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                     return true;
                 }
                 processPendingFrames() { }
+                preloadTiles(tiles) { }
             };
             exports_25("DrawingReal", DrawingReal);
         }
@@ -2656,12 +2716,11 @@ System.register("web/src/drawing/worker/types", [], function (exports_26, contex
 });
 System.register("web/src/drawing/drawing-worker", [], function (exports_27, context_27) {
     "use strict";
-    var MAX_PENDING_FRAMES, DrawingWorker;
+    var DrawingWorker;
     var __moduleName = context_27 && context_27.id;
     return {
         setters: [],
         execute: function () {
-            MAX_PENDING_FRAMES = 2;
             DrawingWorker = class DrawingWorker {
                 constructor(width, height, drawingDone) {
                     this.ready = false;
@@ -2675,14 +2734,10 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     this.drawingDone = drawingDone;
                     this.pixelsWidth = -1;
                     this.pixelsHeight = -1;
-                    this.queue = [];
                     this.drawQueue = new ArrayBuffer(1024 * 1024);
                     this.drawQueue32 = new Int32Array(this.drawQueue);
                     this.drawQueueLen = 0;
                     this.setSize(width, height);
-                }
-                enqueueCommand(command) {
-                    this.queue.push(command);
                 }
                 enqueueOptimizedCommand(cmd, ...args) {
                     while (this.drawQueueLen + 2 + args.length >=
@@ -2705,7 +2760,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                         return tileId;
                     const id = this.nextTileId++;
                     this.tileMappings.set(tile, id);
-                    this.enqueueOptimizedCommand(5 /* AddTile */, id, tile.width, tile.height, tile.alphaType, tile.pixels32.length, ...tile.pixels32);
+                    this.enqueueOptimizedCommand(6 /* AddTile */, id, tile.width, tile.height, tile.alphaType, tile.pixels32.length, ...tile.pixels32);
                     return id;
                 }
                 isReady() {
@@ -2728,25 +2783,29 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                         return;
                     this.pixelsWidth = width;
                     this.pixelsHeight = height;
-                    this.resetQueues();
+                    if (this.ready)
+                        this.resetQueues();
                     this.enqueueOptimizedCommand(4 /* SetSize */, width, height);
                 }
-                tintTile(layer, t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.enqueueOptimizedCommand(1 /* TintTile */, layer, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
+                setLayer(layer) {
+                    this.enqueueOptimizedCommand(5 /* SetLayer */, layer);
                 }
-                setTile(layer, t, x, y, cfx, cfy, ctx, cty) {
-                    this.enqueueOptimizedCommand(0 /* SetTile */, layer, this.getTileId(t), x, y, cfx, cfy, ctx, cty);
+                tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
+                    this.enqueueOptimizedCommand(1 /* TintTile */, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
                 }
-                fillRect(layer, color, x, y, width, height) {
-                    this.enqueueOptimizedCommand(2 /* FillRect */, layer, color, x, y, width, height);
+                setTile(t, x, y, cfx, cfy, ctx, cty) {
+                    this.enqueueOptimizedCommand(0 /* SetTile */, this.getTileId(t), x, y, cfx, cfy, ctx, cty);
                 }
-                scrollRect(layer, x, y, width, height, dx, dy) {
-                    this.enqueueOptimizedCommand(3 /* ScrollRect */, layer, x, y, width, height, dx, dy);
+                fillRect(color, x, y, width, height) {
+                    this.enqueueOptimizedCommand(2 /* FillRect */, color, x, y, width, height);
+                }
+                scrollRect(x, y, width, height, dx, dy) {
+                    this.enqueueOptimizedCommand(3 /* ScrollRect */, x, y, width, height, dx, dy);
                 }
                 dispatch() {
                     if (!this.ready)
                         return;
-                    if (this.queue.length === 0 && this.drawQueueLen === 0)
+                    if (this.drawQueueLen === 0)
                         return;
                     const copy = new ArrayBuffer(this.drawQueueLen * 4);
                     const copy32 = new Int32Array(copy);
@@ -2755,19 +2814,17 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                         type: "batch",
                         commands: copy,
                         commandsLen: this.drawQueueLen,
-                        requests: this.queue,
                     };
                     this.worker.postMessage(batch, [copy]);
                     this.resetQueues();
                     this.pendingFrames++;
                 }
                 resetQueues() {
-                    this.queue.length = 0;
                     this.drawQueueLen = 0;
                 }
-                readyForNextFrame() {
-                    return this.pendingFrames < MAX_PENDING_FRAMES &&
-                        this.pendingDoneResults.length < MAX_PENDING_FRAMES;
+                readyForNextFrame(maxPendingFrames) {
+                    return this.ready && this.pendingFrames <= maxPendingFrames &&
+                        this.pendingDoneResults.length <= maxPendingFrames;
                 }
                 processPendingFrames() {
                     if (this.pendingDoneResults.length > 0) {
@@ -2782,6 +2839,12 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                         this.drawingDone(result);
                     }
                 }
+                preloadTiles(tiles) {
+                    for (let i = 0; i < tiles.length; i++) {
+                        this.getTileId(tiles[i]);
+                    }
+                    this.dispatch();
+                }
             };
             exports_27("DrawingWorker", DrawingWorker);
         }
@@ -2789,7 +2852,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
 });
 System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-real", "web/src/drawing/drawing-worker"], function (exports_28, context_28) {
     "use strict";
-    var types_ts_11, drawing_real_ts_1, drawing_worker_ts_1, USE_DEVICE_PIXEL_RATIO, USE_WORKER;
+    var types_ts_10, drawing_real_ts_1, drawing_worker_ts_1, USE_DEVICE_PIXEL_RATIO, USE_WORKER;
     var __moduleName = context_28 && context_28.id;
     function updateCanvasSize(canvas, zIndex) {
         const width = window.innerWidth;
@@ -2838,7 +2901,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         const layers = initCanvasResult.layers;
         const layersCtx = initCanvasResult.layersCtx;
         let screenMultiplier = initCanvasResult.multiplier;
-        const screenSize = new types_ts_11.Size(256, 256);
+        const screenSize = new types_ts_10.Size(256, 256);
         let screenSizeChangedListeners = [];
         let keyListeners = [];
         let mouseListeners = [];
@@ -2958,8 +3021,10 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
                         globalThis.pauseStats();
                     }
                 },
+                preloadTiles: drawing.preloadTiles.bind(drawing),
                 readyForNextFrame: drawing.readyForNextFrame.bind(drawing),
                 processPendingFrames: drawing.processPendingFrames.bind(drawing),
+                setTargetLayer: drawing.setLayer.bind(drawing),
                 tintTile: drawing.tintTile.bind(drawing),
                 setTile: drawing.setTile.bind(drawing),
                 fillRect: drawing.fillRect.bind(drawing),
@@ -2986,8 +3051,8 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
     exports_28("getWebNativeContext", getWebNativeContext);
     return {
         setters: [
-            function (types_ts_11_1) {
-                types_ts_11 = types_ts_11_1;
+            function (types_ts_10_1) {
+                types_ts_10 = types_ts_10_1;
             },
             function (drawing_real_ts_1_1) {
                 drawing_real_ts_1 = drawing_real_ts_1_1;
@@ -3004,7 +3069,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
 });
 System.register("web/src/assets", ["engine/src/types"], function (exports_29, context_29) {
     "use strict";
-    var types_ts_12;
+    var types_ts_11;
     var __moduleName = context_29 && context_29.id;
     async function loadImage(src) {
         return new Promise((resolve, reject) => {
@@ -3039,7 +3104,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
             getTile: (id) => tilesById.get(id),
             getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
             getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
-            getTileXYByIndex: (index) => new types_ts_12.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
+            getTileXYByIndex: (index) => new types_ts_11.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
         };
         const setTileId = (index, id) => {
             tiles[index].id = id;
@@ -3274,8 +3339,8 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
     exports_29("initAssets", initAssets);
     return {
         setters: [
-            function (types_ts_12_1) {
-                types_ts_12 = types_ts_12_1;
+            function (types_ts_11_1) {
+                types_ts_11 = types_ts_11_1;
             }
         ],
         execute: function () {
@@ -3331,7 +3396,7 @@ System.register("web/src/stats", [], function (exports_30, context_30) {
 });
 System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_31, context_31) {
     "use strict";
-    var types_ts_13, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, engine, nativeContext, fpsLabel, game, updateFpsFrames, updateFpsTime, engineStats, firstUpdate, lastUpdateTime, timeToNextUpdate;
+    var types_ts_12, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, MAX_PENDING_FRAMES, engine, nativeContext, fpsLabel, game, updateFpsFrames, updateFpsTime, engineStats, firstUpdate, lastUpdateTime, timeToNextUpdate;
     var __moduleName = context_31 && context_31.id;
     function updateFps() {
         const now = performance.now();
@@ -3365,9 +3430,39 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         console.log("Engine Initialized");
         game = game_ts_1.initGame(engine, assets);
         console.log("Game Initialized");
-        fpsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_13.FixedColor.White, game.statsContainer.backColor);
+        fpsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_12.FixedColor.White, game.statsContainer.backColor);
         fpsLabel.parent = game.statsContainer;
+        //Wait engine ready
+        while (!nativeContext.screen.readyForNextFrame(0)) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            nativeContext.screen.processPendingFrames();
+        }
+        //Preload tiles
+        const tiles = [];
+        for (const tilemap of assets.tilemaps.values()) {
+            tiles.push(...tilemap.tiles);
+        }
+        nativeContext.screen.preloadTiles(tiles);
+        //Wait preload tiles ready
+        while (!nativeContext.screen.readyForNextFrame(0)) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            nativeContext.screen.processPendingFrames();
+        }
         return engine;
+    }
+    function updateReal() {
+        updateFps();
+        const preUpdateTime = performance.now();
+        engine.update();
+        game_ts_1.updateGame(engine, game);
+        const postUpdateTime = performance.now();
+        engineStats.update.addSample(postUpdateTime - preUpdateTime);
+    }
+    function drawReal() {
+        const drawStats = engine.draw();
+        if (drawStats.rects > 0) {
+            engineStats.render.addSample(drawStats.time);
+        }
     }
     function update() {
         nativeContext.screen.processPendingFrames();
@@ -3385,17 +3480,9 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         if (timeToNextUpdate > 0.1)
             return;
         timeToNextUpdate += 1000 / TARGET_FPS;
-        updateFps();
-        const preUpdateTime = performance.now();
-        engine.update();
-        game_ts_1.updateGame(engine, game);
-        const postUpdateTime = performance.now();
-        engineStats.update.addSample(postUpdateTime - preUpdateTime);
-        if (nativeContext.screen.readyForNextFrame()) {
-            const drawStats = engine.draw();
-            if (drawStats.rects > 0) {
-                engineStats.render.addSample(drawStats.time);
-            }
+        updateReal();
+        if (nativeContext.screen.readyForNextFrame(MAX_PENDING_FRAMES)) {
+            drawReal();
         }
     }
     function hideLoader() {
@@ -3405,6 +3492,13 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     }
     async function run() {
         const engine = await init();
+        updateReal();
+        drawReal();
+        while (!nativeContext.screen.readyForNextFrame(0)) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            nativeContext.screen.processPendingFrames();
+        }
+        lastUpdateTime = performance.now();
         hideLoader();
         function onRequestAnimationFrame() {
             update();
@@ -3415,8 +3509,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     }
     return {
         setters: [
-            function (types_ts_13_1) {
-                types_ts_13 = types_ts_13_1;
+            function (types_ts_12_1) {
+                types_ts_12 = types_ts_12_1;
             },
             function (engine_ts_1_1) {
                 engine_ts_1 = engine_ts_1_1;
@@ -3439,11 +3533,12 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         ],
         execute: function () {
             TARGET_FPS = 30;
+            MAX_PENDING_FRAMES = 1;
             updateFpsFrames = 0;
             updateFpsTime = performance.now();
             engineStats = new stats_ts_1.EngineStats();
             firstUpdate = true;
-            lastUpdateTime = performance.now();
+            lastUpdateTime = 0;
             timeToNextUpdate = 0;
             run();
         }

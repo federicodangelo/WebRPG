@@ -8,12 +8,12 @@ export const enum DrawingCommandType {
   FillRect,
   ScrollRect,
   SetSize,
+  SetLayer,
   AddTile,
 }
 
 export type DrawingRequestBatch = {
   type: "batch";
-  requests: DrawingRequest[];
   // Drawing commands, Int32Array, format:
   // [ DrawCommandType ]
   // [ Number Of Args ]

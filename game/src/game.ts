@@ -4,6 +4,7 @@ import {
   EngineKeyEvent,
   EngineMouseEvent,
   KeyCode,
+  LayerId,
 } from "engine/types.ts";
 import { Avatar } from "./avatar.ts";
 import initMap1 from "./map.ts";
@@ -17,10 +18,11 @@ import {
   setSpecialKeyDown,
   isSpecialKeyDown,
 } from "./utils.ts";
-import { initUI } from "./ui2.ts";
+import { initUI } from "./ui.ts";
+import { ScrollableTilesContainerWidget } from "../../engine/src/widgets/tiles-container.ts";
 
-const NPCS_COUNT = 0;
-const ENABLE_P2 = false;
+const NPCS_COUNT = 10;
+const ENABLE_P2 = true;
 
 function onKeyEvent(game: Game, e: EngineKeyEvent) {
   if (e.char) {
@@ -125,10 +127,15 @@ function onMouseEvent(engine: Engine, game: Game, e: EngineMouseEvent) {
 }
 
 export function initGame(engine: Engine, assets: Assets): Game {
-  const { mainUI, map, statsContainer, buttonsContainer } = initUI(
+  const { mainUI, statsContainer, buttonsContainer } = initUI(
     engine,
     assets,
   );
+
+  const map = new ScrollableTilesContainerWidget();
+  map.layer = LayerId.Game;
+  map.layout = { heightPercent: 100, widthPercent: 100 };
+  map.setChildrenLayout({ type: "none" });
 
   const scrollable = map;
   const p1 = new Avatar("female1", assets);
@@ -177,7 +184,8 @@ export function initGame(engine: Engine, assets: Assets): Game {
     specialKeysDown: new Map<KeyCode, boolean>(),
   };
 
-  engine.addWidget(mainUI);
+  engine.addWidget(map, LayerId.Game);
+  engine.addWidget(mainUI, LayerId.UI);
   engine.onKeyEvent((e) => onKeyEvent(game, e));
   engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
   engine.setMainScrollable(map);

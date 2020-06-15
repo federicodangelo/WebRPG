@@ -5,6 +5,7 @@ import {
   EngineKeyEvent,
   EngineMouseEvent,
 } from "./types.ts";
+import { LayerId } from "./types.ts";
 
 export type NativeDrawStats = {
   drawnPixels: number;
@@ -16,13 +17,15 @@ export interface NativeContextScreen {
   onScreenSizeChanged(listener: (size: Size) => void): void;
   setFullscreen(fullscreen: boolean): void;
   toggleStats(): void;
-  readyForNextFrame(): boolean;
+  readyForNextFrame(maxPendingFrames: number): boolean;
   processPendingFrames(): void;
+  preloadTiles(tiles: Tile[]): void;
 
   beginDraw(): void;
 
+  setTargetLayer(layer: LayerId): void;
+
   tintTile(
-    layer: number,
     t: Tile,
     foreColor: Color,
     backColor: Color,
@@ -35,7 +38,6 @@ export interface NativeContextScreen {
   ): void;
 
   setTile(
-    layer: number,
     t: Tile,
     x: number,
     y: number,
@@ -46,7 +48,6 @@ export interface NativeContextScreen {
   ): void;
 
   fillRect(
-    layer: number,
     color: Color,
     x: number,
     y: number,
@@ -55,7 +56,6 @@ export interface NativeContextScreen {
   ): void;
 
   scrollRect(
-    layer: number,
     x: number,
     y: number,
     width: number,

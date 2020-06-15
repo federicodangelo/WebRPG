@@ -1,120 +1,76 @@
-import { LabelWidget } from "engine/widgets/label.ts";
 import {
   FixedColor,
   Engine,
   rgb,
   Intensity,
   Assets,
+  LayerId,
 } from "engine/types.ts";
-import { SplitPanelContainerWidget } from "engine/widgets/split-panel.ts";
-import { ScrollableTilesContainerWidget } from "engine/widgets/tiles-container.ts";
 import { ButtonWidget } from "../../engine/src/widgets/button.ts";
+import { BoxContainerWidget } from "../../engine/src/widgets/box.ts";
 
 export function initUI(engine: Engine, assets: Assets) {
   const font = assets.defaultFont;
 
-  const mainUI = new SplitPanelContainerWidget(font);
-  mainUI.layout = {
-    widthPercent: 100,
-    heightPercent: 100,
+  const mainUI = new BoxContainerWidget(font, 0);
+  mainUI.layer = LayerId.UI;
+  mainUI.selfSolid = false;
+  mainUI.layout = { widthPercent: 100, heightPercent: 100 };
+  mainUI.fillChar = "";
+
+  const statsContainer = new BoxContainerWidget(font, 1);
+  statsContainer.solid = false;
+  statsContainer.width = 16 * font.tileWidth;
+  statsContainer.height = 7 * font.tileHeight;
+  statsContainer.layout = {
+    verticalSpacingPercent: 0,
+    horizontalSpacingPercent: 100,
   };
-  mainUI.splitLayout = {
-    direction: "horizontal",
-    fixed: {
-      panel: "panel2",
-      amount: 12 * font.tileWidth,
-    },
+
+  const buttonsContainer = new BoxContainerWidget(font, 1);
+  buttonsContainer.width = 8 * font.tileWidth;
+  buttonsContainer.height = 9 * font.tileHeight;
+  buttonsContainer.layout = {
+    verticalSpacingPercent: 100,
+    horizontalSpacingPercent: 100,
   };
 
-  mainUI.panel2.backColor = FixedColor.BrightBlack;
+  statsContainer.parent = mainUI;
+  buttonsContainer.parent = mainUI;
 
-  const sidebar = new SplitPanelContainerWidget(font);
-  sidebar.parent = mainUI.panel2;
-  sidebar.layout = {
-    widthPercent: 100,
-    heightPercent: 100,
-  };
-  sidebar.splitLayout = {
-    direction: "vertical",
-    fixed: {
-      panel: "panel2",
-      amount: 10 * font.tileWidth,
-    },
-  };
-  sidebar.panel1.border = 0;
-  sidebar.panel2.border = 0;
-
-  const statsContainer = sidebar.panel1;
-  const buttonsContainer = sidebar.panel2;
-
-  const map = new ScrollableTilesContainerWidget();
-
-  map.setLayout({ heightPercent: 100, widthPercent: 100 });
-  map.setChildrenLayout({ type: "none" });
-  map.parent = mainUI.panel1;
-
-  mainUI.panel1.titleForeColor = FixedColor.BrightWhite;
-  mainUI.panel1.titleBackColor = rgb(
-    Intensity.I20,
-    Intensity.I0,
-    Intensity.I20,
-  );
-  mainUI.panel1.borderForeColor = rgb(
-    Intensity.I60,
-    Intensity.I0,
-    Intensity.I60,
-  );
-  mainUI.panel1.borderBackColor = rgb(
-    Intensity.I20,
-    Intensity.I0,
-    Intensity.I20,
-  );
-  mainUI.panel1.backColor = FixedColor.Black;
-  mainUI.panel1.fillChar = "";
-  mainUI.panel1.border = 0;
-
-  mainUI.panel2.title = " Stats ";
-  mainUI.panel2.titleForeColor = FixedColor.BrightWhite;
-  mainUI.panel2.titleBackColor = rgb(
+  statsContainer.titleForeColor = FixedColor.BrightWhite;
+  statsContainer.titleBackColor = rgb(
     Intensity.I0,
     Intensity.I20,
     Intensity.I40,
   );
-  mainUI.panel2.borderForeColor = rgb(
+  statsContainer.borderForeColor = rgb(
     Intensity.I0,
     Intensity.I0,
     Intensity.I60,
   );
-  mainUI.panel2.borderBackColor = rgb(
+  statsContainer.borderBackColor = rgb(
     Intensity.I0,
     Intensity.I20,
     Intensity.I40,
   );
 
-  mainUI.panel2.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
   statsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
   buttonsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
 
   statsContainer.childrenLayout = {
     type: "vertical",
-    spacing: 1 * font.tileWidth,
+    spacing: 0,
   };
 
   buttonsContainer.childrenLayout = {
     type: "vertical",
-    spacing: 1 * font.tileWidth,
+    spacing: font.tileHeight,
   };
-
-  new LabelWidget(
-    font,
-    "Move P1:\n  W/S/A/D\nMove P2:\n  I/J/K/L",
-    FixedColor.White,
-    mainUI.panel2.backColor,
-  ).parent = statsContainer;
 
   new ButtonWidget(
     font,
-    "  Full  ",
+    "Full",
     FixedColor.White,
     FixedColor.Green,
     () => engine.setFullscreen(true),
@@ -122,11 +78,11 @@ export function initUI(engine: Engine, assets: Assets) {
 
   new ButtonWidget(
     font,
-    "  Stat  ",
+    "Stat",
     FixedColor.White,
     FixedColor.Green,
     () => engine.toggleStats(),
   ).parent = buttonsContainer;
 
-  return { mainUI, statsContainer, buttonsContainer, map };
+  return { mainUI, statsContainer, buttonsContainer };
 }

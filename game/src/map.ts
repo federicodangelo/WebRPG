@@ -6,8 +6,8 @@ import { randomIntervalInt, random } from "./random.ts";
 
 const MAP_SIZE = 512;
 
-const DECOS_COUNT = 0;
-const ALT_TERRAINS_COUNT = 0;
+const DECOS_COUNT = 1024;
+const ALT_TERRAINS_COUNT = 256;
 const ALT_TERRAINS_MIN_SIZE = 8;
 const ALT_TERRAINS_MAX_SIZE = 16;
 
@@ -53,8 +53,8 @@ export default function initMap(
 
   const floor = new TilemapWidget(floorTilemap, MAP_SIZE, MAP_SIZE, 0);
   const floor2 = new TilemapWidget(floorTilemap, MAP_SIZE, MAP_SIZE, -1);
-  floor.layer = -3;
-  floor2.layer = -2;
+  floor.sortingLayer = -3;
+  floor2.sortingLayer = -2;
 
   const floorTiles = floor.tiles;
 
@@ -67,7 +67,7 @@ export default function initMap(
 
   const addTile = (x: number, y: number, id: string) => {
     const t = new TileWidget(assets.getTile(id));
-    t.layer = -1;
+    t.sortingLayer = -1;
     t.x = x * t.tile.width;
     t.y = y * t.tile.height;
     t.parent = tilesContainer;

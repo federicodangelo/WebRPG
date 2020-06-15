@@ -126,6 +126,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                     this._height = 0;
                     this._pivotX = 0;
                     this._pivotY = 0;
+                    this._sortingLayer = 0;
                     this._layer = 0;
                     this._parent = null;
                     this._engine = null;
@@ -225,14 +226,24 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 get visibleY() {
                     return this._y + this._pivotY;
                 }
+                get sortingLayer() {
+                    return this._sortingLayer;
+                }
+                set sortingLayer(v) {
+                    if (v !== this._sortingLayer) {
+                        this._sortingLayer = v;
+                        this.invalidate();
+                        this._parent?.onChildrenTransformChanged(this);
+                    }
+                }
                 get layer() {
                     return this._layer;
                 }
                 set layer(v) {
                     if (v !== this._layer) {
+                        this.invalidate();
                         this._layer = v;
                         this.invalidate();
-                        this._parent?.onChildrenTransformChanged(this);
                     }
                 }
                 get parent() {
@@ -248,6 +259,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                         }
                         this._parent = v;
                         if (this._parent !== null) {
+                            this.layer = this._parent.layer;
                             this._parent.children.push(this);
                             this.engine = this._parent.engine;
                             this._parent.onChildrenAdded(this);
@@ -305,7 +317,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 invalidate() {
                     const engine = this.engine;
                     const bbox = this.getBoundingBox();
-                    engine?.invalidateRect(bbox);
+                    engine?.invalidateRect(bbox, this.layer);
                 }
                 mouse(e) { }
                 getAt(x, y) {
@@ -335,6 +347,7 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
                 constructor() {
                     super(...arguments);
                     this._children = [];
+                    this._selfSolid = true;
                     this.childrenLayout = null;
                 }
                 setChildrenLayout(layout) {
@@ -350,6 +363,25 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
                         for (let i = 0; i < this._children.length; i++) {
                             this._children[i].engine = val;
                         }
+                    }
+                }
+                get layer() {
+                    return super.layer;
+                }
+                set layer(v) {
+                    if (v !== this.layer) {
+                        super.layer = v;
+                        for (let i = 0; i < this._children.length; i++) {
+                            this._children[i].layer = this.layer;
+                        }
+                    }
+                }
+                get selfSolid() {
+                    return this._selfSolid;
+                }
+                set selfSolid(val) {
+                    if (val !== this._selfSolid) {
+                        this._selfSolid = val;
                     }
                 }
                 get innerX() {
@@ -408,7 +440,7 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
                         if (w !== null)
                             return w;
                     }
-                    return this;
+                    return this.selfSolid ? this : null;
                 }
                 draw(context) {
                     if (!context.isVisible(this.visibleX, this.visibleY, this.width, this.height)) {
@@ -493,7 +525,7 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
 });
 System.register("engine/src/types", [], function (exports_4, context_4) {
     "use strict";
-    var FixedColor, Point, Size, Rect;
+    var FixedColor, LAYERS_COUNT, Point, Size, Rect;
     var __moduleName = context_4 && context_4.id;
     function rgb(r, g, b) {
         return rgba(r, g, b, 255);
@@ -532,6 +564,7 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
                 return FixedColor;
             })();
             exports_4("FixedColor", FixedColor);
+            exports_4("LAYERS_COUNT", LAYERS_COUNT = 2);
             Point = class Point {
                 constructor(x = 0, y = 0) {
                     this.x = x;
@@ -661,26 +694,21 @@ System.register("engine/src/native-types", [], function (exports_5, context_5) {
 });
 System.register("web/src/drawing/types", [], function (exports_6, context_6) {
     "use strict";
-    var LAYERS_COUNT;
     var __moduleName = context_6 && context_6.id;
     return {
         setters: [],
         execute: function () {
-            exports_6("LAYERS_COUNT", LAYERS_COUNT = 2);
         }
     };
 });
-System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/drawing/types"], function (exports_7, context_7) {
+System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_7, context_7) {
     "use strict";
-    var types_ts_3, types_ts_4, DrawingRealLayer, DrawingReal;
+    var types_ts_3, DrawingRealLayer, DrawingReal;
     var __moduleName = context_7 && context_7.id;
     return {
         setters: [
             function (types_ts_3_1) {
                 types_ts_3 = types_ts_3_1;
-            },
-            function (types_ts_4_1) {
-                types_ts_4 = types_ts_4_1;
             }
         ],
         execute: function () {
@@ -737,27 +765,31 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                     this.dirty = false;
                     this.dirtyTime = 0;
                     this.drawingDone = drawingDone;
-                    for (let i = 0; i < types_ts_4.LAYERS_COUNT; i++) {
+                    for (let i = 0; i < types_ts_3.LAYERS_COUNT; i++) {
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
+                    this.targetLayer = this.layers[0];
                 }
                 setSize(width, height) {
                     for (let i = 0; i < this.layers.length; i++) {
                         this.layers[i].setSize(width, height);
                     }
                 }
-                setDirty(layer, x, y, width, height) {
+                setLayer(layer) {
+                    this.targetLayer = this.layers[layer];
+                }
+                setDirty(x, y, width, height) {
                     if (!this.dirty) {
                         this.dirty = true;
                         this.dirtyTime = performance.now();
                     }
-                    this.layers[layer].setDirty(x, y, width, height);
+                    this.targetLayer.setDirty(x, y, width, height);
                 }
-                tintTile(layer, t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.setDirty(layer, x, y, t.width, t.height);
+                tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(x, y, t.width, t.height);
                     const colorsRGB = this.colorsRGB;
-                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-                    const screenWidth = this.layers[layer].pixelsWidth;
+                    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+                    const screenWidth = this.targetLayer.pixelsWidth;
                     colorsRGB[1] = foreColor;
                     colorsRGB[0] = backColor;
                     const tilePixels = t.pixels32;
@@ -831,11 +863,11 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                         }
                     }
                 }
-                setTile(layer, t, x, y, cfx, cfy, ctx, cty) {
-                    this.setDirty(layer, x, y, t.width, t.height);
-                    const imageDataPixels8 = this.layers[layer].imageDataPixels8;
-                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-                    const screenWidth = this.layers[layer].pixelsWidth;
+                setTile(t, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(x, y, t.width, t.height);
+                    const imageDataPixels8 = this.targetLayer.imageDataPixels8;
+                    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+                    const screenWidth = this.targetLayer.pixelsWidth;
                     const tileWidth = t.width;
                     const tileHeight = t.height;
                     let p = 0;
@@ -956,10 +988,10 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                             break;
                     }
                 }
-                fillRect(layer, color, x, y, width, height) {
-                    this.setDirty(layer, x, y, width, height);
-                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-                    const screenWidth = this.layers[layer].pixelsWidth;
+                fillRect(color, x, y, width, height) {
+                    this.setDirty(x, y, width, height);
+                    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+                    const screenWidth = this.targetLayer.pixelsWidth;
                     let p = 0;
                     for (let py = 0; py < height; py++) {
                         p = (y + py) * screenWidth + x;
@@ -968,11 +1000,11 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                         }
                     }
                 }
-                scrollRect(layer, x, y, width, height, dx, dy) {
-                    this.setDirty(layer, x, y, width, height);
-                    const imageDataPixels32 = this.layers[layer].imageDataPixels32;
-                    const screenWidth = this.layers[layer].pixelsWidth;
-                    const screenHeight = this.layers[layer].pixelsHeight;
+                scrollRect(x, y, width, height, dx, dy) {
+                    this.setDirty(x, y, width, height);
+                    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
+                    const screenWidth = this.targetLayer.pixelsWidth;
+                    const screenHeight = this.targetLayer.pixelsHeight;
                     if (dy !== 0 && x == 0 &&
                         width === screenWidth &&
                         height === screenHeight) {
@@ -1046,6 +1078,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types", "web/src/dr
                     return true;
                 }
                 processPendingFrames() { }
+                preloadTiles(tiles) { }
             };
             exports_7("DrawingReal", DrawingReal);
         }
@@ -1096,21 +1129,24 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             const argsLen = commands[index++];
             switch (cmd) {
                 case 0 /* SetTile */:
-                    drawing.setTile(commands[index + 0], getTile(commands[index + 1]), commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6], commands[index + 7]);
+                    drawing.setTile(getTile(commands[index + 0]), commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6]);
                     break;
                 case 1 /* TintTile */:
-                    drawing.tintTile(commands[index + 0], getTile(commands[index + 1]), commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6], commands[index + 7], commands[index + 8], commands[index + 9]);
+                    drawing.tintTile(getTile(commands[index + 0]), commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6], commands[index + 7], commands[index + 8]);
                     break;
                 case 2 /* FillRect */:
-                    drawing.fillRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5]);
+                    drawing.fillRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4]);
                     break;
                 case 3 /* ScrollRect */:
-                    drawing.scrollRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6]);
+                    drawing.scrollRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5]);
                     break;
                 case 4 /* SetSize */:
                     drawing.setSize(commands[index + 0], commands[index + 1]);
                     break;
-                case 5 /* AddTile */: {
+                case 5 /* SetLayer */:
+                    drawing.setLayer(commands[index + 0]);
+                    break;
+                case 6 /* AddTile */: {
                     const id = commands[index + 0];
                     const width = commands[index + 1];
                     const height = commands[index + 2];
@@ -1135,7 +1171,6 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
     function handleRequest(request) {
         switch (request.type) {
             case "batch":
-                request.requests.forEach((c) => handleRequest(c));
                 handleCommands(new Int32Array(request.commands), request.commandsLen);
                 break;
         }
