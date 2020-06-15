@@ -11,6 +11,8 @@ const coreContent = [
   "",
   "index.html",
   "index.css",
+  "swloader.js",
+  "stats.js",
   "bundle.js",
   "worker.js",
 ];

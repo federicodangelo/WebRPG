@@ -11,6 +11,9 @@ import {
   bold,
 } from "https://deno.land/std@0.57.0/fmt/colors.ts";
 
+const secure = Deno.env.get("SECURE") === "1";
+const indexFile = secure ? "index.html" : "index2.html";
+
 const app = new Application();
 
 // Error handler
@@ -72,7 +75,7 @@ app.use(async (context) => {
     : context.request.url.pathname;
   await send(context, path, {
     root: `${Deno.cwd()}/../docs`,
-    index: "index.html",
+    index: indexFile,
   });
 });
 
@@ -84,8 +87,6 @@ app.addEventListener("listen", ({ hostname, port, secure }) => {
     ),
   );
 });
-
-const secure = Deno.env.get("SECURE") === "1";
 
 if (secure) {
   console.log(yellow("Starting Secure Server [HTTPS]"));
