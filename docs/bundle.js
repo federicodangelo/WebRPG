@@ -3335,8 +3335,14 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             }
         }
     }
+    function hideLoader() {
+        const loader = document.getElementById("loader");
+        if (loader)
+            document.body.removeChild(loader);
+    }
     async function run() {
         const engine = await init();
+        hideLoader();
         function onRequestAnimationFrame() {
             update();
             requestAnimationFrame(onRequestAnimationFrame);

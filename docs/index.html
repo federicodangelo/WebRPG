@@ -4,22 +4,14 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
         <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no,width=device-width,minimal-ui" />
         <link rel="manifest" href="webrpg.webmanifest">
-        <style>
-            body {
-              margin: 0;
-              padding: 0;
-              background: #222;
-              touch-action: none;
-              -ms-touch-action: none;
-              overflow: hidden;
-            }
-        </style>
+        <link rel="stylesheet" href="index.css">
         <title>Web RPG</title>
     </head>
-  
     <body>
+        <div class="loader-container" id="loader">
+            <div class="lds-heart"><div></div></div>            
+        <div>
     </body>
-  
     <script type="module" src="bundle.js"></script>
     <script type="module">
         if ('serviceWorker' in navigator) {

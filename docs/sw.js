@@ -1,4 +1,4 @@
-const cacheId = "v4";
+const cacheId = "v5";
 const cacheFetchs = false;
 const allowNetwork = true;
 const workerDebug = false;
@@ -10,6 +10,7 @@ const contentRoot = "";
 const coreContent = [
   "",
   "index.html",
+  "index.css",
   "bundle.js",
   "worker.js",
 ];

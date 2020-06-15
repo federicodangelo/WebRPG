@@ -120,8 +120,15 @@ function update() {
   }
 }
 
+function hideLoader() {
+  const loader = document.getElementById("loader");
+  if (loader) document.body.removeChild(loader);
+}
+
 async function run() {
   const engine = await init();
+
+  hideLoader();
 
   function onRequestAnimationFrame() {
     update();
