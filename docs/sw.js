@@ -1,73 +1,103 @@
-const cacheId = "v2";
+const cacheId = "v3";
 const cacheFetchs = false;
+const allowNetwork = true;
+const workerDebug = true;
+
 const validCacheNames = [cacheId];
 
 const contentRoot = "";
 
 const coreContent = [
+  "",
   "index.html",
   "bundle.js",
   "worker.js",
 ];
 
-const assetsContnet = [
-  "res/assets.json",
-  "res/female1.png",
-  "res/female2.png",
-  "res/font9x14.png",
-  "res/font16x16.png",
-  "res/npc1.png",
-  "res/npc2.png",
-  "res/shadows.png",
-  "res/terrain.png",
+const assetsContentRoot = "res/";
+
+const assetsContent = [
+  "assets.json",
+  "female1.png",
+  "female2.png",
+  "font9x14.png",
+  "font16x16.png",
+  "npc1.png",
+  "npc2.png",
+  "shadows.png",
+  "terrain.png",
 ];
 
-self.addEventListener("install", function (e) {
-  console.debug("[Service Worker] Install");
+const externalContent = [
+  "https://mrdoob.github.io/stats.js/build/stats.min.js",
+];
+
+function log(message, ...args) {
+  if (workerDebug) console.debug("[Service Worker] " + message, ...args);
+}
+
+const cacheResources = async () => {
   const toCache = [];
   coreContent.forEach((c) => toCache.push(contentRoot + c));
-  assetsContnet.forEach((c) => toCache.push(contentRoot + c));
-  e.waitUntil(
-    caches.open(cacheId)
-      .then(function (cache) {
-        console.debug(
-          "[Service Worker] Caching all app shell and content",
-          toCache,
-        );
-        return cache.addAll(toCache);
-      }),
-  );
+  assetsContent.forEach((c) => toCache.push(assetsContentRoot + c));
+  toCache.push(...externalContent);
+
+  const cache = await caches.open(cacheId);
+  log("Caching all app shell and content", toCache);
+  return cache.addAll(toCache);
+};
+
+self.addEventListener("install", (event) => {
+  log("Install");
+  event.waitUntil(cacheResources());
 });
 
-self.addEventListener("fetch", function (e) {
-  e.respondWith(
-    caches.match(e.request).then(function (response) {
-      console.debug("[Service Worker] Fetching resource: " + e.request.url);
-      if (response !== undefined) {
-        return response;
-      } else {
-        return fetch(e.request).then(function (response) {
-          if (cacheFetchs) {
-            // response may be used only once
-            // we need to save clone to put one copy in cache
-            // and serve second one
-            let responseClone = response.clone();
-            caches.open(cacheId).then(function (cache) {
-              console.debug(
-                "[Service Worker] Caching new resource: " + e.request.url,
-              );
-              cache.put(e.request, responseClone);
-            });
-          }
-          return response;
-        });
-      }
-    }),
+const fetchFromCache = async (request) => {
+  const cacheResponse = await caches.match(request);
+  if (cacheResponse !== undefined) {
+    log("Using cache entry for " + request.url);
+    return cacheResponse;
+  }
+  if (!allowNetwork) {
+    throw Error(
+      "No cache entry for " + request.url +
+        " and allowNetwork is false, request has failed",
+    );
+  }
+
+  log(
+    "No cache entry for " + request.url + ", will try to fetch from internet",
   );
+  try {
+    const onlineResponse = await fetch(request);
+    log("Resource " + request.url + " fetched from the internet");
+    if (cacheFetchs) {
+      // response may be used only once
+      // we need to save clone to put one copy in cache
+      // and serve second one
+      let responseClone = onlineResponse.clone();
+      const cache = await caches.open(cacheId);
+      log("Resource " + request.url + " cached");
+      cache.put(request, responseClone);
+    }
+    return onlineResponse;
+  } catch (error) {
+    log(
+      "Resource " + request.url +
+        " failed to fetch from the internet, request has failed",
+    );
+    throw error;
+  }
+};
+
+self.addEventListener("fetch", function (e) {
+  log("Fetch " + e.request.url);
+  e.respondWith(fetchFromCache(e.request));
 });
 
 // Remove old caches on activate
 self.addEventListener("activate", function (event) {
+  log("Activate");
   event.waitUntil(
     caches.keys().then(function (cacheNames) {
       return Promise.all(
@@ -76,9 +106,7 @@ self.addEventListener("activate", function (event) {
           // but remember that caches are shared across
           // the whole origin
           if (validCacheNames.indexOf(cacheName) < 0) {
-            console.debug(
-              "[Service Worker] Deleting old cache : " + cacheName,
-            );
+            log("Deleting old cache : " + cacheName);
             return true;
           } else {
             return false;
