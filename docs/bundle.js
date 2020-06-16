@@ -3582,14 +3582,14 @@ System.register("web/src/stats", [], function (exports_30, context_30) {
 });
 System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_31, context_31) {
     "use strict";
-    var types_ts_12, engine_ts_1, label_ts_2, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, MAX_PENDING_FRAMES, engine, nativeContext, statsLabel, game, focused, updateFpsFrames, updateFpsTime, engineStats, ignoreUpdate, lastUpdateTime, timeToNextUpdate;
+    var types_ts_12, engine_ts_1, label_ts_2, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_UPDATE_FPS, MAX_PENDING_FRAMES, engine, nativeContext, statsLabel, game, focused, updateStatsFrames, updateStatsTime, engineStats, ignoreUpdate, lastUpdateTime;
     var __moduleName = context_31 && context_31.id;
-    function updateFps() {
+    function updateStats() {
         const now = performance.now();
-        updateFpsFrames++;
-        if (now - updateFpsTime > 1000) {
-            const deltaTime = now - updateFpsTime;
-            const fps = updateFpsFrames / (deltaTime / 1000);
+        updateStatsFrames++;
+        if (now - updateStatsTime > 1000) {
+            const deltaTime = now - updateStatsTime;
+            const fps = updateStatsFrames / (deltaTime / 1000);
             let stats = `FPS: ${fps.toFixed(1)}`;
             stats += "\n" + engineStats.update.toString();
             stats += "\n" + engineStats.render.toString();
@@ -3599,9 +3599,9 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             const idlePercent = idleTime * 100 / deltaTime;
             stats += `\nIdle: ${idlePercent.toFixed(1)}%`;
             statsLabel.text = stats;
-            updateFpsTime = now;
+            updateStatsTime = now;
             engineStats.reset();
-            updateFpsFrames = 0;
+            updateStatsFrames = 0;
         }
     }
     async function waitNoPendingFrames() {
@@ -3639,7 +3639,6 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         return engine;
     }
     function updateReal() {
-        updateFps();
         const preUpdateTime = performance.now();
         engine.update();
         game_ts_1.updateGame(game);
@@ -3656,21 +3655,19 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         if (!focused)
             return;
         nativeContext.screen.processPendingFrames();
+        updateStats();
         const now = performance.now();
-        const delta = now - lastUpdateTime;
-        lastUpdateTime = now;
-        timeToNextUpdate -= delta;
-        if (timeToNextUpdate < -1000)
-            timeToNextUpdate = -1000;
         if (ignoreUpdate) {
             ignoreUpdate = false;
-            timeToNextUpdate = 1000 / TARGET_FPS;
+            lastUpdateTime = now;
             return;
         }
-        if (timeToNextUpdate > 0.1)
-            return;
-        timeToNextUpdate += 1000 / TARGET_FPS;
-        updateReal();
+        const delta = now - lastUpdateTime;
+        const targetDeltaUpdate = 1000 / TARGET_UPDATE_FPS;
+        if (delta > targetDeltaUpdate - 0.1) {
+            lastUpdateTime = Math.max(lastUpdateTime + targetDeltaUpdate, now - 1000);
+            updateReal();
+        }
         if (nativeContext.screen.readyForNextFrame(MAX_PENDING_FRAMES)) {
             drawReal();
         }
@@ -3722,15 +3719,14 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             }
         ],
         execute: function () {
-            TARGET_FPS = 30;
+            TARGET_UPDATE_FPS = 30;
             MAX_PENDING_FRAMES = 1;
             focused = true;
-            updateFpsFrames = 0;
-            updateFpsTime = performance.now();
+            updateStatsFrames = 0;
+            updateStatsTime = performance.now();
             engineStats = new stats_ts_1.EngineStats();
             ignoreUpdate = true;
             lastUpdateTime = 0;
-            timeToNextUpdate = 0;
             run();
         }
     };

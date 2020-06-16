@@ -8,7 +8,7 @@ import { Game } from "../../game/src/types.ts";
 import { NativeContext } from "../../engine/src/native-types.ts";
 import { EngineStats } from "./stats.ts";
 
-const TARGET_FPS = 30;
+const TARGET_UPDATE_FPS = 30;
 const MAX_PENDING_FRAMES = 1;
 
 let engine: Engine;
@@ -17,17 +17,17 @@ let statsLabel: LabelWidget;
 let game: Game;
 let focused = true;
 
-let updateFpsFrames = 0;
-let updateFpsTime = performance.now();
+let updateStatsFrames = 0;
+let updateStatsTime = performance.now();
 
 const engineStats = new EngineStats();
 
-function updateFps() {
+function updateStats() {
   const now = performance.now();
-  updateFpsFrames++;
-  if (now - updateFpsTime > 1000) {
-    const deltaTime = now - updateFpsTime;
-    const fps = updateFpsFrames / (deltaTime / 1000);
+  updateStatsFrames++;
+  if (now - updateStatsTime > 1000) {
+    const deltaTime = now - updateStatsTime;
+    const fps = updateStatsFrames / (deltaTime / 1000);
 
     let stats = `FPS: ${fps.toFixed(1)}`;
     stats += "\n" + engineStats.update.toString();
@@ -41,10 +41,10 @@ function updateFps() {
     stats += `\nIdle: ${idlePercent.toFixed(1)}%`;
 
     statsLabel.text = stats;
-    updateFpsTime = now;
+    updateStatsTime = now;
 
     engineStats.reset();
-    updateFpsFrames = 0;
+    updateStatsFrames = 0;
   }
 }
 
@@ -102,11 +102,8 @@ async function init() {
 
 let ignoreUpdate = true;
 let lastUpdateTime = 0;
-let timeToNextUpdate = 0;
 
 function updateReal() {
-  updateFps();
-
   const preUpdateTime = performance.now();
 
   engine.update();
@@ -130,23 +127,23 @@ function update() {
 
   nativeContext.screen.processPendingFrames();
 
+  updateStats();
+
   const now = performance.now();
-  const delta = now - lastUpdateTime;
-  lastUpdateTime = now;
-  timeToNextUpdate -= delta;
-  if (timeToNextUpdate < -1000) timeToNextUpdate = -1000;
 
   if (ignoreUpdate) {
     ignoreUpdate = false;
-    timeToNextUpdate = 1000 / TARGET_FPS;
+    lastUpdateTime = now;
     return;
   }
 
-  if (timeToNextUpdate > 0.1) return;
+  const delta = now - lastUpdateTime;
+  const targetDeltaUpdate = 1000 / TARGET_UPDATE_FPS;
 
-  timeToNextUpdate += 1000 / TARGET_FPS;
-
-  updateReal();
+  if (delta > targetDeltaUpdate - 0.1) {
+    lastUpdateTime = Math.max(lastUpdateTime + targetDeltaUpdate, now - 1000);
+    updateReal();
+  }
 
   if (nativeContext.screen.readyForNextFrame(MAX_PENDING_FRAMES)) {
     drawReal();
