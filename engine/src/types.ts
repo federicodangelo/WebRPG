@@ -448,7 +448,7 @@ export type EngineKeyEvent = {
   code?: KeyCode;
 };
 
-export type EngineMouseEventType = "down" | "up" | "move" | "out";
+export type EngineMouseEventType = "down" | "up" | "move" | "up-out";
 export type EngineMouseEvent = {
   type: EngineMouseEventType;
   x: number;

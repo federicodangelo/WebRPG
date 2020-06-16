@@ -1,7 +1,7 @@
 import { Avatar } from "./avatar.ts";
 import { Game } from "./types.ts";
-import { KeyCode, Engine } from "../../engine/src/types.ts";
-import { ScrollableTilesContainerWidget } from "../../engine/src/widgets/tiles-container.ts";
+import { KeyCode, Engine } from "engine/types.ts";
+import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
 
 export function followAvatar(
   avatar: Avatar,

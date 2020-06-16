@@ -973,8 +973,13 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                 constructor() {
                     super(...arguments);
                     this.backColor = types_ts_3.FixedColor.Black;
+                    this.mouseHorizontalScrollEnabled = false;
+                    this.mouseHorizontalScrollLimits = { fromX: -9999999, toX: 9999999 };
                     this._offsetX = 0;
                     this._offsetY = 0;
+                    this.down = false;
+                    this.downPos = new types_ts_3.Point();
+                    this.downOffset = new types_ts_3.Point();
                 }
                 get offsetX() {
                     return this._offsetX;
@@ -1038,6 +1043,29 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                 drawSelf(context) {
                     context.fillRect(0, 0, this.width, this.height, this.backColor);
                 }
+                mouse(e) {
+                    if (!this.mouseHorizontalScrollEnabled) {
+                        super.mouse(e);
+                        return;
+                    }
+                    switch (e.type) {
+                        case "down":
+                            this.down = true;
+                            this.downPos.set(e.x, e.y);
+                            this.downOffset.set(this.offsetX, this.offsetY);
+                            break;
+                        case "move":
+                            if (this.down) {
+                                const newOffsetX = this.downOffset.x + e.x - this.downPos.x;
+                                this.setOffset(Math.max(Math.min(newOffsetX, this.mouseHorizontalScrollLimits.toX), this.mouseHorizontalScrollLimits.fromX), this.downOffset.y);
+                            }
+                            break;
+                        case "up":
+                        case "up-out":
+                            this.down = false;
+                            break;
+                    }
+                }
             };
             exports_6("ScrollableContainerWidget", ScrollableContainerWidget);
         }
@@ -1081,7 +1109,6 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                     this.layers = [];
                     this.scrollables = new Map();
                     this.lastWidgetUnderMouse = null;
-                    this.lastWidgetUnderMouseEventType = "move";
                     this.nativeContext = nativeContext;
                     this.context = new context_ts_1.EngineContextImpl(this.nativeContext.screen);
                     this.nativeContext.input.onMouseEvent((e) => this.onMouseEventInternal(e));
@@ -1247,20 +1274,37 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                     }
                     return null;
                 }
+                sendMouseEventToWidget(w, screenX, screenY, type) {
+                    const bbox = w.getBoundingBox();
+                    if (type === "up" && !bbox.contains(screenX, screenY)) {
+                        type = "up-out";
+                    }
+                    w.mouse({ type, x: screenX - bbox.x, y: screenY - bbox.y });
+                }
                 onMouseEventInternal(e) {
                     const w = this.getWidgetAt(e.x, e.y);
-                    if (w !== this.lastWidgetUnderMouse &&
-                        this.lastWidgetUnderMouse !== null &&
-                        this.lastWidgetUnderMouseEventType !== "up") {
-                        const bbox = this.lastWidgetUnderMouse.getBoundingBox();
-                        this.lastWidgetUnderMouse.mouse({ type: "out", x: e.x - bbox.x, y: e.y - bbox.y });
-                        this.lastWidgetUnderMouse = null;
-                    }
-                    if (w !== null) {
-                        const bbox = w.getBoundingBox();
-                        w.mouse({ type: e.type, x: e.x - bbox.x, y: e.y - bbox.y });
-                        this.lastWidgetUnderMouse = w;
-                        this.lastWidgetUnderMouseEventType = e.type;
+                    switch (e.type) {
+                        case "down":
+                            if (this.lastWidgetUnderMouse !== null) {
+                                //Send lost up event
+                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "up");
+                            }
+                            this.lastWidgetUnderMouse = w;
+                            if (this.lastWidgetUnderMouse !== null) {
+                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "down");
+                            }
+                            break;
+                        case "up":
+                            if (this.lastWidgetUnderMouse !== null) {
+                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "up");
+                                this.lastWidgetUnderMouse = null;
+                            }
+                            break;
+                        case "move":
+                            if (this.lastWidgetUnderMouse !== null) {
+                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "move");
+                            }
+                            break;
                     }
                 }
                 setFullscreen(fullscreen) {
@@ -1273,7 +1317,7 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
         }
     };
 });
-System.register("engine/src/widgets/label", ["engine/src/widgets/widget"], function (exports_8, context_8) {
+System.register("engine/src/widgets/ui/label", ["engine/src/widgets/widget"], function (exports_8, context_8) {
     "use strict";
     var widget_ts_2, LabelWidget;
     var __moduleName = context_8 && context_8.id;
@@ -1337,7 +1381,7 @@ System.register("engine/src/widgets/group", ["engine/src/widgets/widget-containe
         }
     };
 });
-System.register("engine/src/widgets/animated-tile", ["engine/src/widgets/widget"], function (exports_10, context_10) {
+System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/widget"], function (exports_10, context_10) {
     "use strict";
     var widget_ts_3, AnimatedTileWidget;
     var __moduleName = context_10 && context_10.id;
@@ -1414,7 +1458,7 @@ System.register("engine/src/widgets/animated-tile", ["engine/src/widgets/widget"
         }
     };
 });
-System.register("game/src/avatar", ["engine/src/widgets/group", "engine/src/widgets/animated-tile"], function (exports_11, context_11) {
+System.register("game/src/avatar", ["engine/src/widgets/group", "engine/src/widgets/game/animated-tile"], function (exports_11, context_11) {
     "use strict";
     var group_ts_1, animated_tile_ts_1, WALK_SPEED, Avatar;
     var __moduleName = context_11 && context_11.id;
@@ -1531,7 +1575,7 @@ System.register("game/src/avatar", ["engine/src/widgets/group", "engine/src/widg
         }
     };
 });
-System.register("engine/src/widgets/tile", ["engine/src/widgets/widget"], function (exports_12, context_12) {
+System.register("engine/src/widgets/game/tile", ["engine/src/widgets/widget"], function (exports_12, context_12) {
     "use strict";
     var widget_ts_4, TileWidget;
     var __moduleName = context_12 && context_12.id;
@@ -1557,7 +1601,7 @@ System.register("engine/src/widgets/tile", ["engine/src/widgets/widget"], functi
         }
     };
 });
-System.register("engine/src/widgets/tilemap", ["engine/src/widgets/widget"], function (exports_13, context_13) {
+System.register("engine/src/widgets/game/tilemap", ["engine/src/widgets/widget"], function (exports_13, context_13) {
     "use strict";
     var widget_ts_5, TilemapWidget;
     var __moduleName = context_13 && context_13.id;
@@ -1596,7 +1640,7 @@ System.register("engine/src/widgets/tilemap", ["engine/src/widgets/widget"], fun
         }
     };
 });
-System.register("engine/src/widgets/tiles-container", ["engine/src/types", "engine/src/widgets/scrollable"], function (exports_14, context_14) {
+System.register("engine/src/widgets/game/tiles-container", ["engine/src/types", "engine/src/widgets/scrollable"], function (exports_14, context_14) {
     "use strict";
     var types_ts_5, scrollable_ts_1, ScrollableTilesContainerWidget;
     var __moduleName = context_14 && context_14.id;
@@ -1705,7 +1749,7 @@ System.register("game/src/random", [], function (exports_15, context_15) {
         }
     };
 });
-System.register("game/src/map", ["engine/src/types", "engine/src/widgets/tile", "engine/src/widgets/tilemap", "game/src/random"], function (exports_16, context_16) {
+System.register("game/src/map", ["engine/src/types", "engine/src/widgets/game/tile", "engine/src/widgets/game/tilemap", "game/src/random"], function (exports_16, context_16) {
     "use strict";
     var types_ts_6, tile_ts_1, tilemap_ts_1, random_ts_1, MAP_SIZE, DECOS_COUNT, ALT_TERRAINS_COUNT, ALT_TERRAINS_MIN_SIZE, ALT_TERRAINS_MAX_SIZE, mainTerrain, altTerrains;
     var __moduleName = context_16 && context_16.id;
@@ -1887,7 +1931,7 @@ System.register("game/src/npc", ["game/src/avatar", "game/src/random"], function
         }
     };
 });
-System.register("engine/src/widgets/box", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_18, context_18) {
+System.register("engine/src/widgets/ui/box", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_18, context_18) {
     "use strict";
     var types_ts_7, widget_container_ts_3, BoxContainerWidget;
     var __moduleName = context_18 && context_18.id;
@@ -1902,31 +1946,24 @@ System.register("engine/src/widgets/box", ["engine/src/types", "engine/src/widge
         ],
         execute: function () {
             BoxContainerWidget = class BoxContainerWidget extends widget_container_ts_3.BaseWidgetContainer {
-                constructor(font, border = font.tileWidth, borderForeColor = types_ts_7.FixedColor.White, borderBackColor = types_ts_7.FixedColor.Black, foreColor = types_ts_7.FixedColor.White, backColor = types_ts_7.FixedColor.Black, fillChar = " ") {
+                constructor(border = 0) {
                     super();
-                    this.title = "";
-                    this.titleForeColor = types_ts_7.FixedColor.White;
-                    this.titleBackColor = types_ts_7.FixedColor.Black;
+                    this.backColor = types_ts_7.FixedColor.Black;
+                    this.borderColor = types_ts_7.FixedColor.Black;
                     this.border = 0;
-                    this.font = font;
                     this.border = border;
-                    this.borderForeColor = borderForeColor;
-                    this.borderBackColor = borderBackColor;
-                    this.foreColor = foreColor;
-                    this.backColor = backColor;
-                    this.fillChar = fillChar;
                 }
                 get innerX() {
-                    return this.border * this.font.tileWidth;
+                    return this.border;
                 }
                 get innerY() {
-                    return this.border * this.font.tileHeight;
+                    return this.border;
                 }
                 get innerWidth() {
-                    return this.width - this.border * 2 * this.font.tileWidth;
+                    return this.width - this.border * 2;
                 }
                 get innerHeight() {
-                    return this.height - this.border * 2 * this.font.tileHeight;
+                    return this.height - this.border * 2;
                 }
                 preDrawChildren(context) {
                     if (this.innerX > 0 || this.innerY > 0) {
@@ -1942,16 +1979,19 @@ System.register("engine/src/widgets/box", ["engine/src/types", "engine/src/widge
                 }
                 drawSelf(context) {
                     if (this.border > 0) {
-                        context.textColor(this.foreColor, this.backColor).fillChar(this.font, this.font.tileWidth, this.font.tileHeight, this.width - 2 * this.font.tileWidth, this.height - 2 * this.font.tileHeight, this.fillChar);
-                        context.textColor(this.borderForeColor, this.borderBackColor).textBorder(this.font, 0, 0, this.width, this.height);
+                        if (this.borderColor !== types_ts_7.FixedColor.Transparent) {
+                            //Top border
+                            context.fillRect(0, 0, this.width, this.border, this.borderColor);
+                            //Bottom border
+                            context.fillRect(0, this.height - this.border, this.width, this.border, this.borderColor);
+                            //Left border
+                            context.fillRect(0, 0, this.border, this.height, this.borderColor);
+                            //Right border
+                            context.fillRect(this.width - this.border, 0, this.border, this.height, this.borderColor);
+                        }
                     }
-                    else {
-                        context.textColor(this.foreColor, this.backColor).fillChar(this.font, 0, 0, this.width, this.height, this.fillChar);
-                    }
-                    if (this.title.length > 0) {
-                        context.moveCursorTo(Math.floor((this.width - this.title.length * this.font.tileWidth) / 2), 0)
-                            .textColor(this.titleForeColor, this.titleBackColor)
-                            .text(this.font, this.title);
+                    if (this.backColor !== types_ts_7.FixedColor.Transparent) {
+                        context.fillRect(this.innerX, this.innerY, this.innerWidth, this.innerHeight, this.backColor);
                     }
                 }
             };
@@ -1999,7 +2039,7 @@ System.register("game/src/utils", [], function (exports_20, context_20) {
         }
     };
 });
-System.register("engine/src/widgets/button", ["engine/src/widgets/widget"], function (exports_21, context_21) {
+System.register("engine/src/widgets/ui/button", ["engine/src/widgets/widget"], function (exports_21, context_21) {
     "use strict";
     var widget_ts_6, ButtonWidget;
     var __moduleName = context_21 && context_21.id;
@@ -2041,9 +2081,15 @@ System.register("engine/src/widgets/button", ["engine/src/widgets/widget"], func
                     const backColor = this.down ? this.pressedColor : this.backColor;
                     context.textColor(this.foreColor, backColor);
                     context.textBorder(this.font, 0, 0, this.width, this.height);
+                    context.fillRect(this.font.tileWidth, this.font.tileHeight, this.width - this.font.tileWidth * 2, this.height - this.font.tileHeight * 2, backColor);
                     for (let i = 0; i < this._lines.length; i++) {
-                        context.moveCursorTo(this.font.tileWidth, (i + 1) * this.font.tileHeight)
-                            .text(this.font, this._lines[i]);
+                        const line = this._lines[i];
+                        context.moveCursorTo(this.font.tileWidth +
+                            (((this.width - this.font.tileWidth * 2) -
+                                (line.length * this.font.tileWidth)) / 2) | 0, (i + 1) * this.font.tileHeight +
+                            (((this.height - this.font.tileHeight * 2) -
+                                (this._lines.length * this.font.tileHeight)) / 2) | 0)
+                            .text(this.font, line);
                     }
                 }
                 mouse(e) {
@@ -2052,7 +2098,7 @@ System.register("engine/src/widgets/button", ["engine/src/widgets/widget"], func
                             this.down = true;
                             this.invalidate();
                             break;
-                        case "out":
+                        case "up-out":
                             this.down = false;
                             this.invalidate();
                             break;
@@ -2071,40 +2117,83 @@ System.register("engine/src/widgets/button", ["engine/src/widgets/widget"], func
         }
     };
 });
-System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/button", "engine/src/widgets/box"], function (exports_22, context_22) {
+System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/button", "engine/src/widgets/ui/box", "engine/src/widgets/scrollable", "engine/src/widgets/ui/label"], function (exports_22, context_22) {
     "use strict";
-    var types_ts_8, button_ts_1, box_ts_1;
+    var types_ts_8, button_ts_1, box_ts_1, scrollable_ts_2, label_ts_1;
     var __moduleName = context_22 && context_22.id;
     function initUI(engine, assets, native) {
         const font = assets.defaultFont;
-        const mainUI = new box_ts_1.BoxContainerWidget(font, 0);
+        const mainUI = new box_ts_1.BoxContainerWidget(0);
         mainUI.layer = 1 /* UI */;
         mainUI.selfSolid = false;
         mainUI.layout = { widthPercent: 100, heightPercent: 100 };
-        mainUI.fillChar = "";
-        const statsContainer = new box_ts_1.BoxContainerWidget(font, 1);
+        mainUI.backColor = types_ts_8.FixedColor.Transparent;
+        const statsContainer = new box_ts_1.BoxContainerWidget(4);
         statsContainer.solid = false;
-        statsContainer.width = 16 * font.tileWidth;
-        statsContainer.height = 7 * font.tileHeight;
+        statsContainer.width = 14 * font.tileWidth + statsContainer.border * 2;
+        statsContainer.height = 5 * font.tileHeight + statsContainer.border * 2;
         statsContainer.layout = {
             verticalSpacingPercent: 0,
             horizontalSpacingPercent: 100,
         };
-        const buttonsContainer = new box_ts_1.BoxContainerWidget(font, 1);
+        const buttonsContainer = new box_ts_1.BoxContainerWidget(4);
         buttonsContainer.width = 8 * font.tileWidth;
-        buttonsContainer.height = 9 * font.tileHeight;
+        buttonsContainer.height = 8;
         buttonsContainer.layout = {
             verticalSpacingPercent: 100,
             horizontalSpacingPercent: 100,
         };
+        const ITEM_WIDTH = 64;
+        const ITEM_HEIGHT = 64;
+        const itemsContainerContainer = new box_ts_1.BoxContainerWidget(4);
+        itemsContainerContainer.height = ITEM_HEIGHT +
+            itemsContainerContainer.border * 2;
+        itemsContainerContainer.layout = {
+            widthPercent: 75,
+            verticalSpacingPercent: 100,
+            horizontalSpacingPercent: 50,
+            customSizeFn: (w, parentWidth) => {
+                w.width = Math.min(w.width, parentWidth - (buttonsContainer.width * 2 + 8));
+            },
+        };
+        itemsContainerContainer.backColor = types_ts_8.FixedColor.Transparent;
+        const itemsContainer = new scrollable_ts_2.ScrollableContainerWidget();
+        itemsContainer.layout = {
+            widthPercent: 100,
+            heightPercent: 100,
+        };
+        itemsContainer.parent = itemsContainerContainer;
+        itemsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
+        itemsContainer.childrenLayout = {
+            type: "horizontal",
+            spacing: font.tileWidth,
+        };
+        itemsContainer.mouseHorizontalScrollEnabled = true;
+        const ITEM_COUNT = 20;
+        for (let i = 0; i < ITEM_COUNT; i++) {
+            const item = new box_ts_1.BoxContainerWidget(4);
+            item.solid = false;
+            new label_ts_1.LabelWidget(font, " Item\n  " + i, types_ts_8.FixedColor.White, types_ts_8.FixedColor.Black)
+                .setLayout({ verticalSpacingPercent: 50, horizontalSpacingPercent: 50 })
+                .parent = item;
+            item.height = ITEM_HEIGHT;
+            item.width = ITEM_WIDTH;
+            item.parent = itemsContainer;
+        }
+        itemsContainer.mouseHorizontalScrollLimits = {
+            fromX: -ITEM_COUNT *
+                (ITEM_WIDTH + (itemsContainer.childrenLayout.spacing || 0)) +
+                (ITEM_WIDTH / 2) | 0,
+            toX: (ITEM_WIDTH / 2) | 0,
+        };
         statsContainer.parent = mainUI;
         buttonsContainer.parent = mainUI;
-        statsContainer.titleForeColor = types_ts_8.FixedColor.BrightWhite;
-        statsContainer.titleBackColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
-        statsContainer.borderForeColor = types_ts_8.rgb(0 /* I0 */, 0 /* I0 */, 153 /* I60 */);
-        statsContainer.borderBackColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
+        itemsContainerContainer.parent = mainUI;
+        itemsContainerContainer.borderColor = buttonsContainer.borderColor =
+            statsContainer.borderColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
         statsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
         buttonsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
+        itemsContainerContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
         statsContainer.childrenLayout = {
             type: "vertical",
             spacing: 0,
@@ -2113,8 +2202,18 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/button",
             type: "vertical",
             spacing: font.tileHeight,
         };
+        const addButton = (text, cb) => {
+            const button = new button_ts_1.ButtonWidget(font, text, types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, types_ts_8.FixedColor.Yellow, () => cb()).setLayout({ widthPercent: 100 });
+            button.parent = buttonsContainer;
+            buttonsContainer.height = buttonsContainer.border * 2 +
+                buttonsContainer.children.map((x) => x.height).reduce((acc, v) => acc + v, 0) +
+                Math.max(buttonsContainer.children.length - 1, 0) *
+                    (buttonsContainer.childrenLayout?.spacing || 0);
+            return button;
+        };
+        addButton("Stat", () => engine.toggleStats());
         let isFullcreen = false;
-        const fullScreenButton = new button_ts_1.ButtonWidget(font, "Full", types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, types_ts_8.FixedColor.Yellow, () => {
+        const fullScreenButton = addButton("Full", () => {
             if (isFullcreen) {
                 engine.setFullscreen(false);
             }
@@ -2128,9 +2227,12 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/button",
                 fullScreenButton.text = isFullcreen ? "Exit" : "Full";
             }
         });
-        fullScreenButton.parent = buttonsContainer;
-        new button_ts_1.ButtonWidget(font, "Stat", types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, types_ts_8.FixedColor.Yellow, () => engine.toggleStats()).parent = buttonsContainer;
-        return { mainUI, statsContainer, buttonsContainer };
+        return {
+            mainUI,
+            statsContainer,
+            buttonsContainer,
+            addButton,
+        };
     }
     exports_22("initUI", initUI);
     return {
@@ -2143,13 +2245,19 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/button",
             },
             function (box_ts_1_1) {
                 box_ts_1 = box_ts_1_1;
+            },
+            function (scrollable_ts_2_1) {
+                scrollable_ts_2 = scrollable_ts_2_1;
+            },
+            function (label_ts_1_1) {
+                label_ts_1 = label_ts_1_1;
             }
         ],
         execute: function () {
         }
     };
 });
-System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/random", "game/src/npc", "game/src/utils", "game/src/ui", "engine/src/widgets/tiles-container"], function (exports_23, context_23) {
+System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/random", "game/src/npc", "game/src/utils", "game/src/ui", "engine/src/widgets/game/tiles-container"], function (exports_23, context_23) {
     "use strict";
     var avatar_ts_2, map_ts_1, random_ts_3, npc_ts_1, utils_ts_1, ui_ts_1, tiles_container_ts_1, NPCS_COUNT, ENABLE_P2, movingWithMouse, mouseKeyCodes;
     var __moduleName = context_23 && context_23.id;
@@ -2246,7 +2354,7 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
         }
     }
     function initGame(engine, assets, native) {
-        const { mainUI, statsContainer, buttonsContainer } = ui_ts_1.initUI(engine, assets, native);
+        const { mainUI, statsContainer, buttonsContainer, addButton } = ui_ts_1.initUI(engine, assets, native);
         const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
         map.layer = 0 /* Game */;
         map.layout = { heightPercent: 100, widthPercent: 100 };
@@ -2277,6 +2385,7 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
             statsContainer,
             buttonsContainer,
             scrollable,
+            addButton,
             avatars,
             map,
             npcs,
@@ -3471,9 +3580,9 @@ System.register("web/src/stats", [], function (exports_30, context_30) {
         }
     };
 });
-System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_31, context_31) {
+System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_31, context_31) {
     "use strict";
-    var types_ts_12, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, MAX_PENDING_FRAMES, engine, nativeContext, fpsLabel, game, focused, updateFpsFrames, updateFpsTime, engineStats, ignoreUpdate, lastUpdateTime, timeToNextUpdate;
+    var types_ts_12, engine_ts_1, label_ts_2, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, MAX_PENDING_FRAMES, engine, nativeContext, statsLabel, game, focused, updateFpsFrames, updateFpsTime, engineStats, ignoreUpdate, lastUpdateTime, timeToNextUpdate;
     var __moduleName = context_31 && context_31.id;
     function updateFps() {
         const now = performance.now();
@@ -3489,7 +3598,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             const idleTime = deltaTime - busyTime;
             const idlePercent = idleTime * 100 / deltaTime;
             stats += `\nIdle: ${idlePercent.toFixed(1)}%`;
-            fpsLabel.text = stats;
+            statsLabel.text = stats;
             updateFpsTime = now;
             engineStats.reset();
             updateFpsFrames = 0;
@@ -3518,8 +3627,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         console.log("Engine Initialized");
         game = game_ts_1.initGame(engine, assets, nativeContext);
         console.log("Game Initialized");
-        fpsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_12.FixedColor.White, game.statsContainer.backColor);
-        fpsLabel.parent = game.statsContainer;
+        statsLabel = new label_ts_2.LabelWidget(assets.defaultFont, "", types_ts_12.FixedColor.White, game.statsContainer.backColor);
+        statsLabel.parent = game.statsContainer;
         //Wait engine ready
         await waitNoPendingFrames();
         //Preload tiles
@@ -3596,8 +3705,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             function (engine_ts_1_1) {
                 engine_ts_1 = engine_ts_1_1;
             },
-            function (label_ts_1_1) {
-                label_ts_1 = label_ts_1_1;
+            function (label_ts_2_1) {
+                label_ts_2 = label_ts_2_1;
             },
             function (game_ts_1_1) {
                 game_ts_1 = game_ts_1_1;

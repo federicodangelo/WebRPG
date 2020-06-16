@@ -1,5 +1,5 @@
-import { BaseWidget } from "./widget.ts";
-import { DrawContext, Tile } from "../types.ts";
+import { BaseWidget } from "../widget.ts";
+import { DrawContext, Tile } from "../../types.ts";
 
 export class TileWidget extends BaseWidget {
   public tile: Tile;

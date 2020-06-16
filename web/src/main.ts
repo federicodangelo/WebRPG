@@ -1,6 +1,6 @@
 import { FixedColor, Engine, Tilemap, Tile } from "engine/types.ts";
 import { buildEngine } from "engine/engine.ts";
-import { LabelWidget } from "engine/widgets/label.ts";
+import { LabelWidget } from "engine/widgets/ui/label.ts";
 import { initGame, updateGame } from "game/game.ts";
 import { getWebNativeContext } from "./native.ts";
 import { initAssets } from "./assets.ts";
@@ -13,7 +13,7 @@ const MAX_PENDING_FRAMES = 1;
 
 let engine: Engine;
 let nativeContext: NativeContext;
-let fpsLabel: LabelWidget;
+let statsLabel: LabelWidget;
 let game: Game;
 let focused = true;
 
@@ -40,7 +40,7 @@ function updateFps() {
 
     stats += `\nIdle: ${idlePercent.toFixed(1)}%`;
 
-    fpsLabel.text = stats;
+    statsLabel.text = stats;
     updateFpsTime = now;
 
     engineStats.reset();
@@ -79,14 +79,14 @@ async function init() {
 
   console.log("Game Initialized");
 
-  fpsLabel = new LabelWidget(
+  statsLabel = new LabelWidget(
     assets.defaultFont,
     "",
     FixedColor.White,
     game.statsContainer.backColor,
   );
 
-  fpsLabel.parent = game.statsContainer;
+  statsLabel.parent = game.statsContainer;
 
   //Wait engine ready
   await waitNoPendingFrames();

@@ -1,6 +1,10 @@
-import { Widget, DrawContext, Tilemaps, Rect, FixedColor } from "../types.ts";
+import {
+  Widget,
+  DrawContext,
+  Rect,
+} from "../../types.ts";
 import { TilemapWidget } from "./tilemap.ts";
-import { ScrollableContainerWidget } from "./scrollable.ts";
+import { ScrollableContainerWidget } from "../scrollable.ts";
 
 function compareChildren(c1: Widget, c2: Widget) {
   if (c1.sortingLayer === c2.sortingLayer) return c1.visibleY - c2.visibleY;

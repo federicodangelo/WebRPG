@@ -1,5 +1,5 @@
-import { BaseWidget } from "./widget.ts";
-import { Color, DrawContext, Font, EngineMouseEvent } from "../types.ts";
+import { BaseWidget } from "../widget.ts";
+import { Color, DrawContext, Font, EngineMouseEvent } from "../../types.ts";
 
 export class ButtonWidget extends BaseWidget {
   public font: Font;
@@ -51,12 +51,27 @@ export class ButtonWidget extends BaseWidget {
 
     context.textColor(this.foreColor, backColor);
     context.textBorder(this.font, 0, 0, this.width, this.height);
+    context.fillRect(
+      this.font.tileWidth,
+      this.font.tileHeight,
+      this.width - this.font.tileWidth * 2,
+      this.height - this.font.tileHeight * 2,
+      backColor,
+    );
 
     for (let i = 0; i < this._lines.length; i++) {
-      context.moveCursorTo(this.font.tileWidth, (i + 1) * this.font.tileHeight)
+      const line = this._lines[i];
+      context.moveCursorTo(
+        this.font.tileWidth +
+            (((this.width - this.font.tileWidth * 2) -
+              (line.length * this.font.tileWidth)) / 2) | 0,
+        (i + 1) * this.font.tileHeight +
+            (((this.height - this.font.tileHeight * 2) -
+              (this._lines.length * this.font.tileHeight)) / 2) | 0,
+      )
         .text(
           this.font,
-          this._lines[i],
+          line,
         );
     }
   }
@@ -69,7 +84,7 @@ export class ButtonWidget extends BaseWidget {
         this.down = true;
         this.invalidate();
         break;
-      case "out":
+      case "up-out":
         this.down = false;
         this.invalidate();
         break;

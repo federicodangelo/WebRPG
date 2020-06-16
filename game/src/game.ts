@@ -19,8 +19,8 @@ import {
   isSpecialKeyDown,
 } from "./utils.ts";
 import { initUI } from "./ui.ts";
-import { ScrollableTilesContainerWidget } from "../../engine/src/widgets/tiles-container.ts";
-import { NativeContext } from "../../engine/src/native-types.ts";
+import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
+import { NativeContext } from "engine/native-types.ts";
 
 const NPCS_COUNT = 10;
 const ENABLE_P2 = true;
@@ -132,7 +132,7 @@ export function initGame(
   assets: Assets,
   native: NativeContext,
 ): Game {
-  const { mainUI, statsContainer, buttonsContainer } = initUI(
+  const { mainUI, statsContainer, buttonsContainer, addButton } = initUI(
     engine,
     assets,
     native,
@@ -180,6 +180,7 @@ export function initGame(
     statsContainer,
     buttonsContainer,
     scrollable,
+    addButton,
     avatars,
     map,
     npcs,

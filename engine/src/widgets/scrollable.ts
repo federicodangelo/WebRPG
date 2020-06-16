@@ -5,11 +5,16 @@ import {
   EngineContext,
   Widget,
   Rect,
+  EngineMouseEvent,
+  Point,
 } from "../types.ts";
 import { BaseWidgetContainer } from "./widget-container.ts";
 
 export class ScrollableContainerWidget extends BaseWidgetContainer {
   public backColor: Color = FixedColor.Black;
+
+  public mouseHorizontalScrollEnabled = false;
+  public mouseHorizontalScrollLimits = { fromX: -9999999, toX: 9999999 };
 
   private _offsetX: number = 0;
   private _offsetY: number = 0;
@@ -102,5 +107,40 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
 
   drawSelf(context: DrawContext) {
     context.fillRect(0, 0, this.width, this.height, this.backColor);
+  }
+
+  private down = false;
+  private downPos = new Point();
+  private downOffset = new Point();
+
+  mouse(e: EngineMouseEvent) {
+    if (!this.mouseHorizontalScrollEnabled) {
+      super.mouse(e);
+      return;
+    }
+
+    switch (e.type) {
+      case "down":
+        this.down = true;
+        this.downPos.set(e.x, e.y);
+        this.downOffset.set(this.offsetX, this.offsetY);
+        break;
+      case "move":
+        if (this.down) {
+          const newOffsetX = this.downOffset.x + e.x - this.downPos.x;
+          this.setOffset(
+            Math.max(
+              Math.min(newOffsetX, this.mouseHorizontalScrollLimits.toX),
+              this.mouseHorizontalScrollLimits.fromX,
+            ),
+            this.downOffset.y,
+          );
+        }
+        break;
+      case "up":
+      case "up-out":
+        this.down = false;
+        break;
+    }
   }
 }

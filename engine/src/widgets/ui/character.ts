@@ -1,5 +1,5 @@
-import { BaseWidget } from "./widget.ts";
-import { Color, DrawContext, Font } from "../types.ts";
+import { BaseWidget } from "../widget.ts";
+import { Color, DrawContext, Font } from "../../types.ts";
 
 export class CharacterWidget extends BaseWidget {
   public char: string;

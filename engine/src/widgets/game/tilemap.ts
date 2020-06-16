@@ -1,5 +1,5 @@
-import { Tilemap, DrawContext } from "../types.ts";
-import { BaseWidget } from "./widget.ts";
+import { Tilemap, DrawContext } from "../../types.ts";
+import { BaseWidget } from "../widget.ts";
 
 export class TilemapWidget extends BaseWidget {
   public readonly tilemap: Tilemap;

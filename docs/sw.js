@@ -1,4 +1,4 @@
-const cacheId = "v9";
+const cacheId = "v10";
 const cacheFetchs = false;
 const allowNetwork = true;
 const workerDebug = false;

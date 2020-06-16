@@ -1,7 +1,7 @@
-import { Assets, Rect } from "../../engine/src/types.ts";
-import { TileWidget } from "../../engine/src/widgets/tile.ts";
-import { ScrollableTilesContainerWidget } from "../../engine/src/widgets/tiles-container.ts";
-import { TilemapWidget } from "../../engine/src/widgets/tilemap.ts";
+import { Assets, Rect } from "engine/types.ts";
+import { TileWidget } from "engine/widgets/game/tile.ts";
+import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
+import { TilemapWidget } from "engine/widgets/game/tilemap.ts";
 import { randomIntervalInt, random } from "./random.ts";
 
 const MAP_SIZE = 512;

@@ -256,28 +256,69 @@ class EngineImpl implements Engine {
   }
 
   private lastWidgetUnderMouse: Widget | null = null;
-  private lastWidgetUnderMouseEventType: EngineMouseEventType = "move";
+
+  private sendMouseEventToWidget(
+    w: Widget,
+    screenX: number,
+    screenY: number,
+    type: EngineMouseEventType,
+  ): void {
+    const bbox = w.getBoundingBox();
+
+    if (type === "up" && !bbox.contains(screenX, screenY)) {
+      type = "up-out";
+    }
+
+    w.mouse(
+      { type, x: screenX - bbox.x, y: screenY - bbox.y },
+    );
+  }
 
   private onMouseEventInternal(e: EngineMouseEvent): void {
     const w = this.getWidgetAt(e.x, e.y);
 
-    if (
-      w !== this.lastWidgetUnderMouse &&
-      this.lastWidgetUnderMouse !== null &&
-      this.lastWidgetUnderMouseEventType !== "up"
-    ) {
-      const bbox = this.lastWidgetUnderMouse.getBoundingBox();
-      this.lastWidgetUnderMouse.mouse(
-        { type: "out", x: e.x - bbox.x, y: e.y - bbox.y },
-      );
-      this.lastWidgetUnderMouse = null;
-    }
-
-    if (w !== null) {
-      const bbox = w.getBoundingBox();
-      w.mouse({ type: e.type, x: e.x - bbox.x, y: e.y - bbox.y });
-      this.lastWidgetUnderMouse = w;
-      this.lastWidgetUnderMouseEventType = e.type;
+    switch (e.type) {
+      case "down":
+        if (this.lastWidgetUnderMouse !== null) {
+          //Send lost up event
+          this.sendMouseEventToWidget(
+            this.lastWidgetUnderMouse,
+            e.x,
+            e.y,
+            "up",
+          );
+        }
+        this.lastWidgetUnderMouse = w;
+        if (this.lastWidgetUnderMouse !== null) {
+          this.sendMouseEventToWidget(
+            this.lastWidgetUnderMouse,
+            e.x,
+            e.y,
+            "down",
+          );
+        }
+        break;
+      case "up":
+        if (this.lastWidgetUnderMouse !== null) {
+          this.sendMouseEventToWidget(
+            this.lastWidgetUnderMouse,
+            e.x,
+            e.y,
+            "up",
+          );
+          this.lastWidgetUnderMouse = null;
+        }
+        break;
+      case "move":
+        if (this.lastWidgetUnderMouse !== null) {
+          this.sendMouseEventToWidget(
+            this.lastWidgetUnderMouse,
+            e.x,
+            e.y,
+            "move",
+          );
+        }
+        break;
     }
   }
 
