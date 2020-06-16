@@ -9,6 +9,7 @@ import {
   AlphaType,
   Animations,
   Point,
+  UPDATE_FPS,
 } from "engine/types.ts";
 
 type TileJson = {
@@ -268,7 +269,7 @@ function loadAvatar(
     fromX: number,
     toX: number,
     loops = true,
-    delay = 100,
+    delayInUpdates = 3,
   ) => {
     const tiles: Tile[] = [];
     for (let x = fromX; x <= toX; x++) {
@@ -278,7 +279,7 @@ function loadAvatar(
     const animation: Animation = {
       id,
       tiles,
-      delay,
+      delayInUpdates: delayInUpdates | 0,
       loops,
     };
 
@@ -326,7 +327,7 @@ function loadAnimation(
   json: AnimationJson,
   tilemaps: Tilemaps,
 ): Animation {
-  const delay = json.fps > 0 ? 1000 / json.fps : 0;
+  const delayInUpdates = json.fps > 0 ? Math.ceil(UPDATE_FPS / json.fps) : 0;
 
   const tiles: Tile[] = [];
 
@@ -346,7 +347,7 @@ function loadAnimation(
 
   return {
     id,
-    delay,
+    delayInUpdates,
     tiles,
     loops: !!json.loops,
   };

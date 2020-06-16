@@ -14,7 +14,20 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
   public backColor: Color = FixedColor.Black;
 
   public mouseHorizontalScrollEnabled = false;
-  public mouseHorizontalScrollLimits = { fromX: -9999999, toX: 9999999 };
+  private _mouseHorizontalScrollLimits = { fromX: -9999999, toX: 9999999 };
+  public get mouseHorizontalScrollLimits() {
+    return this._mouseHorizontalScrollLimits;
+  }
+  public set mouseHorizontalScrollLimits(val: { fromX: number; toX: number }) {
+    this._mouseHorizontalScrollLimits = val;
+    this.setOffset(
+      Math.max(
+        Math.min(this.offsetX, this.mouseHorizontalScrollLimits.toX),
+        this.mouseHorizontalScrollLimits.fromX,
+      ),
+      this.offsetY,
+    );
+  }
 
   private _offsetX: number = 0;
   private _offsetY: number = 0;
@@ -113,10 +126,25 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
   private downPos = new Point();
   private downOffset = new Point();
 
+  public getAt(x: number, y: number): Widget | null {
+    if (!this.mouseHorizontalScrollEnabled) return super.getAt(x, y);
+
+    if (!this.solid) return null;
+    if (x < 0 || y < 0 || x > this.width || y > this.height) return null;
+    return this.selfSolid ? this : null;
+  }
+
+  private lastChildUnderMouse: Widget | null = null;
+
   mouse(e: EngineMouseEvent) {
     if (!this.mouseHorizontalScrollEnabled) {
       super.mouse(e);
       return;
+    }
+
+    let childUnderMouse = super.getAt(e.x, e.y);
+    if (childUnderMouse === this) {
+      childUnderMouse = null;
     }
 
     switch (e.type) {
@@ -124,10 +152,27 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
         this.down = true;
         this.downPos.set(e.x, e.y);
         this.downOffset.set(this.offsetX, this.offsetY);
+        if (childUnderMouse !== null) {
+          this.lastChildUnderMouse = childUnderMouse;
+          this.lastChildUnderMouse.mouse({
+            type: "down",
+            x: this.lastChildUnderMouse.width / 2,
+            y: this.lastChildUnderMouse.height / 2,
+          });
+        }
         break;
       case "move":
         if (this.down) {
-          const newOffsetX = this.downOffset.x + e.x - this.downPos.x;
+          const deltaX = e.x - this.downPos.x;
+          if (Math.abs(deltaX) > 16 && this.lastChildUnderMouse !== null) {
+            this.lastChildUnderMouse.mouse({
+              type: "up-out",
+              x: this.lastChildUnderMouse.width / 2,
+              y: this.lastChildUnderMouse.height / 2,
+            });
+            this.lastChildUnderMouse = null;
+          }
+          const newOffsetX = this.downOffset.x + deltaX;
           this.setOffset(
             Math.max(
               Math.min(newOffsetX, this.mouseHorizontalScrollLimits.toX),
@@ -139,7 +184,20 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
         break;
       case "up":
       case "up-out":
-        this.down = false;
+        if (this.down) {
+          if (this.lastChildUnderMouse !== null) {
+            this.lastChildUnderMouse.mouse({
+              type: (this.lastChildUnderMouse === childUnderMouse &&
+                e.type === "up")
+                ? "up"
+                : "up-out",
+              x: this.lastChildUnderMouse.width / 2,
+              y: this.lastChildUnderMouse.height / 2,
+            });
+            this.lastChildUnderMouse = null;
+          }
+          this.down = false;
+        }
         break;
     }
   }

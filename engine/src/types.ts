@@ -347,7 +347,7 @@ export type Tile = {
 export type Animation = {
   id: string;
   tiles: Tile[];
-  delay: number;
+  delayInUpdates: number;
   loops: boolean;
 };
 
@@ -465,6 +465,20 @@ export type DrawNativeParams = {
   invalidateRect: (rect: Rect) => void;
 };
 
+export const UPDATE_FPS = 30;
+
+export type UpdateParams = {
+  updatesCount: number;
+};
+
+export interface Updateable {
+  onUpdate(params: UpdateParams): void;
+}
+
+export function isUpdateable(object: any): object is Updateable {
+  return "onUpdate" in object;
+}
+
 export interface Engine {
   draw(): DrawStats;
   update(): void;
@@ -480,4 +494,6 @@ export interface Engine {
   setFullscreen(fullscreen: boolean): void;
   toggleStats(): void;
   getWidgetAt(x: number, y: number): Widget | null;
+  registerUpdateable(updateable: Updateable): void;
+  unregisterUpdateable(updateable: Updateable): void;
 }

@@ -1,4 +1,4 @@
-import { FixedColor, Engine, Tilemap, Tile } from "engine/types.ts";
+import { FixedColor, Engine, UPDATE_FPS } from "engine/types.ts";
 import { buildEngine } from "engine/engine.ts";
 import { LabelWidget } from "engine/widgets/ui/label.ts";
 import { initGame, updateGame } from "game/game.ts";
@@ -8,7 +8,6 @@ import { Game } from "../../game/src/types.ts";
 import { NativeContext } from "../../engine/src/native-types.ts";
 import { EngineStats } from "./stats.ts";
 
-const TARGET_UPDATE_FPS = 30;
 const MAX_PENDING_FRAMES = 1;
 
 let engine: Engine;
@@ -106,9 +105,9 @@ let lastUpdateTime = 0;
 function updateReal() {
   const preUpdateTime = performance.now();
 
-  engine.update();
-
   updateGame(game);
+
+  engine.update();
 
   const postUpdateTime = performance.now();
 
@@ -138,7 +137,7 @@ function update() {
   }
 
   const delta = now - lastUpdateTime;
-  const targetDeltaUpdate = 1000 / TARGET_UPDATE_FPS;
+  const targetDeltaUpdate = 1000 / UPDATE_FPS;
 
   if (delta > targetDeltaUpdate - 0.1) {
     lastUpdateTime = Math.max(lastUpdateTime + targetDeltaUpdate, now - 1000);

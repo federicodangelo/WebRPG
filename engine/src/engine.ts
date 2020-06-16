@@ -4,17 +4,17 @@ import {
   Size,
   Rect,
   EngineKeyEvent,
-  Point,
   EngineMouseEvent,
   DrawStats,
   LayerId,
   LAYERS_COUNT,
   EngineMouseEventType,
   DrawNativeParams,
+  Updateable,
+  UpdateParams,
 } from "./types.ts";
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
-import { ScrollableContainerWidget } from "./widgets/scrollable.ts";
 
 class EngineLayer {
   public id: LayerId;
@@ -31,7 +31,8 @@ class EngineImpl implements Engine {
   private context: EngineContextImpl;
   private screenSize = new Size();
   private layers: EngineLayer[] = [];
-  private scrollables = new Map<ScrollableContainerWidget, Point>();
+  private updateables = new Set<Updateable>();
+  private updatesCount = 0;
 
   constructor(nativeContext: NativeContext) {
     this.nativeContext = nativeContext;
@@ -190,7 +191,13 @@ class EngineImpl implements Engine {
     }
   }
 
-  public update(): void {}
+  public update(): void {
+    const params: UpdateParams = {
+      updatesCount: this.updatesCount,
+    };
+    this.updateables.forEach((u) => u.onUpdate(params));
+    this.updatesCount++;
+  }
 
   public addWidget(widget: Widget, layer: LayerId): void {
     widget.layer = layer;
@@ -328,6 +335,14 @@ class EngineImpl implements Engine {
 
   public toggleStats(): void {
     this.nativeContext.screen.toggleStats();
+  }
+
+  public registerUpdateable(updateable: Updateable) {
+    this.updateables.add(updateable);
+  }
+
+  public unregisterUpdateable(updateable: Updateable) {
+    this.updateables.delete(updateable);
   }
 }
 

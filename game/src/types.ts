@@ -2,10 +2,7 @@ import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
 import { Avatar } from "./avatar.ts";
 import { KeyCode } from "engine/types.ts";
-
-export interface Updateable {
-  update(): void;
-}
+import { TilemapWidget } from "../../engine/src/widgets/game/tilemap.ts";
 
 export type Game = {
   statsContainer: BoxContainerWidget;
@@ -16,9 +13,10 @@ export type Game = {
 
   avatars: Avatar[];
   npcs: Avatar[];
-  updateables: Updateable[];
 
   map: ScrollableTilesContainerWidget;
+  floorLayer1: TilemapWidget;
+  floorLayer2: TilemapWidget;
   p1: Avatar;
   p2: Avatar;
 

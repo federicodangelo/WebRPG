@@ -1,12 +1,13 @@
 import { BaseWidget } from "../widget.ts";
-import { DrawContext, Tile, Animation } from "../../types.ts";
+import { DrawContext, Tile, Animation, Updateable } from "../../types.ts";
 
-export class AnimatedTileWidget extends BaseWidget {
+export class AnimatedTileWidget extends BaseWidget implements Updateable {
   public animation: Animation;
   private tile: Tile | null = null;
   private frame = 0;
-  private lastSetIntervalHandle: number | null = null;
   public animationFinishedCb: (() => void) | null = null;
+
+  private nextFrameUpdateCount = 0;
 
   constructor(animation: Animation) {
     super();
@@ -23,21 +24,15 @@ export class AnimatedTileWidget extends BaseWidget {
   }
 
   private updateCurrentAnimation() {
-    if (this.lastSetIntervalHandle !== null) {
-      clearInterval(this.lastSetIntervalHandle);
-      this.lastSetIntervalHandle = null;
-    }
+    this.nextFrameUpdateCount = 0;
 
     const animation = this.animation;
     if (animation === null) return;
 
     this.updateCurrentTile();
 
-    if (animation.delay > 0 && animation.tiles.length > 1) {
-      this.lastSetIntervalHandle = setInterval(
-        this.updateCurrentTile.bind(this),
-        animation.delay,
-      );
+    if (animation.delayInUpdates > 0 && animation.tiles.length > 1) {
+      this.nextFrameUpdateCount = animation.delayInUpdates;
     }
   }
 
@@ -65,10 +60,7 @@ export class AnimatedTileWidget extends BaseWidget {
       !this.animation.loops &&
       this.frame === animation.tiles.length
     ) {
-      if (this.lastSetIntervalHandle !== null) {
-        clearInterval(this.lastSetIntervalHandle);
-        this.lastSetIntervalHandle = null;
-      }
+      this.nextFrameUpdateCount = 0;
       if (this.animationFinishedCb !== null) {
         this.animationFinishedCb();
       }
@@ -77,5 +69,14 @@ export class AnimatedTileWidget extends BaseWidget {
 
   protected drawSelf(context: DrawContext) {
     if (this.tile !== null) context.tile(0, 0, this.tile);
+  }
+
+  public onUpdate() {
+    if (this.nextFrameUpdateCount > 0) {
+      this.nextFrameUpdateCount--;
+      if (this.nextFrameUpdateCount === 0) {
+        this.updateCurrentAnimation();
+      }
+    }
   }
 }

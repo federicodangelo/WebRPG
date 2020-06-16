@@ -8,6 +8,7 @@ import {
   EngineContext,
   EngineMouseEvent,
   LayerId,
+  isUpdateable,
 } from "../types.ts";
 
 export abstract class BaseWidget implements Widget {
@@ -37,7 +38,13 @@ export abstract class BaseWidget implements Widget {
 
   public set engine(val: Engine | null) {
     if (val !== this._engine) {
+      if (this._engine !== null && isUpdateable(this)) {
+        this._engine.unregisterUpdateable(this);
+      }
       this._engine = val;
+      if (this._engine !== null && isUpdateable(this)) {
+        this._engine.registerUpdateable(this);
+      }
     }
   }
 

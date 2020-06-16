@@ -29,6 +29,10 @@ export class TilemapWidget extends BaseWidget {
     this.height = tilemap.tileHeight * tilesHeight;
   }
 
+  public setTileIndex(x: number, y: number, index: number) {
+    this.tiles[y][x] = index;
+  }
+
   drawSelf(context: DrawContext) {
     const tilemap = this.tilemap;
     const tiles = this.tiles;

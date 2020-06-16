@@ -179,4 +179,9 @@ export default function initMap(
 
     addTile(x, y, "terrain." + randomDecoTile(getTerrainId(x, y)));
   }
+
+  return {
+    floor,
+    floor2,
+  };
 }

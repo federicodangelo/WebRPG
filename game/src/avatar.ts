@@ -1,10 +1,10 @@
 import { GroupContainerWidget } from "engine/widgets/group.ts";
-import { Assets } from "engine/types.ts";
+import { Assets, Updateable } from "engine/types.ts";
 import { AnimatedTileWidget } from "engine/widgets/game/animated-tile.ts";
 
 const WALK_SPEED = 4;
 
-export class Avatar extends GroupContainerWidget {
+export class Avatar extends GroupContainerWidget implements Updateable {
   private avatarAnimations: AnimatedTileWidget;
   private shadowAnimations: AnimatedTileWidget;
 
@@ -131,7 +131,7 @@ export class Avatar extends GroupContainerWidget {
     }
   }
 
-  public update() {
+  public onUpdate() {
     this.updateAnimations();
   }
 }

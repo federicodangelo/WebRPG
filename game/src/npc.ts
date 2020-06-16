@@ -7,7 +7,7 @@ export class Npc extends Avatar {
   private dy = 0;
   private steps = 0;
 
-  public update() {
+  public onUpdate() {
     if (this.startingDelay > 0) {
       this.startingDelay--;
       return;
@@ -22,6 +22,6 @@ export class Npc extends Avatar {
     this.move(this.dx, this.dy);
     this.steps--;
 
-    super.update();
+    super.onUpdate();
   }
 }

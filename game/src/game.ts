@@ -5,12 +5,14 @@ import {
   EngineMouseEvent,
   KeyCode,
   LayerId,
+  Tile,
+  Point,
 } from "engine/types.ts";
 import { Avatar } from "./avatar.ts";
 import initMap1 from "./map.ts";
 import { randomIntervalInt } from "./random.ts";
 import { Npc } from "./npc.ts";
-import { Updateable, Game } from "./types.ts";
+import { Game } from "./types.ts";
 import {
   setKeyDown,
   isKeyDown,
@@ -41,8 +43,38 @@ function onKeyEvent(game: Game, e: EngineKeyEvent) {
   }
 }
 
-var movingWithMouse = false;
+const enum MouseMode {
+  None,
+  Move,
+  AddTile,
+}
+var mouseMode = MouseMode.None;
 let mouseKeyCodes: KeyCode[] = [];
+let mouseModeAddTile: Tile | null = null;
+
+function switchToAddTileMode(tile: Tile) {
+  mouseMode = MouseMode.AddTile;
+  mouseModeAddTile = tile;
+}
+
+function mouseEventToMapCoordinates(
+  engine: Engine,
+  game: Game,
+  e: EngineMouseEvent,
+) {
+  let widgetAt = engine.getWidgetAt(e.x, e.y);
+
+  while (widgetAt !== null && widgetAt !== game.map) {
+    widgetAt = widgetAt.parent;
+  }
+
+  if (widgetAt === null) return null;
+
+  const map = game.map;
+  const bounds = map.getBoundingBox();
+
+  return new Point(e.x - bounds.x - map.offsetX, e.y - bounds.y - map.offsetY);
+}
 
 function mouseEventToKeyCodes(
   engine: Engine,
@@ -51,13 +83,7 @@ function mouseEventToKeyCodes(
 ): KeyCode[] {
   const keyCodes: KeyCode[] = [];
 
-  let widgetAt = engine.getWidgetAt(e.x, e.y);
-
-  while (widgetAt !== null && widgetAt != game.map) {
-    widgetAt = widgetAt.parent;
-  }
-
-  if (widgetAt === null) return keyCodes;
+  if (mouseEventToMapCoordinates(engine, game, e) === null) return keyCodes;
 
   const map = game.map;
   const bounds = map.getBoundingBox();
@@ -96,34 +122,60 @@ function onMouseEvent(engine: Engine, game: Game, e: EngineMouseEvent) {
   switch (e.type) {
     case "down":
       {
-        const newCodes = mouseEventToKeyCodes(engine, game, e);
-        if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
-          movingWithMouse = true;
-          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, false));
-          mouseKeyCodes = newCodes;
-          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, true));
+        if (mouseMode === MouseMode.AddTile && mouseModeAddTile !== null) {
+          const mapCoords = mouseEventToMapCoordinates(engine, game, e);
+          if (mapCoords !== null) {
+            const tx = (mapCoords.x / game.floorLayer2.tilemap.tileWidth) | 0;
+            const ty = (mapCoords.y / game.floorLayer2.tilemap.tileHeight) | 0;
+            game.floorLayer2.setTileIndex(tx, ty, mouseModeAddTile.index);
+            game.floorLayer2.invalidate();
+          }
+          mouseMode = MouseMode.None;
+        } else {
+          const newCodes = mouseEventToKeyCodes(engine, game, e);
+          if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+            mouseMode = MouseMode.Move;
+            mouseKeyCodes.forEach((code) =>
+              setSpecialKeyDown(game, code, false)
+            );
+            mouseKeyCodes = newCodes;
+            mouseKeyCodes.forEach((code) =>
+              setSpecialKeyDown(game, code, true)
+            );
+          }
         }
       }
       break;
 
     case "move":
       {
-        if (!movingWithMouse) break;
-        const newCodes = mouseEventToKeyCodes(engine, game, e);
-        if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
-          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, false));
-          mouseKeyCodes = newCodes;
-          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, true));
+        switch (mouseMode) {
+          case MouseMode.Move:
+            {
+              const newCodes = mouseEventToKeyCodes(engine, game, e);
+              if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+                mouseKeyCodes.forEach((code) =>
+                  setSpecialKeyDown(game, code, false)
+                );
+                mouseKeyCodes = newCodes;
+                mouseKeyCodes.forEach((code) =>
+                  setSpecialKeyDown(game, code, true)
+                );
+              }
+            }
+            break;
         }
       }
       break;
 
     case "up":
-      if (!movingWithMouse) break;
-      movingWithMouse = false;
-      mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, false));
-      mouseKeyCodes.length = 0;
-      break;
+      switch (mouseMode) {
+        case MouseMode.Move:
+          mouseMode = MouseMode.None;
+          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, false));
+          mouseKeyCodes.length = 0;
+          break;
+      }
   }
 }
 
@@ -132,11 +184,12 @@ export function initGame(
   assets: Assets,
   native: NativeContext,
 ): Game {
-  const { mainUI, statsContainer, buttonsContainer, addButton } = initUI(
-    engine,
-    assets,
-    native,
-  );
+  const { mainUI, statsContainer, buttonsContainer, addButton, itemsButtons } =
+    initUI(
+      engine,
+      assets,
+      native,
+    );
 
   const map = new ScrollableTilesContainerWidget();
   map.layer = LayerId.Game;
@@ -148,7 +201,6 @@ export function initGame(
   const p2 = new Avatar("female2", assets);
   const npcs: Npc[] = [];
   const avatars: Avatar[] = [];
-  const updateables: Updateable[] = [];
 
   for (let i = 0; i < NPCS_COUNT; i++) {
     npcs.push(new Npc(i % 2 == 0 ? "npc1" : "npc2", assets));
@@ -160,9 +212,7 @@ export function initGame(
     avatars.push(...npcs, p1);
   }
 
-  updateables.push(...avatars);
-
-  initMap1(map, assets);
+  const mapLayers = initMap1(map, assets);
 
   avatars.forEach((c) => {
     c.parent = map;
@@ -183,10 +233,11 @@ export function initGame(
     addButton,
     avatars,
     map,
+    floorLayer1: mapLayers.floor,
+    floorLayer2: mapLayers.floor2,
     npcs,
     p1,
     p2,
-    updateables,
     keysDown: new Map<string, boolean>(),
     specialKeysDown: new Map<KeyCode, boolean>(),
   };
@@ -196,11 +247,17 @@ export function initGame(
   engine.onKeyEvent((e) => onKeyEvent(game, e));
   engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
 
+  itemsButtons.forEach((tile, button) => {
+    button.onTapped = () => {
+      switchToAddTileMode(tile);
+    };
+  });
+
   return game;
 }
 
 export function updateGame(game: Game): boolean {
-  const { p1, p2, avatars, updateables, map } = game;
+  const { p1, p2, avatars, map } = game;
 
   if (isKeyDown(game, "a") || isSpecialKeyDown(game, KeyCode.ArrowLeft)) {
     p1.move(-1, 0);
@@ -234,8 +291,6 @@ export function updateGame(game: Game): boolean {
       0,
     );
   });
-
-  updateables.forEach((u) => u.update());
 
   followAvatar(p1, map);
 

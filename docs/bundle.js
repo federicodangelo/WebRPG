@@ -118,7 +118,7 @@ System.register("engine/src/native-types", [], function (exports_1, context_1) {
 });
 System.register("engine/src/types", [], function (exports_2, context_2) {
     "use strict";
-    var FixedColor, LAYERS_COUNT, Point, Size, Rect;
+    var FixedColor, LAYERS_COUNT, Point, Size, Rect, UPDATE_FPS;
     var __moduleName = context_2 && context_2.id;
     function rgb(r, g, b) {
         return rgba(r, g, b, 255);
@@ -131,6 +131,10 @@ System.register("engine/src/types", [], function (exports_2, context_2) {
             r);
     }
     exports_2("rgba", rgba);
+    function isUpdateable(object) {
+        return "onUpdate" in object;
+    }
+    exports_2("isUpdateable", isUpdateable);
     return {
         setters: [],
         execute: function () {
@@ -273,6 +277,7 @@ System.register("engine/src/types", [], function (exports_2, context_2) {
                 }
             };
             exports_2("Rect", Rect);
+            exports_2("UPDATE_FPS", UPDATE_FPS = 30);
         }
     };
 });
@@ -595,14 +600,273 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_3,
         }
     };
 });
-System.register("engine/src/widgets/widget", ["engine/src/types"], function (exports_4, context_4) {
+System.register("engine/src/engine", ["engine/src/types", "engine/src/context"], function (exports_4, context_4) {
     "use strict";
-    var types_ts_2, BaseWidget;
+    var types_ts_2, context_ts_1, EngineLayer, EngineImpl;
     var __moduleName = context_4 && context_4.id;
+    async function buildEngine(nativeContext) {
+        const engine = new EngineImpl(nativeContext);
+        await engine.init();
+        return engine;
+    }
+    exports_4("buildEngine", buildEngine);
+    function destroyEngine(engine) {
+        engine.destroy();
+    }
+    exports_4("destroyEngine", destroyEngine);
     return {
         setters: [
             function (types_ts_2_1) {
                 types_ts_2 = types_ts_2_1;
+            },
+            function (context_ts_1_1) {
+                context_ts_1 = context_ts_1_1;
+            }
+        ],
+        execute: function () {
+            EngineLayer = class EngineLayer {
+                constructor(id) {
+                    this.invalidRects = [];
+                    this.children = [];
+                    this.onNextDrawNative = [];
+                    this.id = id;
+                }
+            };
+            EngineImpl = class EngineImpl {
+                constructor(nativeContext) {
+                    this.screenSize = new types_ts_2.Size();
+                    this.layers = [];
+                    this.updateables = new Set();
+                    this.updatesCount = 0;
+                    this.lastWidgetUnderMouse = null;
+                    this.nativeContext = nativeContext;
+                    this.context = new context_ts_1.EngineContextImpl(this.nativeContext.screen);
+                    this.nativeContext.input.onMouseEvent((e) => this.onMouseEventInternal(e));
+                    for (let i = 0; i < types_ts_2.LAYERS_COUNT; i++) {
+                        this.layers.push(new EngineLayer(i));
+                    }
+                }
+                async init() {
+                    await this.nativeContext.init();
+                    let consoleSize = this.nativeContext.screen.getScreenSize();
+                    while (consoleSize === null) {
+                        await new Promise((resolve) => {
+                            setTimeout(resolve, 1);
+                        });
+                        consoleSize = this.nativeContext.screen.getScreenSize();
+                    }
+                    this.screenSize.set(consoleSize.width, consoleSize.height);
+                    this.nativeContext.screen.onScreenSizeChanged(this.onScreenSizeChanged.bind(this));
+                }
+                onScreenSizeChanged(size) {
+                    if (!size.equals(this.screenSize)) {
+                        this.screenSize.set(size.width, size.height);
+                        for (let i = 0; i < this.layers.length; i++) {
+                            this.invalidateRect(new types_ts_2.Rect(0, 0, this.screenSize.width, this.screenSize.height), this.layers[i].id);
+                        }
+                    }
+                }
+                drawInvalidRects(layer) {
+                    let drawnRects = 0;
+                    let drawnArea = 0;
+                    if (layer.invalidRects.length > 0) {
+                        let pendingLayout = true;
+                        const clip = new types_ts_2.Rect();
+                        const screenSize = this.screenSize;
+                        const children = layer.children;
+                        for (let i = 0; i < layer.invalidRects.length; i++) {
+                            clip.copyFrom(layer.invalidRects[i]);
+                            if (clip.x < 0) {
+                                clip.width += clip.x;
+                                clip.x = 0;
+                            }
+                            if (clip.y < 0) {
+                                clip.height += clip.y;
+                                clip.y = 0;
+                            }
+                            if (clip.width <= 0 ||
+                                clip.height <= 0 ||
+                                clip.x > screenSize.width ||
+                                clip.y > screenSize.height) {
+                                continue;
+                            }
+                            if (clip.x + clip.width > screenSize.width) {
+                                clip.width = screenSize.width - clip.x;
+                            }
+                            if (clip.y + clip.height > screenSize.height) {
+                                clip.height = screenSize.height - clip.y;
+                            }
+                            if (pendingLayout) {
+                                pendingLayout = false;
+                                this.updateLayout(layer);
+                            }
+                            drawnRects++;
+                            drawnArea += clip.width * clip.height;
+                            this.context.beginClip(clip.x, clip.y, clip.width, clip.height);
+                            for (let i = 0; i < children.length; i++) {
+                                children[i].draw(this.context);
+                            }
+                            this.context.endClip();
+                        }
+                        layer.invalidRects.length = 0;
+                    }
+                    return { drawnRects, drawnArea };
+                }
+                drawOnNextDrawNative(layer) {
+                    let drawnRects = 0;
+                    let drawnArea = 0;
+                    for (let i = 0; i < layer.onNextDrawNative.length; i++) {
+                        layer.onNextDrawNative[i]({
+                            context: this.nativeContext.screen,
+                            invalidateRect: (rect) => layer.invalidRects.push(rect),
+                        });
+                        const stats = this.drawInvalidRects(layer);
+                        drawnRects += stats.drawnRects;
+                        drawnArea += stats.drawnArea;
+                    }
+                    layer.onNextDrawNative.length = 0;
+                    return {
+                        drawnRects,
+                        drawnArea,
+                    };
+                }
+                draw() {
+                    const startTime = performance.now();
+                    this.context.beginDraw();
+                    let drawnRects = 0;
+                    for (let i = 0; i < this.layers.length; i++) {
+                        const layer = this.layers[i];
+                        this.context.setTargetLayer(layer.id);
+                        let { drawnRects: drawnRects1 } = this.drawInvalidRects(layer);
+                        drawnRects += drawnRects1;
+                        let { drawnRects: drawnRects2 } = this.drawOnNextDrawNative(layer);
+                        drawnRects += drawnRects2;
+                    }
+                    this.context.endDraw();
+                    const endTime = performance.now();
+                    return {
+                        time: endTime - startTime,
+                        rects: drawnRects,
+                    };
+                }
+                updateLayout(layer) {
+                    for (let i = 0; i < layer.children.length; i++) {
+                        layer.children[i].updateLayout(this.screenSize.width, this.screenSize.height);
+                    }
+                }
+                update() {
+                    const params = {
+                        updatesCount: this.updatesCount,
+                    };
+                    this.updateables.forEach((u) => u.onUpdate(params));
+                    this.updatesCount++;
+                }
+                addWidget(widget, layer) {
+                    widget.layer = layer;
+                    this.layers[layer].children.push(widget);
+                    widget.engine = this;
+                    widget.updateLayout(this.screenSize.width, this.screenSize.height);
+                    this.invalidateRect(widget.getBoundingBox(), widget.layer);
+                }
+                removeWidget(widget) {
+                    const layer = this.layers[widget.layer];
+                    const ix = layer.children.indexOf(widget);
+                    if (ix >= 0)
+                        layer.children.splice(ix, 1);
+                    this.invalidateRect(widget.getBoundingBox(), layer.id);
+                }
+                onKeyEvent(listener) {
+                    this.nativeContext.input.onKeyEvent(listener);
+                }
+                onMouseEvent(listener) {
+                    this.nativeContext.input.onMouseEvent(listener);
+                }
+                invalidateRect(rect, layer) {
+                    const invalidRects = this.layers[layer].invalidRects;
+                    let lastRect = invalidRects.length > 0
+                        ? invalidRects[invalidRects.length - 1]
+                        : null;
+                    if (lastRect !== null && lastRect.intersects(rect)) {
+                        lastRect.union(rect);
+                        return;
+                    }
+                    invalidRects.push(rect.clone());
+                }
+                destroy() {
+                    this.nativeContext.destroy();
+                }
+                onNextDrawNative(layer, cb) {
+                    this.layers[layer].onNextDrawNative.push(cb);
+                }
+                getWidgetAt(x, y) {
+                    for (let l = this.layers.length - 1; l >= 0; l--) {
+                        const children = this.layers[l].children;
+                        for (let i = children.length - 1; i >= 0; i--) {
+                            const child = children[i];
+                            const w = child.getAt(x - child.visibleX, y - child.visibleY);
+                            if (w !== null)
+                                return w;
+                        }
+                    }
+                    return null;
+                }
+                sendMouseEventToWidget(w, screenX, screenY, type) {
+                    const bbox = w.getBoundingBox();
+                    if (type === "up" && !bbox.contains(screenX, screenY)) {
+                        type = "up-out";
+                    }
+                    w.mouse({ type, x: screenX - bbox.x, y: screenY - bbox.y });
+                }
+                onMouseEventInternal(e) {
+                    const w = this.getWidgetAt(e.x, e.y);
+                    switch (e.type) {
+                        case "down":
+                            if (this.lastWidgetUnderMouse !== null) {
+                                //Send lost up event
+                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "up");
+                            }
+                            this.lastWidgetUnderMouse = w;
+                            if (this.lastWidgetUnderMouse !== null) {
+                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "down");
+                            }
+                            break;
+                        case "up":
+                            if (this.lastWidgetUnderMouse !== null) {
+                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "up");
+                                this.lastWidgetUnderMouse = null;
+                            }
+                            break;
+                        case "move":
+                            if (this.lastWidgetUnderMouse !== null) {
+                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "move");
+                            }
+                            break;
+                    }
+                }
+                setFullscreen(fullscreen) {
+                    this.nativeContext.screen.setFullscreen(fullscreen);
+                }
+                toggleStats() {
+                    this.nativeContext.screen.toggleStats();
+                }
+                registerUpdateable(updateable) {
+                    this.updateables.add(updateable);
+                }
+                unregisterUpdateable(updateable) {
+                    this.updateables.delete(updateable);
+                }
+            };
+        }
+    };
+});
+System.register("engine/src/widgets/widget", ["engine/src/types"], function (exports_5, context_5) {
+    "use strict";
+    var types_ts_3, BaseWidget;
+    var __moduleName = context_5 && context_5.id;
+    return {
+        setters: [
+            function (types_ts_3_1) {
+                types_ts_3 = types_ts_3_1;
             }
         ],
         execute: function () {
@@ -618,7 +882,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                     this._layer = 0;
                     this._parent = null;
                     this._engine = null;
-                    this._boundingBox = new types_ts_2.Rect();
+                    this._boundingBox = new types_ts_3.Rect();
                     this._solid = true;
                     this.layout = null;
                 }
@@ -631,7 +895,13 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                 }
                 set engine(val) {
                     if (val !== this._engine) {
+                        if (this._engine !== null && types_ts_3.isUpdateable(this)) {
+                            this._engine.unregisterUpdateable(this);
+                        }
                         this._engine = val;
+                        if (this._engine !== null && types_ts_3.isUpdateable(this)) {
+                            this._engine.registerUpdateable(this);
+                        }
                     }
                 }
                 get solid() {
@@ -816,14 +1086,14 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                     return this;
                 }
             };
-            exports_4("BaseWidget", BaseWidget);
+            exports_5("BaseWidget", BaseWidget);
         }
     };
 });
-System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widget"], function (exports_5, context_5) {
+System.register("engine/src/widgets/ui/label", ["engine/src/widgets/widget"], function (exports_6, context_6) {
     "use strict";
-    var widget_ts_1, BaseWidgetContainer;
-    var __moduleName = context_5 && context_5.id;
+    var widget_ts_1, LabelWidget;
+    var __moduleName = context_6 && context_6.id;
     return {
         setters: [
             function (widget_ts_1_1) {
@@ -831,7 +1101,53 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
             }
         ],
         execute: function () {
-            BaseWidgetContainer = class BaseWidgetContainer extends widget_ts_1.BaseWidget {
+            LabelWidget = class LabelWidget extends widget_ts_1.BaseWidget {
+                constructor(font, text, foreColor, backColor) {
+                    super();
+                    this._text = "";
+                    this._lines = [];
+                    this.font = font;
+                    this.height = font.tileHeight;
+                    this.text = text;
+                    this.foreColor = foreColor;
+                    this.backColor = backColor;
+                    this.solid = false;
+                }
+                set text(val) {
+                    if (val !== this._text) {
+                        this._text = val;
+                        this._lines = val.split("\n");
+                        this.width = this._lines.map((s) => s.length).reduce((max, c) => Math.max(max, c), 0) * this.font.tileWidth;
+                        this.height = this._lines.length * this.font.tileHeight;
+                        this.invalidate();
+                    }
+                }
+                get text() {
+                    return this._text;
+                }
+                drawSelf(context) {
+                    context.textColor(this.foreColor, this.backColor);
+                    for (let i = 0; i < this._lines.length; i++) {
+                        context.moveCursorTo(0, i * this.font.tileHeight).text(this.font, this._lines[i]);
+                    }
+                }
+            };
+            exports_6("LabelWidget", LabelWidget);
+        }
+    };
+});
+System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widget"], function (exports_7, context_7) {
+    "use strict";
+    var widget_ts_2, BaseWidgetContainer;
+    var __moduleName = context_7 && context_7.id;
+    return {
+        setters: [
+            function (widget_ts_2_1) {
+                widget_ts_2 = widget_ts_2_1;
+            }
+        ],
+        execute: function () {
+            BaseWidgetContainer = class BaseWidgetContainer extends widget_ts_2.BaseWidget {
                 constructor() {
                     super(...arguments);
                     this._children = [];
@@ -951,440 +1267,32 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
                 onChildrenTransformChanged(child) { }
                 onChildrenAdded(child) { }
             };
-            exports_5("BaseWidgetContainer", BaseWidgetContainer);
+            exports_7("BaseWidgetContainer", BaseWidgetContainer);
         }
     };
 });
-System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_6, context_6) {
+System.register("engine/src/widgets/group", ["engine/src/widgets/widget-container"], function (exports_8, context_8) {
     "use strict";
-    var types_ts_3, widget_container_ts_1, ScrollableContainerWidget;
-    var __moduleName = context_6 && context_6.id;
+    var widget_container_ts_1, GroupContainerWidget;
+    var __moduleName = context_8 && context_8.id;
     return {
         setters: [
-            function (types_ts_3_1) {
-                types_ts_3 = types_ts_3_1;
-            },
             function (widget_container_ts_1_1) {
                 widget_container_ts_1 = widget_container_ts_1_1;
             }
         ],
         execute: function () {
-            ScrollableContainerWidget = class ScrollableContainerWidget extends widget_container_ts_1.BaseWidgetContainer {
-                constructor() {
-                    super(...arguments);
-                    this.backColor = types_ts_3.FixedColor.Black;
-                    this.mouseHorizontalScrollEnabled = false;
-                    this.mouseHorizontalScrollLimits = { fromX: -9999999, toX: 9999999 };
-                    this._offsetX = 0;
-                    this._offsetY = 0;
-                    this.down = false;
-                    this.downPos = new types_ts_3.Point();
-                    this.downOffset = new types_ts_3.Point();
-                }
-                get offsetX() {
-                    return this._offsetX;
-                }
-                get offsetY() {
-                    return this._offsetY;
-                }
-                get innerX() {
-                    return this._offsetX;
-                }
-                get innerY() {
-                    return this._offsetY;
-                }
-                setOffset(offsetX, offsetY, onNextDraw = true) {
-                    offsetX = offsetX | 0;
-                    offsetY = offsetY | 0;
-                    if (offsetX === this._offsetX && offsetY === this._offsetY)
-                        return;
-                    if (!onNextDraw) {
-                        this._offsetX = offsetX;
-                        this._offsetY = offsetY;
-                        this.invalidate();
-                        return;
-                    }
-                    this.engine?.onNextDrawNative(this.layer, ({ context, invalidateRect }) => {
-                        const dx = offsetX - this.offsetX;
-                        const dy = offsetY - this.offsetY;
-                        if (dx === 0 && dy === 0)
-                            return;
-                        const bbox = this.getBoundingBox();
-                        if (Math.abs(dx) > bbox.width || Math.abs(dy) < bbox.height) {
-                            //Scroll delta too big, nothing to reuse from the screen.. just invalidate..
-                            this._offsetX = offsetX;
-                            this._offsetY = offsetY;
-                            this.invalidate();
-                            return;
-                        }
-                        this._offsetX = offsetX;
-                        this._offsetY = offsetY;
-                        context.scrollRect(bbox.x, bbox.y, bbox.width, bbox.height, dx, dy);
-                        if (dy > 0) {
-                            invalidateRect(new types_ts_3.Rect(bbox.x, bbox.y, bbox.width, dy));
-                        }
-                        else if (dy < 0) {
-                            invalidateRect(new types_ts_3.Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy));
-                        }
-                        if (dx > 0) {
-                            invalidateRect(new types_ts_3.Rect(bbox.x, bbox.y, dx, bbox.height));
-                        }
-                        else if (dx < 0) {
-                            invalidateRect(new types_ts_3.Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height));
-                        }
-                    });
-                }
-                preDrawChildren(context) {
-                    context.pushTransform(this.innerX, this.innerY);
-                }
-                postDrawChildren(context) {
-                    context.popTransform();
-                }
-                drawSelf(context) {
-                    context.fillRect(0, 0, this.width, this.height, this.backColor);
-                }
-                mouse(e) {
-                    if (!this.mouseHorizontalScrollEnabled) {
-                        super.mouse(e);
-                        return;
-                    }
-                    switch (e.type) {
-                        case "down":
-                            this.down = true;
-                            this.downPos.set(e.x, e.y);
-                            this.downOffset.set(this.offsetX, this.offsetY);
-                            break;
-                        case "move":
-                            if (this.down) {
-                                const newOffsetX = this.downOffset.x + e.x - this.downPos.x;
-                                this.setOffset(Math.max(Math.min(newOffsetX, this.mouseHorizontalScrollLimits.toX), this.mouseHorizontalScrollLimits.fromX), this.downOffset.y);
-                            }
-                            break;
-                        case "up":
-                        case "up-out":
-                            this.down = false;
-                            break;
-                    }
-                }
-            };
-            exports_6("ScrollableContainerWidget", ScrollableContainerWidget);
-        }
-    };
-});
-System.register("engine/src/engine", ["engine/src/types", "engine/src/context"], function (exports_7, context_7) {
-    "use strict";
-    var types_ts_4, context_ts_1, EngineLayer, EngineImpl;
-    var __moduleName = context_7 && context_7.id;
-    async function buildEngine(nativeContext) {
-        const engine = new EngineImpl(nativeContext);
-        await engine.init();
-        return engine;
-    }
-    exports_7("buildEngine", buildEngine);
-    function destroyEngine(engine) {
-        engine.destroy();
-    }
-    exports_7("destroyEngine", destroyEngine);
-    return {
-        setters: [
-            function (types_ts_4_1) {
-                types_ts_4 = types_ts_4_1;
-            },
-            function (context_ts_1_1) {
-                context_ts_1 = context_ts_1_1;
-            }
-        ],
-        execute: function () {
-            EngineLayer = class EngineLayer {
-                constructor(id) {
-                    this.invalidRects = [];
-                    this.children = [];
-                    this.onNextDrawNative = [];
-                    this.id = id;
-                }
-            };
-            EngineImpl = class EngineImpl {
-                constructor(nativeContext) {
-                    this.screenSize = new types_ts_4.Size();
-                    this.layers = [];
-                    this.scrollables = new Map();
-                    this.lastWidgetUnderMouse = null;
-                    this.nativeContext = nativeContext;
-                    this.context = new context_ts_1.EngineContextImpl(this.nativeContext.screen);
-                    this.nativeContext.input.onMouseEvent((e) => this.onMouseEventInternal(e));
-                    for (let i = 0; i < types_ts_4.LAYERS_COUNT; i++) {
-                        this.layers.push(new EngineLayer(i));
-                    }
-                }
-                async init() {
-                    await this.nativeContext.init();
-                    let consoleSize = this.nativeContext.screen.getScreenSize();
-                    while (consoleSize === null) {
-                        await new Promise((resolve) => {
-                            setTimeout(resolve, 1);
-                        });
-                        consoleSize = this.nativeContext.screen.getScreenSize();
-                    }
-                    this.screenSize.set(consoleSize.width, consoleSize.height);
-                    this.nativeContext.screen.onScreenSizeChanged(this.onScreenSizeChanged.bind(this));
-                }
-                onScreenSizeChanged(size) {
-                    if (!size.equals(this.screenSize)) {
-                        this.screenSize.set(size.width, size.height);
-                        for (let i = 0; i < this.layers.length; i++) {
-                            this.invalidateRect(new types_ts_4.Rect(0, 0, this.screenSize.width, this.screenSize.height), this.layers[i].id);
-                        }
-                    }
-                }
-                drawInvalidRects(layer) {
-                    let drawnRects = 0;
-                    let drawnArea = 0;
-                    if (layer.invalidRects.length > 0) {
-                        let pendingLayout = true;
-                        const clip = new types_ts_4.Rect();
-                        const screenSize = this.screenSize;
-                        const children = layer.children;
-                        for (let i = 0; i < layer.invalidRects.length; i++) {
-                            clip.copyFrom(layer.invalidRects[i]);
-                            if (clip.x < 0) {
-                                clip.width += clip.x;
-                                clip.x = 0;
-                            }
-                            if (clip.y < 0) {
-                                clip.height += clip.y;
-                                clip.y = 0;
-                            }
-                            if (clip.width <= 0 ||
-                                clip.height <= 0 ||
-                                clip.x > screenSize.width ||
-                                clip.y > screenSize.height) {
-                                continue;
-                            }
-                            if (clip.x + clip.width > screenSize.width) {
-                                clip.width = screenSize.width - clip.x;
-                            }
-                            if (clip.y + clip.height > screenSize.height) {
-                                clip.height = screenSize.height - clip.y;
-                            }
-                            if (pendingLayout) {
-                                pendingLayout = false;
-                                this.updateLayout(layer);
-                            }
-                            drawnRects++;
-                            drawnArea += clip.width * clip.height;
-                            this.context.beginClip(clip.x, clip.y, clip.width, clip.height);
-                            for (let i = 0; i < children.length; i++) {
-                                children[i].draw(this.context);
-                            }
-                            this.context.endClip();
-                        }
-                        layer.invalidRects.length = 0;
-                    }
-                    return { drawnRects, drawnArea };
-                }
-                drawOnNextDrawNative(layer) {
-                    let drawnRects = 0;
-                    let drawnArea = 0;
-                    for (let i = 0; i < layer.onNextDrawNative.length; i++) {
-                        layer.onNextDrawNative[i]({
-                            context: this.nativeContext.screen,
-                            invalidateRect: (rect) => layer.invalidRects.push(rect),
-                        });
-                        const stats = this.drawInvalidRects(layer);
-                        drawnRects += stats.drawnRects;
-                        drawnArea += stats.drawnArea;
-                    }
-                    layer.onNextDrawNative.length = 0;
-                    return {
-                        drawnRects,
-                        drawnArea,
-                    };
-                }
-                draw() {
-                    const startTime = performance.now();
-                    this.context.beginDraw();
-                    let drawnRects = 0;
-                    for (let i = 0; i < this.layers.length; i++) {
-                        const layer = this.layers[i];
-                        this.context.setTargetLayer(layer.id);
-                        let { drawnRects: drawnRects1 } = this.drawInvalidRects(layer);
-                        drawnRects += drawnRects1;
-                        let { drawnRects: drawnRects2 } = this.drawOnNextDrawNative(layer);
-                        drawnRects += drawnRects2;
-                    }
-                    this.context.endDraw();
-                    const endTime = performance.now();
-                    return {
-                        time: endTime - startTime,
-                        rects: drawnRects,
-                    };
-                }
-                updateLayout(layer) {
-                    for (let i = 0; i < layer.children.length; i++) {
-                        layer.children[i].updateLayout(this.screenSize.width, this.screenSize.height);
-                    }
-                }
-                update() { }
-                addWidget(widget, layer) {
-                    widget.layer = layer;
-                    this.layers[layer].children.push(widget);
-                    widget.engine = this;
-                    widget.updateLayout(this.screenSize.width, this.screenSize.height);
-                    this.invalidateRect(widget.getBoundingBox(), widget.layer);
-                }
-                removeWidget(widget) {
-                    const layer = this.layers[widget.layer];
-                    const ix = layer.children.indexOf(widget);
-                    if (ix >= 0)
-                        layer.children.splice(ix, 1);
-                    this.invalidateRect(widget.getBoundingBox(), layer.id);
-                }
-                onKeyEvent(listener) {
-                    this.nativeContext.input.onKeyEvent(listener);
-                }
-                onMouseEvent(listener) {
-                    this.nativeContext.input.onMouseEvent(listener);
-                }
-                invalidateRect(rect, layer) {
-                    const invalidRects = this.layers[layer].invalidRects;
-                    let lastRect = invalidRects.length > 0
-                        ? invalidRects[invalidRects.length - 1]
-                        : null;
-                    if (lastRect !== null && lastRect.intersects(rect)) {
-                        lastRect.union(rect);
-                        return;
-                    }
-                    invalidRects.push(rect.clone());
-                }
-                destroy() {
-                    this.nativeContext.destroy();
-                }
-                onNextDrawNative(layer, cb) {
-                    this.layers[layer].onNextDrawNative.push(cb);
-                }
-                getWidgetAt(x, y) {
-                    for (let l = this.layers.length - 1; l >= 0; l--) {
-                        const children = this.layers[l].children;
-                        for (let i = children.length - 1; i >= 0; i--) {
-                            const child = children[i];
-                            const w = child.getAt(x - child.visibleX, y - child.visibleY);
-                            if (w !== null)
-                                return w;
-                        }
-                    }
-                    return null;
-                }
-                sendMouseEventToWidget(w, screenX, screenY, type) {
-                    const bbox = w.getBoundingBox();
-                    if (type === "up" && !bbox.contains(screenX, screenY)) {
-                        type = "up-out";
-                    }
-                    w.mouse({ type, x: screenX - bbox.x, y: screenY - bbox.y });
-                }
-                onMouseEventInternal(e) {
-                    const w = this.getWidgetAt(e.x, e.y);
-                    switch (e.type) {
-                        case "down":
-                            if (this.lastWidgetUnderMouse !== null) {
-                                //Send lost up event
-                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "up");
-                            }
-                            this.lastWidgetUnderMouse = w;
-                            if (this.lastWidgetUnderMouse !== null) {
-                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "down");
-                            }
-                            break;
-                        case "up":
-                            if (this.lastWidgetUnderMouse !== null) {
-                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "up");
-                                this.lastWidgetUnderMouse = null;
-                            }
-                            break;
-                        case "move":
-                            if (this.lastWidgetUnderMouse !== null) {
-                                this.sendMouseEventToWidget(this.lastWidgetUnderMouse, e.x, e.y, "move");
-                            }
-                            break;
-                    }
-                }
-                setFullscreen(fullscreen) {
-                    this.nativeContext.screen.setFullscreen(fullscreen);
-                }
-                toggleStats() {
-                    this.nativeContext.screen.toggleStats();
-                }
-            };
-        }
-    };
-});
-System.register("engine/src/widgets/ui/label", ["engine/src/widgets/widget"], function (exports_8, context_8) {
-    "use strict";
-    var widget_ts_2, LabelWidget;
-    var __moduleName = context_8 && context_8.id;
-    return {
-        setters: [
-            function (widget_ts_2_1) {
-                widget_ts_2 = widget_ts_2_1;
-            }
-        ],
-        execute: function () {
-            LabelWidget = class LabelWidget extends widget_ts_2.BaseWidget {
-                constructor(font, text, foreColor, backColor) {
-                    super();
-                    this._text = "";
-                    this._lines = [];
-                    this.font = font;
-                    this.height = font.tileHeight;
-                    this.text = text;
-                    this.foreColor = foreColor;
-                    this.backColor = backColor;
-                    this.solid = false;
-                }
-                set text(val) {
-                    if (val !== this._text) {
-                        this._text = val;
-                        this._lines = val.split("\n");
-                        this.width = this._lines.map((s) => s.length).reduce((max, c) => Math.max(max, c), 0) * this.font.tileWidth;
-                        this.height = this._lines.length * this.font.tileHeight;
-                        this.invalidate();
-                    }
-                }
-                get text() {
-                    return this._text;
-                }
-                drawSelf(context) {
-                    context.textColor(this.foreColor, this.backColor);
-                    for (let i = 0; i < this._lines.length; i++) {
-                        context.moveCursorTo(0, i * this.font.tileHeight).text(this.font, this._lines[i]);
-                    }
-                }
-            };
-            exports_8("LabelWidget", LabelWidget);
-        }
-    };
-});
-System.register("engine/src/widgets/group", ["engine/src/widgets/widget-container"], function (exports_9, context_9) {
-    "use strict";
-    var widget_container_ts_2, GroupContainerWidget;
-    var __moduleName = context_9 && context_9.id;
-    return {
-        setters: [
-            function (widget_container_ts_2_1) {
-                widget_container_ts_2 = widget_container_ts_2_1;
-            }
-        ],
-        execute: function () {
-            GroupContainerWidget = class GroupContainerWidget extends widget_container_ts_2.BaseWidgetContainer {
+            GroupContainerWidget = class GroupContainerWidget extends widget_container_ts_1.BaseWidgetContainer {
                 drawSelf() { }
             };
-            exports_9("GroupContainerWidget", GroupContainerWidget);
+            exports_8("GroupContainerWidget", GroupContainerWidget);
         }
     };
 });
-System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/widget"], function (exports_10, context_10) {
+System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/widget"], function (exports_9, context_9) {
     "use strict";
     var widget_ts_3, AnimatedTileWidget;
-    var __moduleName = context_10 && context_10.id;
+    var __moduleName = context_9 && context_9.id;
     return {
         setters: [
             function (widget_ts_3_1) {
@@ -1397,8 +1305,8 @@ System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/wi
                     super();
                     this.tile = null;
                     this.frame = 0;
-                    this.lastSetIntervalHandle = null;
                     this.animationFinishedCb = null;
+                    this.nextFrameUpdateCount = 0;
                     this.animation = animation;
                     this.updateCurrentTile();
                 }
@@ -1410,16 +1318,13 @@ System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/wi
                     }
                 }
                 updateCurrentAnimation() {
-                    if (this.lastSetIntervalHandle !== null) {
-                        clearInterval(this.lastSetIntervalHandle);
-                        this.lastSetIntervalHandle = null;
-                    }
+                    this.nextFrameUpdateCount = 0;
                     const animation = this.animation;
                     if (animation === null)
                         return;
                     this.updateCurrentTile();
-                    if (animation.delay > 0 && animation.tiles.length > 1) {
-                        this.lastSetIntervalHandle = setInterval(this.updateCurrentTile.bind(this), animation.delay);
+                    if (animation.delayInUpdates > 0 && animation.tiles.length > 1) {
+                        this.nextFrameUpdateCount = animation.delayInUpdates;
                     }
                 }
                 updateCurrentTile() {
@@ -1440,10 +1345,7 @@ System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/wi
                     this.frame++;
                     if (!this.animation.loops &&
                         this.frame === animation.tiles.length) {
-                        if (this.lastSetIntervalHandle !== null) {
-                            clearInterval(this.lastSetIntervalHandle);
-                            this.lastSetIntervalHandle = null;
-                        }
+                        this.nextFrameUpdateCount = 0;
                         if (this.animationFinishedCb !== null) {
                             this.animationFinishedCb();
                         }
@@ -1453,15 +1355,23 @@ System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/wi
                     if (this.tile !== null)
                         context.tile(0, 0, this.tile);
                 }
+                onUpdate() {
+                    if (this.nextFrameUpdateCount > 0) {
+                        this.nextFrameUpdateCount--;
+                        if (this.nextFrameUpdateCount === 0) {
+                            this.updateCurrentAnimation();
+                        }
+                    }
+                }
             };
-            exports_10("AnimatedTileWidget", AnimatedTileWidget);
+            exports_9("AnimatedTileWidget", AnimatedTileWidget);
         }
     };
 });
-System.register("game/src/avatar", ["engine/src/widgets/group", "engine/src/widgets/game/animated-tile"], function (exports_11, context_11) {
+System.register("game/src/avatar", ["engine/src/widgets/group", "engine/src/widgets/game/animated-tile"], function (exports_10, context_10) {
     "use strict";
     var group_ts_1, animated_tile_ts_1, WALK_SPEED, Avatar;
-    var __moduleName = context_11 && context_11.id;
+    var __moduleName = context_10 && context_10.id;
     return {
         setters: [
             function (group_ts_1_1) {
@@ -1567,18 +1477,18 @@ System.register("game/src/avatar", ["engine/src/widgets/group", "engine/src/widg
                         this.nextAction = "slash";
                     }
                 }
-                update() {
+                onUpdate() {
                     this.updateAnimations();
                 }
             };
-            exports_11("Avatar", Avatar);
+            exports_10("Avatar", Avatar);
         }
     };
 });
-System.register("engine/src/widgets/game/tile", ["engine/src/widgets/widget"], function (exports_12, context_12) {
+System.register("engine/src/widgets/game/tile", ["engine/src/widgets/widget"], function (exports_11, context_11) {
     "use strict";
     var widget_ts_4, TileWidget;
-    var __moduleName = context_12 && context_12.id;
+    var __moduleName = context_11 && context_11.id;
     return {
         setters: [
             function (widget_ts_4_1) {
@@ -1597,14 +1507,14 @@ System.register("engine/src/widgets/game/tile", ["engine/src/widgets/widget"], f
                     context.tile(0, 0, this.tile);
                 }
             };
-            exports_12("TileWidget", TileWidget);
+            exports_11("TileWidget", TileWidget);
         }
     };
 });
-System.register("engine/src/widgets/game/tilemap", ["engine/src/widgets/widget"], function (exports_13, context_13) {
+System.register("engine/src/widgets/game/tilemap", ["engine/src/widgets/widget"], function (exports_12, context_12) {
     "use strict";
     var widget_ts_5, TilemapWidget;
-    var __moduleName = context_13 && context_13.id;
+    var __moduleName = context_12 && context_12.id;
     return {
         setters: [
             function (widget_ts_5_1) {
@@ -1629,6 +1539,9 @@ System.register("engine/src/widgets/game/tilemap", ["engine/src/widgets/widget"]
                     this.width = tilemap.tileWidth * tilesWidth;
                     this.height = tilemap.tileHeight * tilesHeight;
                 }
+                setTileIndex(x, y, index) {
+                    this.tiles[y][x] = index;
+                }
                 drawSelf(context) {
                     const tilemap = this.tilemap;
                     const tiles = this.tiles;
@@ -1636,7 +1549,174 @@ System.register("engine/src/widgets/game/tilemap", ["engine/src/widgets/widget"]
                     context.tilemap(0, 0, tilemap, tiles);
                 }
             };
-            exports_13("TilemapWidget", TilemapWidget);
+            exports_12("TilemapWidget", TilemapWidget);
+        }
+    };
+});
+System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_13, context_13) {
+    "use strict";
+    var types_ts_4, widget_container_ts_2, ScrollableContainerWidget;
+    var __moduleName = context_13 && context_13.id;
+    return {
+        setters: [
+            function (types_ts_4_1) {
+                types_ts_4 = types_ts_4_1;
+            },
+            function (widget_container_ts_2_1) {
+                widget_container_ts_2 = widget_container_ts_2_1;
+            }
+        ],
+        execute: function () {
+            ScrollableContainerWidget = class ScrollableContainerWidget extends widget_container_ts_2.BaseWidgetContainer {
+                constructor() {
+                    super(...arguments);
+                    this.backColor = types_ts_4.FixedColor.Black;
+                    this.mouseHorizontalScrollEnabled = false;
+                    this._mouseHorizontalScrollLimits = { fromX: -9999999, toX: 9999999 };
+                    this._offsetX = 0;
+                    this._offsetY = 0;
+                    this.down = false;
+                    this.downPos = new types_ts_4.Point();
+                    this.downOffset = new types_ts_4.Point();
+                    this.lastChildUnderMouse = null;
+                }
+                get mouseHorizontalScrollLimits() {
+                    return this._mouseHorizontalScrollLimits;
+                }
+                set mouseHorizontalScrollLimits(val) {
+                    this._mouseHorizontalScrollLimits = val;
+                    this.setOffset(Math.max(Math.min(this.offsetX, this.mouseHorizontalScrollLimits.toX), this.mouseHorizontalScrollLimits.fromX), this.offsetY);
+                }
+                get offsetX() {
+                    return this._offsetX;
+                }
+                get offsetY() {
+                    return this._offsetY;
+                }
+                get innerX() {
+                    return this._offsetX;
+                }
+                get innerY() {
+                    return this._offsetY;
+                }
+                setOffset(offsetX, offsetY, onNextDraw = true) {
+                    offsetX = offsetX | 0;
+                    offsetY = offsetY | 0;
+                    if (offsetX === this._offsetX && offsetY === this._offsetY)
+                        return;
+                    if (!onNextDraw) {
+                        this._offsetX = offsetX;
+                        this._offsetY = offsetY;
+                        this.invalidate();
+                        return;
+                    }
+                    this.engine?.onNextDrawNative(this.layer, ({ context, invalidateRect }) => {
+                        const dx = offsetX - this.offsetX;
+                        const dy = offsetY - this.offsetY;
+                        if (dx === 0 && dy === 0)
+                            return;
+                        const bbox = this.getBoundingBox();
+                        if (Math.abs(dx) > bbox.width || Math.abs(dy) < bbox.height) {
+                            //Scroll delta too big, nothing to reuse from the screen.. just invalidate..
+                            this._offsetX = offsetX;
+                            this._offsetY = offsetY;
+                            this.invalidate();
+                            return;
+                        }
+                        this._offsetX = offsetX;
+                        this._offsetY = offsetY;
+                        context.scrollRect(bbox.x, bbox.y, bbox.width, bbox.height, dx, dy);
+                        if (dy > 0) {
+                            invalidateRect(new types_ts_4.Rect(bbox.x, bbox.y, bbox.width, dy));
+                        }
+                        else if (dy < 0) {
+                            invalidateRect(new types_ts_4.Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy));
+                        }
+                        if (dx > 0) {
+                            invalidateRect(new types_ts_4.Rect(bbox.x, bbox.y, dx, bbox.height));
+                        }
+                        else if (dx < 0) {
+                            invalidateRect(new types_ts_4.Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height));
+                        }
+                    });
+                }
+                preDrawChildren(context) {
+                    context.pushTransform(this.innerX, this.innerY);
+                }
+                postDrawChildren(context) {
+                    context.popTransform();
+                }
+                drawSelf(context) {
+                    context.fillRect(0, 0, this.width, this.height, this.backColor);
+                }
+                getAt(x, y) {
+                    if (!this.mouseHorizontalScrollEnabled)
+                        return super.getAt(x, y);
+                    if (!this.solid)
+                        return null;
+                    if (x < 0 || y < 0 || x > this.width || y > this.height)
+                        return null;
+                    return this.selfSolid ? this : null;
+                }
+                mouse(e) {
+                    if (!this.mouseHorizontalScrollEnabled) {
+                        super.mouse(e);
+                        return;
+                    }
+                    let childUnderMouse = super.getAt(e.x, e.y);
+                    if (childUnderMouse === this) {
+                        childUnderMouse = null;
+                    }
+                    switch (e.type) {
+                        case "down":
+                            this.down = true;
+                            this.downPos.set(e.x, e.y);
+                            this.downOffset.set(this.offsetX, this.offsetY);
+                            if (childUnderMouse !== null) {
+                                this.lastChildUnderMouse = childUnderMouse;
+                                this.lastChildUnderMouse.mouse({
+                                    type: "down",
+                                    x: this.lastChildUnderMouse.width / 2,
+                                    y: this.lastChildUnderMouse.height / 2,
+                                });
+                            }
+                            break;
+                        case "move":
+                            if (this.down) {
+                                const deltaX = e.x - this.downPos.x;
+                                if (Math.abs(deltaX) > 16 && this.lastChildUnderMouse !== null) {
+                                    this.lastChildUnderMouse.mouse({
+                                        type: "up-out",
+                                        x: this.lastChildUnderMouse.width / 2,
+                                        y: this.lastChildUnderMouse.height / 2,
+                                    });
+                                    this.lastChildUnderMouse = null;
+                                }
+                                const newOffsetX = this.downOffset.x + deltaX;
+                                this.setOffset(Math.max(Math.min(newOffsetX, this.mouseHorizontalScrollLimits.toX), this.mouseHorizontalScrollLimits.fromX), this.downOffset.y);
+                            }
+                            break;
+                        case "up":
+                        case "up-out":
+                            if (this.down) {
+                                if (this.lastChildUnderMouse !== null) {
+                                    this.lastChildUnderMouse.mouse({
+                                        type: (this.lastChildUnderMouse === childUnderMouse &&
+                                            e.type === "up")
+                                            ? "up"
+                                            : "up-out",
+                                        x: this.lastChildUnderMouse.width / 2,
+                                        y: this.lastChildUnderMouse.height / 2,
+                                    });
+                                    this.lastChildUnderMouse = null;
+                                }
+                                this.down = false;
+                            }
+                            break;
+                    }
+                }
+            };
+            exports_13("ScrollableContainerWidget", ScrollableContainerWidget);
         }
     };
 });
@@ -1852,6 +1932,10 @@ System.register("game/src/map", ["engine/src/types", "engine/src/widgets/game/ti
             }
             addTile(x, y, "terrain." + randomDecoTile(getTerrainId(x, y)));
         }
+        return {
+            floor,
+            floor2,
+        };
     }
     exports_16("default", initMap);
     return {
@@ -1912,7 +1996,7 @@ System.register("game/src/npc", ["game/src/avatar", "game/src/random"], function
                     this.dy = 0;
                     this.steps = 0;
                 }
-                update() {
+                onUpdate() {
                     if (this.startingDelay > 0) {
                         this.startingDelay--;
                         return;
@@ -1924,7 +2008,7 @@ System.register("game/src/npc", ["game/src/avatar", "game/src/random"], function
                     }
                     this.move(this.dx, this.dy);
                     this.steps--;
-                    super.update();
+                    super.onUpdate();
                 }
             };
             exports_17("Npc", Npc);
@@ -2039,31 +2123,75 @@ System.register("game/src/utils", [], function (exports_20, context_20) {
         }
     };
 });
-System.register("engine/src/widgets/ui/button", ["engine/src/widgets/widget"], function (exports_21, context_21) {
+System.register("engine/src/widgets/ui/button", ["engine/src/widgets/widget-container"], function (exports_21, context_21) {
     "use strict";
-    var widget_ts_6, ButtonWidget;
+    var widget_container_ts_4, ButtonWidget;
     var __moduleName = context_21 && context_21.id;
     return {
         setters: [
-            function (widget_ts_6_1) {
-                widget_ts_6 = widget_ts_6_1;
+            function (widget_container_ts_4_1) {
+                widget_container_ts_4 = widget_container_ts_4_1;
             }
         ],
         execute: function () {
-            ButtonWidget = class ButtonWidget extends widget_ts_6.BaseWidget {
-                constructor(font, text, foreColor, backColor, pressedColor, onTapped = null) {
+            ButtonWidget = class ButtonWidget extends widget_container_ts_4.BaseWidgetContainer {
+                constructor(backColor, pressedColor, onTapped = null) {
                     super();
                     this.onTapped = null;
+                    this.down = false;
+                    this.backColor = backColor;
+                    this.pressedColor = pressedColor;
+                    this.onTapped = onTapped;
+                }
+                drawSelf(context) {
+                    const backColor = this.down ? this.pressedColor : this.backColor;
+                    context.fillRect(0, 0, this.width, this.height, backColor);
+                }
+                mouse(e) {
+                    switch (e.type) {
+                        case "down":
+                            this.down = true;
+                            this.invalidate();
+                            break;
+                        case "up-out":
+                            this.down = false;
+                            this.invalidate();
+                            break;
+                        case "up":
+                            if (this.down) {
+                                this.down = false;
+                                this.invalidate();
+                                if (this.onTapped !== null)
+                                    this.onTapped();
+                            }
+                            break;
+                    }
+                }
+            };
+            exports_21("ButtonWidget", ButtonWidget);
+        }
+    };
+});
+System.register("engine/src/widgets/ui/button-text", ["engine/src/widgets/ui/button"], function (exports_22, context_22) {
+    "use strict";
+    var button_ts_1, TextButtonWidget;
+    var __moduleName = context_22 && context_22.id;
+    return {
+        setters: [
+            function (button_ts_1_1) {
+                button_ts_1 = button_ts_1_1;
+            }
+        ],
+        execute: function () {
+            TextButtonWidget = class TextButtonWidget extends button_ts_1.ButtonWidget {
+                constructor(font, text, foreColor, backColor, pressedColor, onTapped = null) {
+                    super(backColor, pressedColor, onTapped);
                     this._text = "";
                     this._lines = [];
-                    this.down = false;
                     this.font = font;
                     this.height = font.tileHeight;
                     this.text = text;
                     this.foreColor = foreColor;
-                    this.backColor = backColor;
-                    this.pressedColor = pressedColor;
-                    this.onTapped = onTapped;
                 }
                 set text(val) {
                     if (val !== this._text) {
@@ -2092,35 +2220,15 @@ System.register("engine/src/widgets/ui/button", ["engine/src/widgets/widget"], f
                             .text(this.font, line);
                     }
                 }
-                mouse(e) {
-                    switch (e.type) {
-                        case "down":
-                            this.down = true;
-                            this.invalidate();
-                            break;
-                        case "up-out":
-                            this.down = false;
-                            this.invalidate();
-                            break;
-                        case "up":
-                            if (this.down) {
-                                this.down = false;
-                                this.invalidate();
-                                if (this.onTapped !== null)
-                                    this.onTapped();
-                            }
-                            break;
-                    }
-                }
             };
-            exports_21("ButtonWidget", ButtonWidget);
+            exports_22("TextButtonWidget", TextButtonWidget);
         }
     };
 });
-System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/button", "engine/src/widgets/ui/box", "engine/src/widgets/scrollable", "engine/src/widgets/ui/label"], function (exports_22, context_22) {
+System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/button", "engine/src/widgets/ui/box", "engine/src/widgets/scrollable", "engine/src/widgets/game/tile", "engine/src/widgets/ui/button-text"], function (exports_23, context_23) {
     "use strict";
-    var types_ts_8, button_ts_1, box_ts_1, scrollable_ts_2, label_ts_1;
-    var __moduleName = context_22 && context_22.id;
+    var types_ts_8, button_ts_2, box_ts_1, scrollable_ts_2, tile_ts_2, button_text_ts_1, ITEM_IMAGE_WIDTH, ITEM_IMAGE_HEIGHT, ITEM_IMAGE_BORDER, ITEM_WIDTH, ITEM_HEIGHT;
+    var __moduleName = context_23 && context_23.id;
     function initUI(engine, assets, native) {
         const font = assets.defaultFont;
         const mainUI = new box_ts_1.BoxContainerWidget(0);
@@ -2143,8 +2251,6 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/butto
             verticalSpacingPercent: 100,
             horizontalSpacingPercent: 100,
         };
-        const ITEM_WIDTH = 64;
-        const ITEM_HEIGHT = 64;
         const itemsContainerContainer = new box_ts_1.BoxContainerWidget(4);
         itemsContainerContainer.height = ITEM_HEIGHT +
             itemsContainerContainer.border * 2;
@@ -2157,10 +2263,20 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/butto
             },
         };
         itemsContainerContainer.backColor = types_ts_8.FixedColor.Transparent;
+        const decoTiles = assets.getTilemap("terrain").tiles.filter((x) => x.id.includes("deco"));
+        const itemsCount = decoTiles.length;
+        const itemsButtons = new Map();
         const itemsContainer = new scrollable_ts_2.ScrollableContainerWidget();
+        const allItemsWidth = itemsCount * (ITEM_WIDTH + font.tileWidth);
         itemsContainer.layout = {
             widthPercent: 100,
             heightPercent: 100,
+            customSizeFn: (w) => {
+                itemsContainer.mouseHorizontalScrollLimits = {
+                    fromX: Math.min(ITEM_WIDTH / 2, -allItemsWidth + w.width - ITEM_WIDTH / 2) | 0,
+                    toX: (ITEM_WIDTH / 2) | 0,
+                };
+            },
         };
         itemsContainer.parent = itemsContainerContainer;
         itemsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
@@ -2169,23 +2285,17 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/butto
             spacing: font.tileWidth,
         };
         itemsContainer.mouseHorizontalScrollEnabled = true;
-        const ITEM_COUNT = 20;
-        for (let i = 0; i < ITEM_COUNT; i++) {
-            const item = new box_ts_1.BoxContainerWidget(4);
-            item.solid = false;
-            new label_ts_1.LabelWidget(font, " Item\n  " + i, types_ts_8.FixedColor.White, types_ts_8.FixedColor.Black)
-                .setLayout({ verticalSpacingPercent: 50, horizontalSpacingPercent: 50 })
-                .parent = item;
+        for (let i = 0; i < itemsCount; i++) {
+            const item = new button_ts_2.ButtonWidget(types_ts_8.FixedColor.Cyan, types_ts_8.FixedColor.Yellow);
+            const tile = new tile_ts_2.TileWidget(decoTiles[i])
+                .setLayout({ verticalSpacingPercent: 50, horizontalSpacingPercent: 50 });
+            tile.parent = item;
+            tile.solid = false;
             item.height = ITEM_HEIGHT;
             item.width = ITEM_WIDTH;
             item.parent = itemsContainer;
+            itemsButtons.set(item, decoTiles[i]);
         }
-        itemsContainer.mouseHorizontalScrollLimits = {
-            fromX: -ITEM_COUNT *
-                (ITEM_WIDTH + (itemsContainer.childrenLayout.spacing || 0)) +
-                (ITEM_WIDTH / 2) | 0,
-            toX: (ITEM_WIDTH / 2) | 0,
-        };
         statsContainer.parent = mainUI;
         buttonsContainer.parent = mainUI;
         itemsContainerContainer.parent = mainUI;
@@ -2203,7 +2313,7 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/butto
             spacing: font.tileHeight,
         };
         const addButton = (text, cb) => {
-            const button = new button_ts_1.ButtonWidget(font, text, types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, types_ts_8.FixedColor.Yellow, () => cb()).setLayout({ widthPercent: 100 });
+            const button = new button_text_ts_1.TextButtonWidget(font, text, types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, types_ts_8.FixedColor.Yellow, () => cb()).setLayout({ widthPercent: 100 });
             button.parent = buttonsContainer;
             buttonsContainer.height = buttonsContainer.border * 2 +
                 buttonsContainer.children.map((x) => x.height).reduce((acc, v) => acc + v, 0) +
@@ -2232,16 +2342,17 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/butto
             statsContainer,
             buttonsContainer,
             addButton,
+            itemsButtons,
         };
     }
-    exports_22("initUI", initUI);
+    exports_23("initUI", initUI);
     return {
         setters: [
             function (types_ts_8_1) {
                 types_ts_8 = types_ts_8_1;
             },
-            function (button_ts_1_1) {
-                button_ts_1 = button_ts_1_1;
+            function (button_ts_2_1) {
+                button_ts_2 = button_ts_2_1;
             },
             function (box_ts_1_1) {
                 box_ts_1 = box_ts_1_1;
@@ -2249,18 +2360,26 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/butto
             function (scrollable_ts_2_1) {
                 scrollable_ts_2 = scrollable_ts_2_1;
             },
-            function (label_ts_1_1) {
-                label_ts_1 = label_ts_1_1;
+            function (tile_ts_2_1) {
+                tile_ts_2 = tile_ts_2_1;
+            },
+            function (button_text_ts_1_1) {
+                button_text_ts_1 = button_text_ts_1_1;
             }
         ],
         execute: function () {
+            ITEM_IMAGE_WIDTH = 32;
+            ITEM_IMAGE_HEIGHT = 32;
+            ITEM_IMAGE_BORDER = 8;
+            ITEM_WIDTH = ITEM_IMAGE_WIDTH + ITEM_IMAGE_BORDER * 2;
+            ITEM_HEIGHT = ITEM_IMAGE_HEIGHT + ITEM_IMAGE_BORDER * 2;
         }
     };
 });
-System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/random", "game/src/npc", "game/src/utils", "game/src/ui", "engine/src/widgets/game/tiles-container"], function (exports_23, context_23) {
+System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/src/map", "game/src/random", "game/src/npc", "game/src/utils", "game/src/ui", "engine/src/widgets/game/tiles-container"], function (exports_24, context_24) {
     "use strict";
-    var avatar_ts_2, map_ts_1, random_ts_3, npc_ts_1, utils_ts_1, ui_ts_1, tiles_container_ts_1, NPCS_COUNT, ENABLE_P2, movingWithMouse, mouseKeyCodes;
-    var __moduleName = context_23 && context_23.id;
+    var types_ts_9, avatar_ts_2, map_ts_1, random_ts_3, npc_ts_1, utils_ts_1, ui_ts_1, tiles_container_ts_1, NPCS_COUNT, ENABLE_P2, mouseMode, mouseKeyCodes, mouseModeAddTile;
+    var __moduleName = context_24 && context_24.id;
     function onKeyEvent(game, e) {
         if (e.char) {
             if (e.type === "down") {
@@ -2279,13 +2398,24 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
             }
         }
     }
-    function mouseEventToKeyCodes(engine, game, e) {
-        const keyCodes = [];
+    function switchToAddTileMode(tile) {
+        mouseMode = 2 /* AddTile */;
+        mouseModeAddTile = tile;
+    }
+    function mouseEventToMapCoordinates(engine, game, e) {
         let widgetAt = engine.getWidgetAt(e.x, e.y);
-        while (widgetAt !== null && widgetAt != game.map) {
+        while (widgetAt !== null && widgetAt !== game.map) {
             widgetAt = widgetAt.parent;
         }
         if (widgetAt === null)
+            return null;
+        const map = game.map;
+        const bounds = map.getBoundingBox();
+        return new types_ts_9.Point(e.x - bounds.x - map.offsetX, e.y - bounds.y - map.offsetY);
+    }
+    function mouseEventToKeyCodes(engine, game, e) {
+        const keyCodes = [];
+        if (mouseEventToMapCoordinates(engine, game, e) === null)
             return keyCodes;
         const map = game.map;
         const bounds = map.getBoundingBox();
@@ -2323,38 +2453,55 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
         switch (e.type) {
             case "down":
                 {
-                    const newCodes = mouseEventToKeyCodes(engine, game, e);
-                    if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
-                        movingWithMouse = true;
-                        mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, false));
-                        mouseKeyCodes = newCodes;
-                        mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, true));
+                    if (mouseMode === 2 /* AddTile */ && mouseModeAddTile !== null) {
+                        const mapCoords = mouseEventToMapCoordinates(engine, game, e);
+                        if (mapCoords !== null) {
+                            const tx = (mapCoords.x / game.floorLayer2.tilemap.tileWidth) | 0;
+                            const ty = (mapCoords.y / game.floorLayer2.tilemap.tileHeight) | 0;
+                            game.floorLayer2.setTileIndex(tx, ty, mouseModeAddTile.index);
+                            game.floorLayer2.invalidate();
+                        }
+                        mouseMode = 0 /* None */;
+                    }
+                    else {
+                        const newCodes = mouseEventToKeyCodes(engine, game, e);
+                        if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+                            mouseMode = 1 /* Move */;
+                            mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, false));
+                            mouseKeyCodes = newCodes;
+                            mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, true));
+                        }
                     }
                 }
                 break;
             case "move":
                 {
-                    if (!movingWithMouse)
-                        break;
-                    const newCodes = mouseEventToKeyCodes(engine, game, e);
-                    if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
-                        mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, false));
-                        mouseKeyCodes = newCodes;
-                        mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, true));
+                    switch (mouseMode) {
+                        case 1 /* Move */:
+                            {
+                                const newCodes = mouseEventToKeyCodes(engine, game, e);
+                                if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
+                                    mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, false));
+                                    mouseKeyCodes = newCodes;
+                                    mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, true));
+                                }
+                            }
+                            break;
                     }
                 }
                 break;
             case "up":
-                if (!movingWithMouse)
-                    break;
-                movingWithMouse = false;
-                mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, false));
-                mouseKeyCodes.length = 0;
-                break;
+                switch (mouseMode) {
+                    case 1 /* Move */:
+                        mouseMode = 0 /* None */;
+                        mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, false));
+                        mouseKeyCodes.length = 0;
+                        break;
+                }
         }
     }
     function initGame(engine, assets, native) {
-        const { mainUI, statsContainer, buttonsContainer, addButton } = ui_ts_1.initUI(engine, assets, native);
+        const { mainUI, statsContainer, buttonsContainer, addButton, itemsButtons } = ui_ts_1.initUI(engine, assets, native);
         const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
         map.layer = 0 /* Game */;
         map.layout = { heightPercent: 100, widthPercent: 100 };
@@ -2364,7 +2511,6 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
         const p2 = new avatar_ts_2.Avatar("female2", assets);
         const npcs = [];
         const avatars = [];
-        const updateables = [];
         for (let i = 0; i < NPCS_COUNT; i++) {
             npcs.push(new npc_ts_1.Npc(i % 2 == 0 ? "npc1" : "npc2", assets));
         }
@@ -2374,8 +2520,7 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
         else {
             avatars.push(...npcs, p1);
         }
-        updateables.push(...avatars);
-        map_ts_1.default(map, assets);
+        const mapLayers = map_ts_1.default(map, assets);
         avatars.forEach((c) => {
             c.parent = map;
             c.x = random_ts_3.randomIntervalInt(map.tilemapsBounds.width / 2 - 100, map.tilemapsBounds.width / 2 + 100);
@@ -2388,10 +2533,11 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
             addButton,
             avatars,
             map,
+            floorLayer1: mapLayers.floor,
+            floorLayer2: mapLayers.floor2,
             npcs,
             p1,
             p2,
-            updateables,
             keysDown: new Map(),
             specialKeysDown: new Map(),
         };
@@ -2399,11 +2545,16 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
         engine.addWidget(mainUI, 1 /* UI */);
         engine.onKeyEvent((e) => onKeyEvent(game, e));
         engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
+        itemsButtons.forEach((tile, button) => {
+            button.onTapped = () => {
+                switchToAddTileMode(tile);
+            };
+        });
         return game;
     }
-    exports_23("initGame", initGame);
+    exports_24("initGame", initGame);
     function updateGame(game) {
-        const { p1, p2, avatars, updateables, map } = game;
+        const { p1, p2, avatars, map } = game;
         if (utils_ts_1.isKeyDown(game, "a") || utils_ts_1.isSpecialKeyDown(game, 1 /* ArrowLeft */)) {
             p1.move(-1, 0);
         }
@@ -2436,13 +2587,15 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
             avatar.x = Math.max(Math.min(avatar.x, map.tilemapsBounds.width), 0);
             avatar.y = Math.max(Math.min(avatar.y, map.tilemapsBounds.height), 0);
         });
-        updateables.forEach((u) => u.update());
         utils_ts_1.followAvatar(p1, map);
         return true;
     }
-    exports_23("updateGame", updateGame);
+    exports_24("updateGame", updateGame);
     return {
         setters: [
+            function (types_ts_9_1) {
+                types_ts_9 = types_ts_9_1;
+            },
             function (avatar_ts_2_1) {
                 avatar_ts_2 = avatar_ts_2_1;
             },
@@ -2468,28 +2621,29 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
         execute: function () {
             NPCS_COUNT = 10;
             ENABLE_P2 = true;
-            movingWithMouse = false;
+            mouseMode = 0 /* None */;
             mouseKeyCodes = [];
+            mouseModeAddTile = null;
         }
     };
 });
-System.register("web/src/drawing/types", [], function (exports_24, context_24) {
+System.register("web/src/drawing/types", [], function (exports_25, context_25) {
     "use strict";
-    var __moduleName = context_24 && context_24.id;
+    var __moduleName = context_25 && context_25.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_25, context_25) {
+System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_26, context_26) {
     "use strict";
-    var types_ts_9, DrawingRealLayer, DrawingReal;
-    var __moduleName = context_25 && context_25.id;
+    var types_ts_10, DrawingRealLayer, DrawingReal;
+    var __moduleName = context_26 && context_26.id;
     return {
         setters: [
-            function (types_ts_9_1) {
-                types_ts_9 = types_ts_9_1;
+            function (types_ts_10_1) {
+                types_ts_10 = types_ts_10_1;
             }
         ],
         execute: function () {
@@ -2536,7 +2690,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
                     const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
                     const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
-                    return new types_ts_9.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
+                    return new types_ts_10.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
                 }
             };
             DrawingReal = class DrawingReal {
@@ -2546,7 +2700,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     this.dirty = false;
                     this.dirtyTime = 0;
                     this.drawingDone = drawingDone;
-                    for (let i = 0; i < types_ts_9.LAYERS_COUNT; i++) {
+                    for (let i = 0; i < types_ts_10.LAYERS_COUNT; i++) {
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
@@ -2861,23 +3015,23 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 processPendingFrames() { }
                 preloadTiles(tiles) { }
             };
-            exports_25("DrawingReal", DrawingReal);
+            exports_26("DrawingReal", DrawingReal);
         }
     };
 });
-System.register("web/src/drawing/worker/types", [], function (exports_26, context_26) {
+System.register("web/src/drawing/worker/types", [], function (exports_27, context_27) {
     "use strict";
-    var __moduleName = context_26 && context_26.id;
+    var __moduleName = context_27 && context_27.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/drawing/drawing-worker", [], function (exports_27, context_27) {
+System.register("web/src/drawing/drawing-worker", [], function (exports_28, context_28) {
     "use strict";
     var DrawingWorker;
-    var __moduleName = context_27 && context_27.id;
+    var __moduleName = context_28 && context_28.id;
     return {
         setters: [],
         execute: function () {
@@ -3006,14 +3160,14 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_27, cont
                     this.dispatch();
                 }
             };
-            exports_27("DrawingWorker", DrawingWorker);
+            exports_28("DrawingWorker", DrawingWorker);
         }
     };
 });
-System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-real", "web/src/drawing/drawing-worker"], function (exports_28, context_28) {
+System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-real", "web/src/drawing/drawing-worker"], function (exports_29, context_29) {
     "use strict";
-    var types_ts_10, drawing_real_ts_1, drawing_worker_ts_1, USE_DEVICE_PIXEL_RATIO, USE_WORKER;
-    var __moduleName = context_28 && context_28.id;
+    var types_ts_11, drawing_real_ts_1, drawing_worker_ts_1, USE_DEVICE_PIXEL_RATIO, USE_WORKER;
+    var __moduleName = context_29 && context_29.id;
     function updateCanvasSize(canvas, zIndex) {
         const width = window.innerWidth;
         const height = window.innerHeight;
@@ -3061,7 +3215,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         const layers = initCanvasResult.layers;
         const layersCtx = initCanvasResult.layersCtx;
         let screenMultiplier = initCanvasResult.multiplier;
-        const screenSize = new types_ts_10.Size(256, 256);
+        const screenSize = new types_ts_11.Size(256, 256);
         const screenSizeChangedListeners = [];
         const keyListeners = [];
         const mouseListeners = [];
@@ -3234,11 +3388,11 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
             destroy: () => { },
         };
     }
-    exports_28("getWebNativeContext", getWebNativeContext);
+    exports_29("getWebNativeContext", getWebNativeContext);
     return {
         setters: [
-            function (types_ts_10_1) {
-                types_ts_10 = types_ts_10_1;
+            function (types_ts_11_1) {
+                types_ts_11 = types_ts_11_1;
             },
             function (drawing_real_ts_1_1) {
                 drawing_real_ts_1 = drawing_real_ts_1_1;
@@ -3253,10 +3407,10 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         }
     };
 });
-System.register("web/src/assets", ["engine/src/types"], function (exports_29, context_29) {
+System.register("web/src/assets", ["engine/src/types"], function (exports_30, context_30) {
     "use strict";
-    var types_ts_11;
-    var __moduleName = context_29 && context_29.id;
+    var types_ts_12;
+    var __moduleName = context_30 && context_30.id;
     async function loadImage(src) {
         return new Promise((resolve, reject) => {
             const image = new Image();
@@ -3290,7 +3444,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
             getTile: (id) => tilesById.get(id),
             getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
             getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
-            getTileXYByIndex: (index) => new types_ts_11.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
+            getTileXYByIndex: (index) => new types_ts_12.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
         };
         const setTileId = (index, id) => {
             tiles[index].id = id;
@@ -3415,7 +3569,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
         setTileId(center4, terrainId + "-center4");
     }
     function loadAvatar(avatarId, avatarJson, tilemap, animations) {
-        const addAnimation = (id, y, fromX, toX, loops = true, delay = 100) => {
+        const addAnimation = (id, y, fromX, toX, loops = true, delayInUpdates = 3) => {
             const tiles = [];
             for (let x = fromX; x <= toX; x++) {
                 tiles.push(tilemap.getTileByXY(x, y));
@@ -3423,7 +3577,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
             const animation = {
                 id,
                 tiles,
-                delay,
+                delayInUpdates: delayInUpdates | 0,
                 loops,
             };
             animations.set(id, animation);
@@ -3458,7 +3612,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
         addAnimation(avatarId + "-right-hurt", 20, 0, 5, false);
     }
     function loadAnimation(id, json, tilemaps) {
-        const delay = json.fps > 0 ? 1000 / json.fps : 0;
+        const delayInUpdates = json.fps > 0 ? Math.ceil(types_ts_12.UPDATE_FPS / json.fps) : 0;
         const tiles = [];
         if (json.frames) {
             tiles.push(...json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]));
@@ -3472,7 +3626,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
         }
         return {
             id,
-            delay,
+            delayInUpdates,
             tiles,
             loops: !!json.loops,
         };
@@ -3522,21 +3676,21 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_29, co
         };
         return assets;
     }
-    exports_29("initAssets", initAssets);
+    exports_30("initAssets", initAssets);
     return {
         setters: [
-            function (types_ts_11_1) {
-                types_ts_11 = types_ts_11_1;
+            function (types_ts_12_1) {
+                types_ts_12 = types_ts_12_1;
             }
         ],
         execute: function () {
         }
     };
 });
-System.register("web/src/stats", [], function (exports_30, context_30) {
+System.register("web/src/stats", [], function (exports_31, context_31) {
     "use strict";
     var Stat, EngineStats;
-    var __moduleName = context_30 && context_30.id;
+    var __moduleName = context_31 && context_31.id;
     return {
         setters: [],
         execute: function () {
@@ -3576,14 +3730,14 @@ System.register("web/src/stats", [], function (exports_30, context_30) {
                     this.update.reset();
                 }
             };
-            exports_30("EngineStats", EngineStats);
+            exports_31("EngineStats", EngineStats);
         }
     };
 });
-System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_31, context_31) {
+System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_32, context_32) {
     "use strict";
-    var types_ts_12, engine_ts_1, label_ts_2, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_UPDATE_FPS, MAX_PENDING_FRAMES, engine, nativeContext, statsLabel, game, focused, updateStatsFrames, updateStatsTime, engineStats, ignoreUpdate, lastUpdateTime;
-    var __moduleName = context_31 && context_31.id;
+    var types_ts_13, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, MAX_PENDING_FRAMES, engine, nativeContext, statsLabel, game, focused, updateStatsFrames, updateStatsTime, engineStats, ignoreUpdate, lastUpdateTime;
+    var __moduleName = context_32 && context_32.id;
     function updateStats() {
         const now = performance.now();
         updateStatsFrames++;
@@ -3627,7 +3781,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         console.log("Engine Initialized");
         game = game_ts_1.initGame(engine, assets, nativeContext);
         console.log("Game Initialized");
-        statsLabel = new label_ts_2.LabelWidget(assets.defaultFont, "", types_ts_12.FixedColor.White, game.statsContainer.backColor);
+        statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_13.FixedColor.White, game.statsContainer.backColor);
         statsLabel.parent = game.statsContainer;
         //Wait engine ready
         await waitNoPendingFrames();
@@ -3640,8 +3794,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     }
     function updateReal() {
         const preUpdateTime = performance.now();
-        engine.update();
         game_ts_1.updateGame(game);
+        engine.update();
         const postUpdateTime = performance.now();
         engineStats.update.addSample(postUpdateTime - preUpdateTime);
     }
@@ -3663,7 +3817,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             return;
         }
         const delta = now - lastUpdateTime;
-        const targetDeltaUpdate = 1000 / TARGET_UPDATE_FPS;
+        const targetDeltaUpdate = 1000 / types_ts_13.UPDATE_FPS;
         if (delta > targetDeltaUpdate - 0.1) {
             lastUpdateTime = Math.max(lastUpdateTime + targetDeltaUpdate, now - 1000);
             updateReal();
@@ -3696,14 +3850,14 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     }
     return {
         setters: [
-            function (types_ts_12_1) {
-                types_ts_12 = types_ts_12_1;
+            function (types_ts_13_1) {
+                types_ts_13 = types_ts_13_1;
             },
             function (engine_ts_1_1) {
                 engine_ts_1 = engine_ts_1_1;
             },
-            function (label_ts_2_1) {
-                label_ts_2 = label_ts_2_1;
+            function (label_ts_1_1) {
+                label_ts_1 = label_ts_1_1;
             },
             function (game_ts_1_1) {
                 game_ts_1 = game_ts_1_1;
@@ -3719,7 +3873,6 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             }
         ],
         execute: function () {
-            TARGET_UPDATE_FPS = 30;
             MAX_PENDING_FRAMES = 1;
             focused = true;
             updateStatsFrames = 0;

@@ -118,7 +118,7 @@ System.register("engine/src/native-types", [], function (exports_1, context_1) {
 });
 System.register("engine/src/types", [], function (exports_2, context_2) {
     "use strict";
-    var FixedColor, LAYERS_COUNT, Point, Size, Rect;
+    var FixedColor, LAYERS_COUNT, Point, Size, Rect, UPDATE_FPS;
     var __moduleName = context_2 && context_2.id;
     function rgb(r, g, b) {
         return rgba(r, g, b, 255);
@@ -131,6 +131,10 @@ System.register("engine/src/types", [], function (exports_2, context_2) {
             r);
     }
     exports_2("rgba", rgba);
+    function isUpdateable(object) {
+        return "onUpdate" in object;
+    }
+    exports_2("isUpdateable", isUpdateable);
     return {
         setters: [],
         execute: function () {
@@ -273,6 +277,7 @@ System.register("engine/src/types", [], function (exports_2, context_2) {
                 }
             };
             exports_2("Rect", Rect);
+            exports_2("UPDATE_FPS", UPDATE_FPS = 30);
         }
     };
 });
