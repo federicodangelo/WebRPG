@@ -20,6 +20,7 @@ import {
 } from "./utils.ts";
 import { initUI } from "./ui.ts";
 import { ScrollableTilesContainerWidget } from "../../engine/src/widgets/tiles-container.ts";
+import { NativeContext } from "../../engine/src/native-types.ts";
 
 const NPCS_COUNT = 10;
 const ENABLE_P2 = true;
@@ -126,10 +127,15 @@ function onMouseEvent(engine: Engine, game: Game, e: EngineMouseEvent) {
   }
 }
 
-export function initGame(engine: Engine, assets: Assets): Game {
+export function initGame(
+  engine: Engine,
+  assets: Assets,
+  native: NativeContext,
+): Game {
   const { mainUI, statsContainer, buttonsContainer } = initUI(
     engine,
     assets,
+    native,
   );
 
   const map = new ScrollableTilesContainerWidget();
@@ -188,12 +194,11 @@ export function initGame(engine: Engine, assets: Assets): Game {
   engine.addWidget(mainUI, LayerId.UI);
   engine.onKeyEvent((e) => onKeyEvent(game, e));
   engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
-  engine.setMainScrollable(map);
 
   return game;
 }
 
-export function updateGame(engine: Engine, game: Game): boolean {
+export function updateGame(game: Game): boolean {
   const { p1, p2, avatars, updateables, map } = game;
 
   if (isKeyDown(game, "a") || isSpecialKeyDown(game, KeyCode.ArrowLeft)) {
@@ -231,7 +236,7 @@ export function updateGame(engine: Engine, game: Game): boolean {
 
   updateables.forEach((u) => u.update());
 
-  followAvatar(p1, map, engine);
+  followAvatar(p1, map);
 
   return true;
 }

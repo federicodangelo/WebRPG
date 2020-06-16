@@ -1,5 +1,5 @@
 import { GroupContainerWidget } from "../../engine/src/widgets/group.ts";
-import { Assets, Animation } from "../../engine/src/types.ts";
+import { Assets } from "../../engine/src/types.ts";
 import { AnimatedTileWidget } from "../../engine/src/widgets/animated-tile.ts";
 
 const WALK_SPEED = 4;

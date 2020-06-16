@@ -107,437 +107,30 @@ let System, __instantiateAsync, __instantiate;
   };
 })();
 
-System.register("engine/src/widgets/widget", ["engine/src/types"], function (exports_1, context_1) {
+System.register("engine/src/native-types", [], function (exports_1, context_1) {
     "use strict";
-    var types_ts_1, BaseWidget;
     var __moduleName = context_1 && context_1.id;
     return {
-        setters: [
-            function (types_ts_1_1) {
-                types_ts_1 = types_ts_1_1;
-            }
-        ],
+        setters: [],
         execute: function () {
-            BaseWidget = class BaseWidget {
-                constructor() {
-                    this._x = 0;
-                    this._y = 0;
-                    this._width = 0;
-                    this._height = 0;
-                    this._pivotX = 0;
-                    this._pivotY = 0;
-                    this._sortingLayer = 0;
-                    this._layer = 0;
-                    this._parent = null;
-                    this._engine = null;
-                    this._boundingBox = new types_ts_1.Rect();
-                    this._solid = true;
-                    this.layout = null;
-                }
-                setLayout(layout) {
-                    this.layout = layout;
-                    return this;
-                }
-                get engine() {
-                    return this._engine;
-                }
-                set engine(val) {
-                    if (val !== this._engine) {
-                        this._engine = val;
-                    }
-                }
-                get solid() {
-                    return this._solid;
-                }
-                set solid(val) {
-                    if (val !== this._solid) {
-                        this._solid = val;
-                    }
-                }
-                get x() {
-                    return this._x;
-                }
-                set x(v) {
-                    if (v !== this._x) {
-                        this.invalidate();
-                        this._x = v | 0;
-                        this.invalidate();
-                        this._parent?.onChildrenTransformChanged(this);
-                    }
-                }
-                get y() {
-                    return this._y;
-                }
-                set y(v) {
-                    if (v !== this._y) {
-                        this.invalidate();
-                        this._y = v | 0;
-                        this.invalidate();
-                        this._parent?.onChildrenTransformChanged(this);
-                    }
-                }
-                get width() {
-                    return this._width;
-                }
-                set width(v) {
-                    if (v !== this._width) {
-                        this.invalidate();
-                        this._width = v | 0;
-                        this.invalidate();
-                        this._parent?.onChildrenTransformChanged(this);
-                    }
-                }
-                get height() {
-                    return this._height;
-                }
-                set height(v) {
-                    if (v !== this._height) {
-                        this.invalidate();
-                        this._height = v | 0;
-                        this.invalidate();
-                        this._parent?.onChildrenTransformChanged(this);
-                    }
-                }
-                get pivotX() {
-                    return this._pivotX;
-                }
-                set pivotX(v) {
-                    if (v !== this._pivotX) {
-                        this.invalidate();
-                        this._pivotX = v | 0;
-                        this.invalidate();
-                        this._parent?.onChildrenTransformChanged(this);
-                    }
-                }
-                get pivotY() {
-                    return this._pivotY;
-                }
-                set pivotY(v) {
-                    if (v !== this._pivotY) {
-                        this.invalidate();
-                        this._pivotY = v | 0;
-                        this.invalidate();
-                        this._parent?.onChildrenTransformChanged(this);
-                    }
-                }
-                get visibleX() {
-                    return this._x + this._pivotX;
-                }
-                get visibleY() {
-                    return this._y + this._pivotY;
-                }
-                get sortingLayer() {
-                    return this._sortingLayer;
-                }
-                set sortingLayer(v) {
-                    if (v !== this._sortingLayer) {
-                        this._sortingLayer = v;
-                        this.invalidate();
-                        this._parent?.onChildrenTransformChanged(this);
-                    }
-                }
-                get layer() {
-                    return this._layer;
-                }
-                set layer(v) {
-                    if (v !== this._layer) {
-                        this.invalidate();
-                        this._layer = v;
-                        this.invalidate();
-                    }
-                }
-                get parent() {
-                    return this._parent;
-                }
-                set parent(v) {
-                    if (v !== this._parent) {
-                        this.invalidate();
-                        if (this._parent !== null) {
-                            const index = this._parent.children.indexOf(this);
-                            if (index >= 0)
-                                this._parent.children.splice(index, 1);
-                        }
-                        this._parent = v;
-                        if (this._parent !== null) {
-                            this.layer = this._parent.layer;
-                            this._parent.children.push(this);
-                            this.engine = this._parent.engine;
-                            this._parent.onChildrenAdded(this);
-                        }
-                        else {
-                            this.engine = null;
-                        }
-                        this.invalidate();
-                    }
-                }
-                updateLayout(parentWidth, parentHeight) {
-                    const layout = this.layout;
-                    if (layout !== null) {
-                        if (layout.heightPercent !== undefined) {
-                            this.height = Math.ceil((parentHeight * layout.heightPercent) / 100);
-                        }
-                        if (layout.widthPercent !== undefined) {
-                            this.width = Math.ceil((parentWidth * layout.widthPercent) / 100);
-                        }
-                        if (layout.customSizeFn !== undefined) {
-                            layout.customSizeFn(this, parentWidth, parentHeight);
-                        }
-                        if (layout.horizontalSpacingPercent !== undefined) {
-                            this.x = Math.floor(((parentWidth - this.width) * layout.horizontalSpacingPercent) / 100);
-                        }
-                        if (layout.verticalSpacingPercent !== undefined) {
-                            this.y = Math.floor(((parentHeight - this.height) * layout.verticalSpacingPercent) / 100);
-                        }
-                        if (layout.customPositionFn !== undefined) {
-                            layout.customPositionFn(this, parentWidth, parentHeight);
-                        }
-                    }
-                }
-                draw(context) {
-                    if (!context.isVisible(this.visibleX, this.visibleY, this.width, this.height)) {
-                        return;
-                    }
-                    context.pushTransform(this.visibleX, this.visibleY);
-                    context.pushClip(0, 0, this.width, this.height);
-                    context.moveCursorTo(0, 0);
-                    this.drawSelf(context);
-                    context.popClip();
-                    context.popTransform();
-                }
-                getBoundingBox() {
-                    this._boundingBox.set(this.visibleX, this.visibleY, this.width, this.height);
-                    let p = this._parent;
-                    while (p !== null) {
-                        this._boundingBox.x += p.visibleX + p.innerX;
-                        this._boundingBox.y += p.visibleY + p.innerY;
-                        p = p.parent;
-                    }
-                    return this._boundingBox;
-                }
-                invalidate() {
-                    const engine = this.engine;
-                    const bbox = this.getBoundingBox();
-                    engine?.invalidateRect(bbox, this.layer);
-                }
-                mouse(e) { }
-                getAt(x, y) {
-                    if (!this.solid)
-                        return null;
-                    if (x < 0 || y < 0 || x > this.width || y > this.height)
-                        return null;
-                    return this;
-                }
-            };
-            exports_1("BaseWidget", BaseWidget);
         }
     };
 });
-System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widget"], function (exports_2, context_2) {
-    "use strict";
-    var widget_ts_1, BaseWidgetContainer;
-    var __moduleName = context_2 && context_2.id;
-    return {
-        setters: [
-            function (widget_ts_1_1) {
-                widget_ts_1 = widget_ts_1_1;
-            }
-        ],
-        execute: function () {
-            BaseWidgetContainer = class BaseWidgetContainer extends widget_ts_1.BaseWidget {
-                constructor() {
-                    super(...arguments);
-                    this._children = [];
-                    this._selfSolid = true;
-                    this.childrenLayout = null;
-                }
-                setChildrenLayout(layout) {
-                    this.childrenLayout = layout;
-                    return this;
-                }
-                get engine() {
-                    return super.engine;
-                }
-                set engine(val) {
-                    if (val !== this.engine) {
-                        super.engine = val;
-                        for (let i = 0; i < this._children.length; i++) {
-                            this._children[i].engine = val;
-                        }
-                    }
-                }
-                get layer() {
-                    return super.layer;
-                }
-                set layer(v) {
-                    if (v !== this.layer) {
-                        super.layer = v;
-                        for (let i = 0; i < this._children.length; i++) {
-                            this._children[i].layer = this.layer;
-                        }
-                    }
-                }
-                get selfSolid() {
-                    return this._selfSolid;
-                }
-                set selfSolid(val) {
-                    if (val !== this._selfSolid) {
-                        this._selfSolid = val;
-                    }
-                }
-                get innerX() {
-                    return 0;
-                }
-                get innerY() {
-                    return 0;
-                }
-                get innerWidth() {
-                    return this.width;
-                }
-                get innerHeight() {
-                    return this.height;
-                }
-                get children() {
-                    return this._children;
-                }
-                updateLayout(parentWidth, parentHeight) {
-                    super.updateLayout(parentWidth, parentHeight);
-                    if (this.childrenLayout === null ||
-                        this.childrenLayout.type === "absolute") {
-                        for (let i = 0; i < this.children.length; i++) {
-                            this.children[i].updateLayout(this.innerWidth, this.innerHeight);
-                        }
-                    }
-                    else if (this.childrenLayout.type === "vertical") {
-                        const spacing = this.childrenLayout.spacing || 0;
-                        let top = 0;
-                        for (let i = 0; i < this.children.length; i++) {
-                            this.children[i].updateLayout(this.innerWidth, this.innerHeight);
-                            this.children[i].x = 0;
-                            this.children[i].y = top;
-                            top += this.children[i].height + spacing;
-                        }
-                    }
-                    else if (this.childrenLayout.type === "horizontal") {
-                        const spacing = this.childrenLayout.spacing || 0;
-                        let left = 0;
-                        for (let i = 0; i < this.children.length; i++) {
-                            this.children[i].updateLayout(this.innerWidth, this.innerHeight);
-                            this.children[i].y = 0;
-                            this.children[i].x = left;
-                            left += this.children[i].width + spacing;
-                        }
-                    }
-                    //The last option is "none".. so we don't do anything
-                }
-                getAt(x, y) {
-                    if (!this.solid)
-                        return null;
-                    if (x < 0 || y < 0 || x > this.width || y > this.height)
-                        return null;
-                    for (let i = this._children.length - 1; i >= 0; i--) {
-                        const child = this._children[i];
-                        const w = child.getAt(x - this.innerX - child.visibleX, y - this.innerY - child.visibleY);
-                        if (w !== null)
-                            return w;
-                    }
-                    return this.selfSolid ? this : null;
-                }
-                draw(context) {
-                    if (!context.isVisible(this.visibleX, this.visibleY, this.width, this.height)) {
-                        return;
-                    }
-                    context.pushTransform(this.visibleX, this.visibleY);
-                    context.pushClip(0, 0, this.width, this.height);
-                    context.moveCursorTo(0, 0);
-                    this.drawSelf(context);
-                    this.preDrawChildren(context);
-                    for (let i = 0; i < this._children.length; i++) {
-                        this._children[i].draw(context);
-                    }
-                    this.postDrawChildren(context);
-                    context.popClip();
-                    context.popTransform();
-                }
-                preDrawChildren(context) { }
-                postDrawChildren(context) { }
-                onChildrenTransformChanged(child) { }
-                onChildrenAdded(child) { }
-            };
-            exports_2("BaseWidgetContainer", BaseWidgetContainer);
-        }
-    };
-});
-System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_3, context_3) {
-    "use strict";
-    var types_ts_2, widget_container_ts_1, ScrollableContainerWidget;
-    var __moduleName = context_3 && context_3.id;
-    return {
-        setters: [
-            function (types_ts_2_1) {
-                types_ts_2 = types_ts_2_1;
-            },
-            function (widget_container_ts_1_1) {
-                widget_container_ts_1 = widget_container_ts_1_1;
-            }
-        ],
-        execute: function () {
-            ScrollableContainerWidget = class ScrollableContainerWidget extends widget_container_ts_1.BaseWidgetContainer {
-                constructor() {
-                    super(...arguments);
-                    this.backColor = types_ts_2.FixedColor.Black;
-                    this.overlappingFixedWidgets = [];
-                    this._offsetX = 0;
-                    this._offsetY = 0;
-                }
-                get offsetX() {
-                    return this._offsetX;
-                }
-                get offsetY() {
-                    return this._offsetY;
-                }
-                get innerX() {
-                    return this._offsetX;
-                }
-                get innerY() {
-                    return this._offsetY;
-                }
-                setOffset(offsetX, offsetY, invalidate = true) {
-                    if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
-                        this._offsetX = offsetX | 0;
-                        this._offsetY = offsetY | 0;
-                        if (invalidate)
-                            this.invalidate();
-                    }
-                }
-                preDrawChildren(context) {
-                    context.pushTransform(this.innerX, this.innerY);
-                }
-                postDrawChildren(context) {
-                    context.popTransform();
-                }
-                drawSelf(context) {
-                    context.fillRect(0, 0, this.width, this.height, this.backColor);
-                }
-            };
-            exports_3("ScrollableContainerWidget", ScrollableContainerWidget);
-        }
-    };
-});
-System.register("engine/src/types", [], function (exports_4, context_4) {
+System.register("engine/src/types", [], function (exports_2, context_2) {
     "use strict";
     var FixedColor, LAYERS_COUNT, Point, Size, Rect;
-    var __moduleName = context_4 && context_4.id;
+    var __moduleName = context_2 && context_2.id;
     function rgb(r, g, b) {
         return rgba(r, g, b, 255);
     }
-    exports_4("rgb", rgb);
+    exports_2("rgb", rgb);
     function rgba(r, g, b, a) {
         return ((a << 24) | // alpha
             (b << 16) | // blue
             (g << 8) | // green
             r);
     }
-    exports_4("rgba", rgba);
+    exports_2("rgba", rgba);
     return {
         setters: [],
         execute: function () {
@@ -563,8 +156,8 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
                 FixedColor.BrightWhite = rgb(242, 242, 242);
                 return FixedColor;
             })();
-            exports_4("FixedColor", FixedColor);
-            exports_4("LAYERS_COUNT", LAYERS_COUNT = 2);
+            exports_2("FixedColor", FixedColor);
+            exports_2("LAYERS_COUNT", LAYERS_COUNT = 2);
             Point = class Point {
                 constructor(x = 0, y = 0) {
                     this.x = x;
@@ -592,7 +185,7 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
                     return Math.sqrt(dx * dx + dy * dy) | 0;
                 }
             };
-            exports_4("Point", Point);
+            exports_2("Point", Point);
             Size = class Size {
                 constructor(width = 0, height = 0) {
                     this.width = width;
@@ -615,7 +208,7 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
                     return new Size(this.width, this.height);
                 }
             };
-            exports_4("Size", Size);
+            exports_2("Size", Size);
             Rect = class Rect {
                 constructor(x = 0, y = 0, width = 0, height = 0) {
                     this.x = x;
@@ -679,36 +272,27 @@ System.register("engine/src/types", [], function (exports_4, context_4) {
                     return new Rect(this.x, this.y, this.width, this.height);
                 }
             };
-            exports_4("Rect", Rect);
+            exports_2("Rect", Rect);
         }
     };
 });
-System.register("engine/src/native-types", [], function (exports_5, context_5) {
+System.register("web/src/drawing/types", [], function (exports_3, context_3) {
     "use strict";
-    var __moduleName = context_5 && context_5.id;
+    var __moduleName = context_3 && context_3.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/drawing/types", [], function (exports_6, context_6) {
+System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_4, context_4) {
     "use strict";
-    var __moduleName = context_6 && context_6.id;
-    return {
-        setters: [],
-        execute: function () {
-        }
-    };
-});
-System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_7, context_7) {
-    "use strict";
-    var types_ts_3, DrawingRealLayer, DrawingReal;
-    var __moduleName = context_7 && context_7.id;
+    var types_ts_1, DrawingRealLayer, DrawingReal;
+    var __moduleName = context_4 && context_4.id;
     return {
         setters: [
-            function (types_ts_3_1) {
-                types_ts_3 = types_ts_3_1;
+            function (types_ts_1_1) {
+                types_ts_1 = types_ts_1_1;
             }
         ],
         execute: function () {
@@ -755,7 +339,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
                     const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
                     const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
-                    return new types_ts_3.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
+                    return new types_ts_1.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
                 }
             };
             DrawingReal = class DrawingReal {
@@ -765,7 +349,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     this.dirty = false;
                     this.dirtyTime = 0;
                     this.drawingDone = drawingDone;
-                    for (let i = 0; i < types_ts_3.LAYERS_COUNT; i++) {
+                    for (let i = 0; i < types_ts_1.LAYERS_COUNT; i++) {
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
@@ -1080,23 +664,23 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 processPendingFrames() { }
                 preloadTiles(tiles) { }
             };
-            exports_7("DrawingReal", DrawingReal);
+            exports_4("DrawingReal", DrawingReal);
         }
     };
 });
-System.register("web/src/drawing/worker/types", [], function (exports_8, context_8) {
+System.register("web/src/drawing/worker/types", [], function (exports_5, context_5) {
     "use strict";
-    var __moduleName = context_8 && context_8.id;
+    var __moduleName = context_5 && context_5.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"], function (exports_9, context_9) {
+System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"], function (exports_6, context_6) {
     "use strict";
     var drawing_real_ts_1, drawing, tilesMapping;
-    var __moduleName = context_9 && context_9.id;
+    var __moduleName = context_6 && context_6.id;
     function sendResponse(response) {
         if (response.type === "result") {
             const transferables = [];

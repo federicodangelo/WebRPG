@@ -8,8 +8,9 @@ import {
 } from "engine/types.ts";
 import { ButtonWidget } from "../../engine/src/widgets/button.ts";
 import { BoxContainerWidget } from "../../engine/src/widgets/box.ts";
+import { NativeContext } from "../../engine/src/native-types.ts";
 
-export function initUI(engine: Engine, assets: Assets) {
+export function initUI(engine: Engine, assets: Assets, native: NativeContext) {
   const font = assets.defaultFont;
 
   const mainUI = new BoxContainerWidget(font, 0);
@@ -68,19 +69,38 @@ export function initUI(engine: Engine, assets: Assets) {
     spacing: font.tileHeight,
   };
 
-  new ButtonWidget(
+  let isFullcreen = false;
+
+  const fullScreenButton = new ButtonWidget(
     font,
     "Full",
     FixedColor.White,
     FixedColor.Green,
-    () => engine.setFullscreen(true),
-  ).parent = buttonsContainer;
+    FixedColor.Yellow,
+    () => {
+      if (isFullcreen) {
+        engine.setFullscreen(false);
+      } else {
+        engine.setFullscreen(true);
+      }
+    },
+  );
+
+  native.screen.onFullScreenChanged((fullscreen) => {
+    if (isFullcreen !== fullscreen) {
+      isFullcreen = fullscreen;
+      fullScreenButton.text = isFullcreen ? "Exit" : "Full";
+    }
+  });
+
+  fullScreenButton.parent = buttonsContainer;
 
   new ButtonWidget(
     font,
     "Stat",
     FixedColor.White,
     FixedColor.Green,
+    FixedColor.Yellow,
     () => engine.toggleStats(),
   ).parent = buttonsContainer;
 

@@ -5,6 +5,7 @@ export class ButtonWidget extends BaseWidget {
   public font: Font;
   public foreColor: Color;
   public backColor: Color;
+  public pressedColor: Color;
   public onTapped: (() => void) | null = null;
 
   private _text: string = "";
@@ -32,6 +33,7 @@ export class ButtonWidget extends BaseWidget {
     text: string,
     foreColor: Color,
     backColor: Color,
+    pressedColor: Color,
     onTapped: (() => void) | null = null,
   ) {
     super();
@@ -40,11 +42,14 @@ export class ButtonWidget extends BaseWidget {
     this.text = text;
     this.foreColor = foreColor;
     this.backColor = backColor;
+    this.pressedColor = pressedColor;
     this.onTapped = onTapped;
   }
 
   protected drawSelf(context: DrawContext) {
-    context.textColor(this.foreColor, this.backColor);
+    const backColor = this.down ? this.pressedColor : this.backColor;
+
+    context.textColor(this.foreColor, backColor);
     context.textBorder(this.font, 0, 0, this.width, this.height);
 
     for (let i = 0; i < this._lines.length; i++) {
@@ -59,13 +64,22 @@ export class ButtonWidget extends BaseWidget {
   private down: boolean = false;
 
   public mouse(e: EngineMouseEvent) {
-    if (e.type === "down") {
-      this.down = true;
-    } else if (e.type === "up") {
-      if (this.down) {
+    switch (e.type) {
+      case "down":
+        this.down = true;
+        this.invalidate();
+        break;
+      case "out":
         this.down = false;
-        if (this.onTapped !== null) this.onTapped();
-      }
+        this.invalidate();
+        break;
+      case "up":
+        if (this.down) {
+          this.down = false;
+          this.invalidate();
+          if (this.onTapped !== null) this.onTapped();
+        }
+        break;
     }
   }
 }

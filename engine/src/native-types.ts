@@ -15,6 +15,7 @@ export type NativeDrawStats = {
 export interface NativeContextScreen {
   getScreenSize(): Size | null;
   onScreenSizeChanged(listener: (size: Size) => void): void;
+  onFullScreenChanged(listener: (fullscreen: boolean) => void): void;
   setFullscreen(fullscreen: boolean): void;
   toggleStats(): void;
   readyForNextFrame(maxPendingFrames: number): boolean;
@@ -72,8 +73,13 @@ export interface NativeContextInput {
   onMouseEvent(listener: (e: EngineMouseEvent) => void): void;
 }
 
+export interface NativeContextFocus {
+  onFocusChanged(listener: (focus: boolean) => void): void;
+}
+
 export interface NativeContext {
   init(): Promise<void>;
+  focus: NativeContextFocus;
   screen: NativeContextScreen;
   input: NativeContextInput;
   destroy(): void;

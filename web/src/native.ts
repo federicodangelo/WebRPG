@@ -89,9 +89,11 @@ export function getWebNativeContext(
 
   const screenSize = new Size(256, 256);
 
-  let screenSizeChangedListeners: ((size: Size) => void)[] = [];
-  let keyListeners: ((e: EngineKeyEvent) => void)[] = [];
-  let mouseListeners: ((e: EngineMouseEvent) => void)[] = [];
+  const screenSizeChangedListeners: ((size: Size) => void)[] = [];
+  const keyListeners: ((e: EngineKeyEvent) => void)[] = [];
+  const mouseListeners: ((e: EngineMouseEvent) => void)[] = [];
+  const focusListeners: ((focus: boolean) => void)[] = [];
+  const fullScreenListeners: ((fullscreen: boolean) => void)[] = [];
 
   const disptachKeyEvent = (e: EngineKeyEvent) => {
     keyListeners.forEach((l) => l(e));
@@ -99,6 +101,14 @@ export function getWebNativeContext(
 
   const dispatchMouseEvent = (e: EngineMouseEvent) => {
     mouseListeners.forEach((l) => l(e));
+  };
+
+  const dispatchFocusEvent = (focus: boolean) => {
+    focusListeners.forEach((l) => l(focus));
+  };
+
+  const dispatchFullScreenEvent = (fullscreen: boolean) => {
+    fullScreenListeners.forEach((l) => l(fullscreen));
   };
 
   const updateScreenSize = () => {
@@ -172,6 +182,19 @@ export function getWebNativeContext(
     screenSizeChangedListeners.forEach((l) => l(screenSize));
   };
 
+  const handleVisibilityChange = () => {
+    const focus = document.visibilityState === "visible";
+    dispatchFocusEvent(focus);
+  };
+
+  const handleFullScreenChange = () => {
+    const fullscreen = !!document.fullscreenElement;
+    dispatchFullScreenEvent(fullscreen);
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  document.addEventListener("fullscreenchange", handleFullScreenChange);
+
   window.addEventListener("keydown", (e) => handleKey(e, "down"));
   window.addEventListener("keyup", (e) => handleKey(e, "up"));
   window.addEventListener("keypress", (e) => handleKey(e, "press"));
@@ -210,6 +233,7 @@ export function getWebNativeContext(
   };
 
   updateScreenSize();
+
   const drawing: Drawing = USE_WORKER
     ? new DrawingWorker(
       screenSize.width,
@@ -227,6 +251,9 @@ export function getWebNativeContext(
       getScreenSize: () => screenSize,
       onScreenSizeChanged: (listener) => {
         screenSizeChangedListeners.push(listener);
+      },
+      onFullScreenChanged: (listener) => {
+        fullScreenListeners.push(listener);
       },
       setFullscreen: (fullscreen) => {
         const elem = document.documentElement;
@@ -265,6 +292,11 @@ export function getWebNativeContext(
       },
       onMouseEvent: (listener) => {
         mouseListeners.push(listener);
+      },
+    },
+    focus: {
+      onFocusChanged: (listener) => {
+        focusListeners.push(listener);
       },
     },
     init: async () => {

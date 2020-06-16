@@ -15,6 +15,7 @@ let engine: Engine;
 let nativeContext: NativeContext;
 let fpsLabel: LabelWidget;
 let game: Game;
+let focused = true;
 
 let updateFpsFrames = 0;
 let updateFpsTime = performance.now();
@@ -47,6 +48,13 @@ function updateFps() {
   }
 }
 
+async function waitNoPendingFrames() {
+  while (!nativeContext.screen.readyForNextFrame(0)) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    nativeContext.screen.processPendingFrames();
+  }
+}
+
 async function init() {
   console.log("Initializing Engine");
 
@@ -58,11 +66,16 @@ async function init() {
     }
   });
 
+  nativeContext.focus.onFocusChanged((focus) => {
+    if (focus) ignoreUpdate = true;
+    focused = focus;
+  });
+
   engine = await buildEngine(nativeContext);
 
   console.log("Engine Initialized");
 
-  game = initGame(engine, assets);
+  game = initGame(engine, assets, nativeContext);
 
   console.log("Game Initialized");
 
@@ -76,30 +89,18 @@ async function init() {
   fpsLabel.parent = game.statsContainer;
 
   //Wait engine ready
-  while (!nativeContext.screen.readyForNextFrame(0)) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    nativeContext.screen.processPendingFrames();
-  }
+  await waitNoPendingFrames();
 
   //Preload tiles
-  const tiles: Tile[] = [];
-
   for (const tilemap of assets.tilemaps.values()) {
-    tiles.push(...tilemap.tiles);
-  }
-
-  nativeContext.screen.preloadTiles(tiles);
-
-  //Wait preload tiles ready
-  while (!nativeContext.screen.readyForNextFrame(0)) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    nativeContext.screen.processPendingFrames();
+    nativeContext.screen.preloadTiles(tilemap.tiles);
+    await waitNoPendingFrames();
   }
 
   return engine;
 }
 
-let firstUpdate = true;
+let ignoreUpdate = true;
 let lastUpdateTime = 0;
 let timeToNextUpdate = 0;
 
@@ -110,7 +111,7 @@ function updateReal() {
 
   engine.update();
 
-  updateGame(engine, game);
+  updateGame(game);
 
   const postUpdateTime = performance.now();
 
@@ -125,6 +126,8 @@ function drawReal() {
 }
 
 function update() {
+  if (!focused) return;
+
   nativeContext.screen.processPendingFrames();
 
   const now = performance.now();
@@ -133,8 +136,8 @@ function update() {
   timeToNextUpdate -= delta;
   if (timeToNextUpdate < -1000) timeToNextUpdate = -1000;
 
-  if (firstUpdate) {
-    firstUpdate = false;
+  if (ignoreUpdate) {
+    ignoreUpdate = false;
     timeToNextUpdate = 1000 / TARGET_FPS;
     return;
   }

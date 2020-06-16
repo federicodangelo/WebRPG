@@ -1,4 +1,4 @@
-import { ScrollableContainerWidget } from "./widgets/scrollable.ts";
+import { NativeContextScreen } from "./native-types.ts";
 
 export const enum SpecialChar {
   //Block
@@ -448,7 +448,7 @@ export type EngineKeyEvent = {
   code?: KeyCode;
 };
 
-export type EngineMouseEventType = "down" | "up" | "move";
+export type EngineMouseEventType = "down" | "up" | "move" | "out";
 export type EngineMouseEvent = {
   type: EngineMouseEventType;
   x: number;
@@ -460,6 +460,11 @@ export type DrawStats = {
   rects: number;
 };
 
+export type DrawNativeParams = {
+  context: NativeContextScreen;
+  invalidateRect: (rect: Rect) => void;
+};
+
 export interface Engine {
   draw(): DrawStats;
   update(): void;
@@ -468,8 +473,10 @@ export interface Engine {
   invalidateRect(rect: Rect, layer: LayerId): void;
   onKeyEvent(listener: (e: EngineKeyEvent) => void): void;
   onMouseEvent(listener: (e: EngineMouseEvent) => void): void;
-  setMainScrollable(scrollable: ScrollableContainerWidget): void;
-  setMainScroll(offsetX: number, offsetY: number): void;
+  onNextDrawNative(
+    layer: LayerId,
+    cb: (params: DrawNativeParams) => void,
+  ): void;
   setFullscreen(fullscreen: boolean): void;
   toggleStats(): void;
   getWidgetAt(x: number, y: number): Widget | null;

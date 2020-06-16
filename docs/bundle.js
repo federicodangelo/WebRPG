@@ -107,14 +107,502 @@ let System, __instantiateAsync, __instantiate;
   };
 })();
 
-System.register("engine/src/widgets/widget", ["engine/src/types"], function (exports_1, context_1) {
+System.register("engine/src/native-types", [], function (exports_1, context_1) {
     "use strict";
-    var types_ts_1, BaseWidget;
     var __moduleName = context_1 && context_1.id;
+    return {
+        setters: [],
+        execute: function () {
+        }
+    };
+});
+System.register("engine/src/types", [], function (exports_2, context_2) {
+    "use strict";
+    var FixedColor, LAYERS_COUNT, Point, Size, Rect;
+    var __moduleName = context_2 && context_2.id;
+    function rgb(r, g, b) {
+        return rgba(r, g, b, 255);
+    }
+    exports_2("rgb", rgb);
+    function rgba(r, g, b, a) {
+        return ((a << 24) | // alpha
+            (b << 16) | // blue
+            (g << 8) | // green
+            r);
+    }
+    exports_2("rgba", rgba);
+    return {
+        setters: [],
+        execute: function () {
+            FixedColor = /** @class */ (() => {
+                class FixedColor {
+                }
+                FixedColor.Transparent = rgba(0, 0, 0, 0);
+                FixedColor.Black = rgb(12, 12, 12);
+                FixedColor.Red = rgb(197, 15, 31);
+                FixedColor.Green = rgb(19, 161, 14);
+                FixedColor.Yellow = rgb(193, 156, 0);
+                FixedColor.Blue = rgb(0, 55, 218);
+                FixedColor.Magenta = rgb(136, 23, 152);
+                FixedColor.Cyan = rgb(58, 150, 221);
+                FixedColor.White = rgb(204, 204, 204);
+                FixedColor.BrightBlack = rgb(118, 118, 118);
+                FixedColor.BrightRed = rgb(231, 72, 86);
+                FixedColor.BrightGreen = rgb(22, 198, 12);
+                FixedColor.BrightYellow = rgb(249, 241, 165);
+                FixedColor.BrightBlue = rgb(59, 120, 255);
+                FixedColor.BrightMagenta = rgb(180, 0, 158);
+                FixedColor.BrightCyan = rgb(97, 214, 214);
+                FixedColor.BrightWhite = rgb(242, 242, 242);
+                return FixedColor;
+            })();
+            exports_2("FixedColor", FixedColor);
+            exports_2("LAYERS_COUNT", LAYERS_COUNT = 2);
+            Point = class Point {
+                constructor(x = 0, y = 0) {
+                    this.x = x;
+                    this.y = y;
+                }
+                set(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    return this;
+                }
+                copyFrom(p) {
+                    this.x = p.x;
+                    this.y = p.y;
+                    return this;
+                }
+                equals(p) {
+                    return this.x === p.x && this.y === p.y;
+                }
+                clone() {
+                    return new Point(this.x, this.y);
+                }
+                distanceTo(point) {
+                    const dx = point.x - this.x;
+                    const dy = point.y - this.y;
+                    return Math.sqrt(dx * dx + dy * dy) | 0;
+                }
+            };
+            exports_2("Point", Point);
+            Size = class Size {
+                constructor(width = 0, height = 0) {
+                    this.width = width;
+                    this.height = height;
+                }
+                set(width, height) {
+                    this.width = width;
+                    this.height = height;
+                    return this;
+                }
+                copyFrom(size) {
+                    this.width = size.width;
+                    this.height = size.height;
+                    return this;
+                }
+                equals(size) {
+                    return this.width === size.width && this.height === size.height;
+                }
+                clone() {
+                    return new Size(this.width, this.height);
+                }
+            };
+            exports_2("Size", Size);
+            Rect = class Rect {
+                constructor(x = 0, y = 0, width = 0, height = 0) {
+                    this.x = x;
+                    this.y = y;
+                    this.width = width;
+                    this.height = height;
+                }
+                get x1() {
+                    return this.x + this.width;
+                }
+                get y1() {
+                    return this.y + this.height;
+                }
+                set(x, y, width, height) {
+                    this.x = x;
+                    this.y = y;
+                    this.width = width;
+                    this.height = height;
+                    return this;
+                }
+                copyFrom(rect) {
+                    this.x = rect.x;
+                    this.y = rect.y;
+                    this.width = rect.width;
+                    this.height = rect.height;
+                    return this;
+                }
+                equals(rect) {
+                    return (this.x === rect.x &&
+                        this.y === rect.y &&
+                        this.width === rect.width &&
+                        this.height === rect.height);
+                }
+                intersects(rect) {
+                    return !(this.x1 < rect.x ||
+                        this.y1 < rect.y ||
+                        this.x > rect.x1 ||
+                        this.y > rect.y1);
+                }
+                union(rect) {
+                    const x0 = Math.min(this.x, rect.x);
+                    const y0 = Math.min(this.y, rect.y);
+                    const x1 = Math.max(this.x1, rect.x1);
+                    const y1 = Math.max(this.y1, rect.y1);
+                    this.x = x0;
+                    this.y = y0;
+                    this.width = x1 - x0;
+                    this.height = y1 - y0;
+                }
+                expand(amount) {
+                    this.x -= amount;
+                    this.y -= amount;
+                    this.width += amount * 2;
+                    this.height += amount * 2;
+                    return this;
+                }
+                contains(x, y) {
+                    return x >= this.x && y >= this.y && x <= this.x1 && y <= this.y1;
+                }
+                clone() {
+                    return new Rect(this.x, this.y, this.width, this.height);
+                }
+            };
+            exports_2("Rect", Rect);
+        }
+    };
+});
+System.register("engine/src/context", ["engine/src/types"], function (exports_3, context_3) {
+    "use strict";
+    var types_ts_1, useCp437, AnsiSpecialChar, EngineContextImpl;
+    var __moduleName = context_3 && context_3.id;
+    function ceilToMultipleOf(n, m) {
+        if (n % m === 0)
+            return n;
+        return Math.ceil(n / m) * m;
+    }
+    function floorToMultipleOf(n, m) {
+        if (n % m === 0)
+            return n;
+        return Math.floor(n / m) * m;
+    }
     return {
         setters: [
             function (types_ts_1_1) {
                 types_ts_1 = types_ts_1_1;
+            }
+        ],
+        execute: function () {
+            useCp437 = true;
+            AnsiSpecialChar = [
+                //Block
+                useCp437 ? 219 : "█".charCodeAt(0),
+                useCp437 ? 220 : "▄".charCodeAt(0),
+                useCp437 ? 224 : "▀".charCodeAt(0),
+                useCp437 ? 221 : "▌".charCodeAt(0),
+                useCp437 ? 222 : "▌".charCodeAt(0),
+                //Shade
+                useCp437 ? 176 : "░".charCodeAt(0),
+                useCp437 ? 177 : "▒".charCodeAt(0),
+                useCp437 ? 178 : "▓".charCodeAt(0),
+                ////Single Line
+                useCp437 ? 179 : "│".charCodeAt(0),
+                useCp437 ? 196 : "─".charCodeAt(0),
+                useCp437 ? 218 : "┌".charCodeAt(0),
+                useCp437 ? 191 : "┐".charCodeAt(0),
+                useCp437 ? 192 : "└".charCodeAt(0),
+                useCp437 ? 217 : "┘".charCodeAt(0),
+                useCp437 ? 180 : "┤".charCodeAt(0),
+                useCp437 ? 195 : "├".charCodeAt(0),
+                useCp437 ? 193 : "┴".charCodeAt(0),
+                useCp437 ? 194 : "┬".charCodeAt(0),
+                useCp437 ? 197 : "┼".charCodeAt(0),
+                //Double Line
+                useCp437 ? 186 : "║".charCodeAt(0),
+                useCp437 ? 205 : "═".charCodeAt(0),
+                useCp437 ? 201 : "╔".charCodeAt(0),
+                useCp437 ? 187 : "╗".charCodeAt(0),
+                useCp437 ? 200 : "╚".charCodeAt(0),
+                useCp437 ? 188 : "╝".charCodeAt(0),
+                useCp437 ? 185 : "╣".charCodeAt(0),
+                useCp437 ? 204 : "╠".charCodeAt(0),
+                useCp437 ? 202 : "╩".charCodeAt(0),
+                useCp437 ? 203 : "╦".charCodeAt(0),
+                useCp437 ? 206 : "╬".charCodeAt(0),
+            ];
+            EngineContextImpl = class EngineContextImpl {
+                constructor(nativeContext) {
+                    this.bounds = new types_ts_1.Rect();
+                    this.clip = new types_ts_1.Rect();
+                    this.tx = 0;
+                    this.ty = 0;
+                    this.x = 0;
+                    this.y = 0;
+                    this.foreColor = types_ts_1.FixedColor.White;
+                    this.backColor = types_ts_1.FixedColor.Black;
+                    this.transformsStack = [];
+                    this.clipStack = [];
+                    this.nativeContext = nativeContext;
+                }
+                beginDraw() {
+                    this.nativeContext.beginDraw();
+                }
+                setTargetLayer(layer) {
+                    this.nativeContext.setTargetLayer(layer);
+                }
+                beginClip(x, y, width, height) {
+                    this.bounds.set(x, y, width, height);
+                    this.clip.set(x, y, width, height);
+                    this.transformsStack.length = 0;
+                    this.clipStack.length = 0;
+                    this.x = 0;
+                    this.y = 0;
+                    this.tx = 0;
+                    this.ty = 0;
+                }
+                endClip() { }
+                endDraw() {
+                    this.nativeContext.endDraw();
+                }
+                pushTransform(x, y) {
+                    this.transformsStack.push(new types_ts_1.Point(this.tx, this.ty));
+                    this.tx += x;
+                    this.ty += y;
+                }
+                popTransform() {
+                    const p = this.transformsStack.pop();
+                    if (p) {
+                        this.tx = p.x;
+                        this.ty = p.y;
+                    }
+                }
+                pushClip(x, y, width, height) {
+                    this.clipStack.push(this.clip.clone());
+                    const minX = Math.max(this.tx + x, this.clip.x);
+                    const minY = Math.max(this.ty + y, this.clip.y);
+                    const maxX = Math.min(this.tx + x + width, this.clip.x + this.clip.width);
+                    const maxY = Math.min(this.ty + y + height, this.clip.y + this.clip.height);
+                    this.clip.set(minX, minY, maxX - minX, maxY - minY);
+                }
+                popClip() {
+                    const p = this.clipStack.pop();
+                    if (p)
+                        this.clip.copyFrom(p);
+                }
+                isVisible(x, y, width, height) {
+                    return !(this.tx + x + width < this.clip.x ||
+                        this.ty + y + height < this.clip.y ||
+                        this.tx + x > this.clip.x + this.clip.width ||
+                        this.ty + y > this.clip.y + this.clip.height);
+                }
+                moveCursorTo(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    return this;
+                }
+                textColor(foreColor, backColor) {
+                    this.foreColor = foreColor;
+                    this.backColor = backColor;
+                    return this;
+                }
+                resetTextColor() {
+                    this.foreColor = types_ts_1.FixedColor.White;
+                    this.backColor = types_ts_1.FixedColor.Black;
+                    return this;
+                }
+                text(font, str) {
+                    for (let i = 0; i < str.length; i++) {
+                        this.char(font, str.charCodeAt(i));
+                    }
+                    return this;
+                }
+                char(font, code) {
+                    const screenX = this.x + this.tx;
+                    const screenY = this.y + this.ty;
+                    const clip = this.clip;
+                    const width = font.tileWidth;
+                    const height = font.tileHeight;
+                    if (screenX + width > clip.x &&
+                        screenX < clip.x1 &&
+                        screenY + height > clip.y &&
+                        screenY < clip.y1) {
+                        const fontTile = font.tiles[code];
+                        const cfx = Math.max(clip.x - screenX, 0);
+                        const cfy = Math.max(clip.y - screenY, 0);
+                        const ctx = Math.min(clip.x1 - screenX, width);
+                        const cty = Math.min(clip.y1 - screenY, height);
+                        this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
+                    }
+                    this.x += width;
+                    return this;
+                }
+                charTimes(font, code, times) {
+                    for (let t = 0; t < times; t++) {
+                        this.char(font, code);
+                    }
+                    return this;
+                }
+                specialChar(font, code) {
+                    this.char(font, AnsiSpecialChar[code]);
+                    return this;
+                }
+                specialCharTimes(font, code, times) {
+                    for (let t = 0; t < times; t++) {
+                        this.specialChar(font, code);
+                    }
+                    return this;
+                }
+                textBorder(font, x, y, width, height) {
+                    const clip = this.clip;
+                    const tx = this.tx;
+                    const ty = this.ty;
+                    const x0 = Math.max(x, clip.x - tx);
+                    const y0 = Math.max(y, clip.y - ty);
+                    const x1 = Math.min(x + width, clip.x1 - tx);
+                    const y1 = Math.min(y + height, clip.y1 - ty);
+                    if (x1 <= x0 || y1 <= y0) {
+                        return this;
+                    }
+                    const fontWidth = font.tileWidth;
+                    const fontHeight = font.tileHeight;
+                    if (x0 > x + fontWidth &&
+                        y0 > y + fontHeight &&
+                        x1 < x + width - fontWidth &&
+                        y1 < y + height - fontHeight) {
+                        return this;
+                    }
+                    this.moveCursorTo(x, y);
+                    this.specialChar(font, 10 /* CornerTopLeft */);
+                    this.specialCharTimes(font, 9 /* Horizontal */, width / fontWidth - 2);
+                    this.moveCursorTo(x + width - fontWidth, y);
+                    this.specialChar(font, 11 /* CornerTopRight */);
+                    for (let i = 0; i < height - 2 * fontHeight; i += fontHeight) {
+                        this.moveCursorTo(x, y + fontHeight + i);
+                        this.specialChar(font, 8 /* Vertical */);
+                        this.moveCursorTo(x + width - fontWidth, y + fontHeight + i);
+                        this.specialChar(font, 8 /* Vertical */);
+                    }
+                    this.moveCursorTo(x, y + height - fontHeight);
+                    this.specialChar(font, 12 /* CornerBottomLeft */);
+                    this.specialCharTimes(font, 9 /* Horizontal */, width / fontWidth - 2);
+                    this.moveCursorTo(x + width - fontWidth, y + height - fontHeight);
+                    this.specialChar(font, 13 /* CornerBottomRight */);
+                    return this;
+                }
+                fillChar(font, x, y, width, height, char) {
+                    if (char.length === 0)
+                        return this;
+                    const fontWidth = font.tileWidth;
+                    const fontHeight = font.tileHeight;
+                    const clip = this.clip;
+                    const tx = this.tx;
+                    const ty = this.ty;
+                    const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, fontWidth));
+                    const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, fontHeight));
+                    const x1 = Math.min(tx + x + width, ceilToMultipleOf(clip.x1, fontWidth));
+                    const y1 = Math.min(ty + y + height, ceilToMultipleOf(clip.y1, fontHeight));
+                    if (x1 <= x0 || y1 <= y0) {
+                        return this;
+                    }
+                    const code = char.charCodeAt(0);
+                    const fontTile = font.tiles[code];
+                    for (let screenY = y0; screenY < y1; screenY += fontHeight) {
+                        for (let screenX = x0; screenX < x1; screenX += fontWidth) {
+                            const cfx = Math.max(clip.x - screenX, 0);
+                            const cfy = Math.max(clip.y - screenY, 0);
+                            const ctx = Math.min(clip.x1 - screenX, fontWidth);
+                            const cty = Math.min(clip.y1 - screenY, fontHeight);
+                            this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
+                        }
+                    }
+                    return this;
+                }
+                tilemap(x, y, tilemap, indexes) {
+                    const tileWidth = tilemap.tileWidth;
+                    const tileHeight = tilemap.tileHeight;
+                    const clip = this.clip;
+                    const tx = this.tx;
+                    const ty = this.ty;
+                    if (indexes.length == 0)
+                        return this;
+                    const height = indexes.length * tileHeight;
+                    const width = indexes[0].length * tileWidth;
+                    const rtx = tx + x;
+                    const rty = ty + y;
+                    const x0 = Math.max(tx + x, floorToMultipleOf(clip.x - rtx, tileWidth) + rtx);
+                    const y0 = Math.max(ty + y, floorToMultipleOf(clip.y - rty, tileHeight) + rty);
+                    const x1 = Math.min(tx + x + width, ceilToMultipleOf(clip.x1 - rtx, tileWidth) + rtx);
+                    const y1 = Math.min(ty + y + height, ceilToMultipleOf(clip.y1 - rty, tileHeight) + rty);
+                    if (x1 <= x0 || y1 <= y0) {
+                        return this;
+                    }
+                    const tiles = tilemap.tiles;
+                    let tileY = ((y0 - y - ty) / tileHeight) | 0;
+                    for (let screenY = y0; screenY < y1; screenY += tileHeight, tileY++) {
+                        const row = indexes[tileY];
+                        let tileX = ((x0 - x - tx) / tileWidth) | 0;
+                        for (let screenX = x0; screenX < x1; screenX += tileWidth, tileX++) {
+                            const tileIndex = row[tileX];
+                            if (tileIndex >= 0) {
+                                const cfx = Math.max(clip.x - screenX, 0);
+                                const cfy = Math.max(clip.y - screenY, 0);
+                                const ctx = Math.min(clip.x1 - screenX, tileWidth);
+                                const cty = Math.min(clip.y1 - screenY, tileHeight);
+                                this.nativeContext.setTile(tiles[tileIndex], screenX, screenY, cfx, cfy, ctx, cty);
+                            }
+                        }
+                    }
+                    return this;
+                }
+                tile(x, y, t) {
+                    const screenX = x + this.tx;
+                    const screenY = y + this.ty;
+                    const clip = this.clip;
+                    const width = t.width;
+                    const height = t.height;
+                    if (screenX + width > clip.x &&
+                        screenX < clip.x1 &&
+                        screenY + height > clip.y &&
+                        screenY < clip.y1) {
+                        const cfx = Math.max(clip.x - screenX, 0);
+                        const cfy = Math.max(clip.y - screenY, 0);
+                        const ctx = Math.min(clip.x1 - screenX, width);
+                        const cty = Math.min(clip.y1 - screenY, height);
+                        this.nativeContext.setTile(t, screenX, screenY, cfx, cfy, ctx, cty);
+                    }
+                    return this;
+                }
+                fillRect(x, y, width, height, color) {
+                    const clip = this.clip;
+                    const tx = this.tx;
+                    const ty = this.ty;
+                    const x0 = Math.max(tx + x, clip.x);
+                    const y0 = Math.max(ty + y, clip.y);
+                    const x1 = Math.min(tx + x + width, clip.x1);
+                    const y1 = Math.min(ty + y + height, clip.y1);
+                    if (x1 <= x0 || y1 <= y0) {
+                        return this;
+                    }
+                    this.nativeContext.fillRect(color, x0, y0, x1 - x0, y1 - y0);
+                    return this;
+                }
+            };
+            exports_3("EngineContextImpl", EngineContextImpl);
+        }
+    };
+});
+System.register("engine/src/widgets/widget", ["engine/src/types"], function (exports_4, context_4) {
+    "use strict";
+    var types_ts_2, BaseWidget;
+    var __moduleName = context_4 && context_4.id;
+    return {
+        setters: [
+            function (types_ts_2_1) {
+                types_ts_2 = types_ts_2_1;
             }
         ],
         execute: function () {
@@ -130,7 +618,7 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                     this._layer = 0;
                     this._parent = null;
                     this._engine = null;
-                    this._boundingBox = new types_ts_1.Rect();
+                    this._boundingBox = new types_ts_2.Rect();
                     this._solid = true;
                     this.layout = null;
                 }
@@ -328,14 +816,14 @@ System.register("engine/src/widgets/widget", ["engine/src/types"], function (exp
                     return this;
                 }
             };
-            exports_1("BaseWidget", BaseWidget);
+            exports_4("BaseWidget", BaseWidget);
         }
     };
 });
-System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widget"], function (exports_2, context_2) {
+System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widget"], function (exports_5, context_5) {
     "use strict";
     var widget_ts_1, BaseWidgetContainer;
-    var __moduleName = context_2 && context_2.id;
+    var __moduleName = context_5 && context_5.id;
     return {
         setters: [
             function (widget_ts_1_1) {
@@ -463,18 +951,18 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
                 onChildrenTransformChanged(child) { }
                 onChildrenAdded(child) { }
             };
-            exports_2("BaseWidgetContainer", BaseWidgetContainer);
+            exports_5("BaseWidgetContainer", BaseWidgetContainer);
         }
     };
 });
-System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_3, context_3) {
+System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_6, context_6) {
     "use strict";
-    var types_ts_2, widget_container_ts_1, ScrollableContainerWidget;
-    var __moduleName = context_3 && context_3.id;
+    var types_ts_3, widget_container_ts_1, ScrollableContainerWidget;
+    var __moduleName = context_6 && context_6.id;
     return {
         setters: [
-            function (types_ts_2_1) {
-                types_ts_2 = types_ts_2_1;
+            function (types_ts_3_1) {
+                types_ts_3 = types_ts_3_1;
             },
             function (widget_container_ts_1_1) {
                 widget_container_ts_1 = widget_container_ts_1_1;
@@ -484,8 +972,7 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
             ScrollableContainerWidget = class ScrollableContainerWidget extends widget_container_ts_1.BaseWidgetContainer {
                 constructor() {
                     super(...arguments);
-                    this.backColor = types_ts_2.FixedColor.Black;
-                    this.overlappingFixedWidgets = [];
+                    this.backColor = types_ts_3.FixedColor.Black;
                     this._offsetX = 0;
                     this._offsetY = 0;
                 }
@@ -501,13 +988,46 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                 get innerY() {
                     return this._offsetY;
                 }
-                setOffset(offsetX, offsetY, invalidate = true) {
-                    if (offsetX !== this._offsetX || offsetY !== this._offsetY) {
-                        this._offsetX = offsetX | 0;
-                        this._offsetY = offsetY | 0;
-                        if (invalidate)
-                            this.invalidate();
+                setOffset(offsetX, offsetY, onNextDraw = true) {
+                    offsetX = offsetX | 0;
+                    offsetY = offsetY | 0;
+                    if (offsetX === this._offsetX && offsetY === this._offsetY)
+                        return;
+                    if (!onNextDraw) {
+                        this._offsetX = offsetX;
+                        this._offsetY = offsetY;
+                        this.invalidate();
+                        return;
                     }
+                    this.engine?.onNextDrawNative(this.layer, ({ context, invalidateRect }) => {
+                        const dx = offsetX - this.offsetX;
+                        const dy = offsetY - this.offsetY;
+                        if (dx === 0 && dy === 0)
+                            return;
+                        const bbox = this.getBoundingBox();
+                        if (Math.abs(dx) > bbox.width || Math.abs(dy) < bbox.height) {
+                            //Scroll delta too big, nothing to reuse from the screen.. just invalidate..
+                            this._offsetX = offsetX;
+                            this._offsetY = offsetY;
+                            this.invalidate();
+                            return;
+                        }
+                        this._offsetX = offsetX;
+                        this._offsetY = offsetY;
+                        context.scrollRect(bbox.x, bbox.y, bbox.width, bbox.height, dx, dy);
+                        if (dy > 0) {
+                            invalidateRect(new types_ts_3.Rect(bbox.x, bbox.y, bbox.width, dy));
+                        }
+                        else if (dy < 0) {
+                            invalidateRect(new types_ts_3.Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy));
+                        }
+                        if (dx > 0) {
+                            invalidateRect(new types_ts_3.Rect(bbox.x, bbox.y, dx, bbox.height));
+                        }
+                        else if (dx < 0) {
+                            invalidateRect(new types_ts_3.Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height));
+                        }
+                    });
                 }
                 preDrawChildren(context) {
                     context.pushTransform(this.innerX, this.innerY);
@@ -519,495 +1039,7 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                     context.fillRect(0, 0, this.width, this.height, this.backColor);
                 }
             };
-            exports_3("ScrollableContainerWidget", ScrollableContainerWidget);
-        }
-    };
-});
-System.register("engine/src/types", [], function (exports_4, context_4) {
-    "use strict";
-    var FixedColor, LAYERS_COUNT, Point, Size, Rect;
-    var __moduleName = context_4 && context_4.id;
-    function rgb(r, g, b) {
-        return rgba(r, g, b, 255);
-    }
-    exports_4("rgb", rgb);
-    function rgba(r, g, b, a) {
-        return ((a << 24) | // alpha
-            (b << 16) | // blue
-            (g << 8) | // green
-            r);
-    }
-    exports_4("rgba", rgba);
-    return {
-        setters: [],
-        execute: function () {
-            FixedColor = /** @class */ (() => {
-                class FixedColor {
-                }
-                FixedColor.Transparent = rgba(0, 0, 0, 0);
-                FixedColor.Black = rgb(12, 12, 12);
-                FixedColor.Red = rgb(197, 15, 31);
-                FixedColor.Green = rgb(19, 161, 14);
-                FixedColor.Yellow = rgb(193, 156, 0);
-                FixedColor.Blue = rgb(0, 55, 218);
-                FixedColor.Magenta = rgb(136, 23, 152);
-                FixedColor.Cyan = rgb(58, 150, 221);
-                FixedColor.White = rgb(204, 204, 204);
-                FixedColor.BrightBlack = rgb(118, 118, 118);
-                FixedColor.BrightRed = rgb(231, 72, 86);
-                FixedColor.BrightGreen = rgb(22, 198, 12);
-                FixedColor.BrightYellow = rgb(249, 241, 165);
-                FixedColor.BrightBlue = rgb(59, 120, 255);
-                FixedColor.BrightMagenta = rgb(180, 0, 158);
-                FixedColor.BrightCyan = rgb(97, 214, 214);
-                FixedColor.BrightWhite = rgb(242, 242, 242);
-                return FixedColor;
-            })();
-            exports_4("FixedColor", FixedColor);
-            exports_4("LAYERS_COUNT", LAYERS_COUNT = 2);
-            Point = class Point {
-                constructor(x = 0, y = 0) {
-                    this.x = x;
-                    this.y = y;
-                }
-                set(x, y) {
-                    this.x = x;
-                    this.y = y;
-                    return this;
-                }
-                copyFrom(p) {
-                    this.x = p.x;
-                    this.y = p.y;
-                    return this;
-                }
-                equals(p) {
-                    return this.x === p.x && this.y === p.y;
-                }
-                clone() {
-                    return new Point(this.x, this.y);
-                }
-                distanceTo(point) {
-                    const dx = point.x - this.x;
-                    const dy = point.y - this.y;
-                    return Math.sqrt(dx * dx + dy * dy) | 0;
-                }
-            };
-            exports_4("Point", Point);
-            Size = class Size {
-                constructor(width = 0, height = 0) {
-                    this.width = width;
-                    this.height = height;
-                }
-                set(width, height) {
-                    this.width = width;
-                    this.height = height;
-                    return this;
-                }
-                copyFrom(size) {
-                    this.width = size.width;
-                    this.height = size.height;
-                    return this;
-                }
-                equals(size) {
-                    return this.width === size.width && this.height === size.height;
-                }
-                clone() {
-                    return new Size(this.width, this.height);
-                }
-            };
-            exports_4("Size", Size);
-            Rect = class Rect {
-                constructor(x = 0, y = 0, width = 0, height = 0) {
-                    this.x = x;
-                    this.y = y;
-                    this.width = width;
-                    this.height = height;
-                }
-                get x1() {
-                    return this.x + this.width;
-                }
-                get y1() {
-                    return this.y + this.height;
-                }
-                set(x, y, width, height) {
-                    this.x = x;
-                    this.y = y;
-                    this.width = width;
-                    this.height = height;
-                    return this;
-                }
-                copyFrom(rect) {
-                    this.x = rect.x;
-                    this.y = rect.y;
-                    this.width = rect.width;
-                    this.height = rect.height;
-                    return this;
-                }
-                equals(rect) {
-                    return (this.x === rect.x &&
-                        this.y === rect.y &&
-                        this.width === rect.width &&
-                        this.height === rect.height);
-                }
-                intersects(rect) {
-                    return !(this.x1 < rect.x ||
-                        this.y1 < rect.y ||
-                        this.x > rect.x1 ||
-                        this.y > rect.y1);
-                }
-                union(rect) {
-                    const x0 = Math.min(this.x, rect.x);
-                    const y0 = Math.min(this.y, rect.y);
-                    const x1 = Math.max(this.x1, rect.x1);
-                    const y1 = Math.max(this.y1, rect.y1);
-                    this.x = x0;
-                    this.y = y0;
-                    this.width = x1 - x0;
-                    this.height = y1 - y0;
-                }
-                expand(amount) {
-                    this.x -= amount;
-                    this.y -= amount;
-                    this.width += amount * 2;
-                    this.height += amount * 2;
-                    return this;
-                }
-                contains(x, y) {
-                    return x >= this.x && y >= this.y && x <= this.x1 && y <= this.y1;
-                }
-                clone() {
-                    return new Rect(this.x, this.y, this.width, this.height);
-                }
-            };
-            exports_4("Rect", Rect);
-        }
-    };
-});
-System.register("engine/src/native-types", [], function (exports_5, context_5) {
-    "use strict";
-    var __moduleName = context_5 && context_5.id;
-    return {
-        setters: [],
-        execute: function () {
-        }
-    };
-});
-System.register("engine/src/context", ["engine/src/types"], function (exports_6, context_6) {
-    "use strict";
-    var types_ts_3, useCp437, AnsiSpecialChar, EngineContextImpl;
-    var __moduleName = context_6 && context_6.id;
-    function ceilToMultipleOf(n, m) {
-        if (n % m === 0)
-            return n;
-        return Math.ceil(n / m) * m;
-    }
-    function floorToMultipleOf(n, m) {
-        if (n % m === 0)
-            return n;
-        return Math.floor(n / m) * m;
-    }
-    return {
-        setters: [
-            function (types_ts_3_1) {
-                types_ts_3 = types_ts_3_1;
-            }
-        ],
-        execute: function () {
-            useCp437 = true;
-            AnsiSpecialChar = [
-                //Block
-                useCp437 ? 219 : "█".charCodeAt(0),
-                useCp437 ? 220 : "▄".charCodeAt(0),
-                useCp437 ? 224 : "▀".charCodeAt(0),
-                useCp437 ? 221 : "▌".charCodeAt(0),
-                useCp437 ? 222 : "▌".charCodeAt(0),
-                //Shade
-                useCp437 ? 176 : "░".charCodeAt(0),
-                useCp437 ? 177 : "▒".charCodeAt(0),
-                useCp437 ? 178 : "▓".charCodeAt(0),
-                ////Single Line
-                useCp437 ? 179 : "│".charCodeAt(0),
-                useCp437 ? 196 : "─".charCodeAt(0),
-                useCp437 ? 218 : "┌".charCodeAt(0),
-                useCp437 ? 191 : "┐".charCodeAt(0),
-                useCp437 ? 192 : "└".charCodeAt(0),
-                useCp437 ? 217 : "┘".charCodeAt(0),
-                useCp437 ? 180 : "┤".charCodeAt(0),
-                useCp437 ? 195 : "├".charCodeAt(0),
-                useCp437 ? 193 : "┴".charCodeAt(0),
-                useCp437 ? 194 : "┬".charCodeAt(0),
-                useCp437 ? 197 : "┼".charCodeAt(0),
-                //Double Line
-                useCp437 ? 186 : "║".charCodeAt(0),
-                useCp437 ? 205 : "═".charCodeAt(0),
-                useCp437 ? 201 : "╔".charCodeAt(0),
-                useCp437 ? 187 : "╗".charCodeAt(0),
-                useCp437 ? 200 : "╚".charCodeAt(0),
-                useCp437 ? 188 : "╝".charCodeAt(0),
-                useCp437 ? 185 : "╣".charCodeAt(0),
-                useCp437 ? 204 : "╠".charCodeAt(0),
-                useCp437 ? 202 : "╩".charCodeAt(0),
-                useCp437 ? 203 : "╦".charCodeAt(0),
-                useCp437 ? 206 : "╬".charCodeAt(0),
-            ];
-            EngineContextImpl = class EngineContextImpl {
-                constructor(nativeContext) {
-                    this.bounds = new types_ts_3.Rect();
-                    this.clip = new types_ts_3.Rect();
-                    this.tx = 0;
-                    this.ty = 0;
-                    this.x = 0;
-                    this.y = 0;
-                    this.foreColor = types_ts_3.FixedColor.White;
-                    this.backColor = types_ts_3.FixedColor.Black;
-                    this.transformsStack = [];
-                    this.clipStack = [];
-                    this.nativeContext = nativeContext;
-                }
-                beginDraw() {
-                    this.nativeContext.beginDraw();
-                }
-                setTargetLayer(layer) {
-                    this.nativeContext.setTargetLayer(layer);
-                }
-                beginClip(x, y, width, height) {
-                    this.bounds.set(x, y, width, height);
-                    this.clip.set(x, y, width, height);
-                    this.transformsStack.length = 0;
-                    this.clipStack.length = 0;
-                    this.x = 0;
-                    this.y = 0;
-                    this.tx = 0;
-                    this.ty = 0;
-                }
-                endClip() { }
-                endDraw() {
-                    this.nativeContext.endDraw();
-                }
-                pushTransform(x, y) {
-                    this.transformsStack.push(new types_ts_3.Point(this.tx, this.ty));
-                    this.tx += x;
-                    this.ty += y;
-                }
-                popTransform() {
-                    const p = this.transformsStack.pop();
-                    if (p) {
-                        this.tx = p.x;
-                        this.ty = p.y;
-                    }
-                }
-                pushClip(x, y, width, height) {
-                    this.clipStack.push(this.clip.clone());
-                    const minX = Math.max(this.tx + x, this.clip.x);
-                    const minY = Math.max(this.ty + y, this.clip.y);
-                    const maxX = Math.min(this.tx + x + width, this.clip.x + this.clip.width);
-                    const maxY = Math.min(this.ty + y + height, this.clip.y + this.clip.height);
-                    this.clip.set(minX, minY, maxX - minX, maxY - minY);
-                }
-                popClip() {
-                    const p = this.clipStack.pop();
-                    if (p)
-                        this.clip.copyFrom(p);
-                }
-                isVisible(x, y, width, height) {
-                    return !(this.tx + x + width < this.clip.x ||
-                        this.ty + y + height < this.clip.y ||
-                        this.tx + x > this.clip.x + this.clip.width ||
-                        this.ty + y > this.clip.y + this.clip.height);
-                }
-                moveCursorTo(x, y) {
-                    this.x = x;
-                    this.y = y;
-                    return this;
-                }
-                textColor(foreColor, backColor) {
-                    this.foreColor = foreColor;
-                    this.backColor = backColor;
-                    return this;
-                }
-                resetTextColor() {
-                    this.foreColor = types_ts_3.FixedColor.White;
-                    this.backColor = types_ts_3.FixedColor.Black;
-                    return this;
-                }
-                text(font, str) {
-                    for (let i = 0; i < str.length; i++) {
-                        this.char(font, str.charCodeAt(i));
-                    }
-                    return this;
-                }
-                char(font, code) {
-                    const screenX = this.x + this.tx;
-                    const screenY = this.y + this.ty;
-                    const clip = this.clip;
-                    const width = font.tileWidth;
-                    const height = font.tileHeight;
-                    if (screenX + width > clip.x &&
-                        screenX < clip.x1 &&
-                        screenY + height > clip.y &&
-                        screenY < clip.y1) {
-                        const fontTile = font.tiles[code];
-                        const cfx = Math.max(clip.x - screenX, 0);
-                        const cfy = Math.max(clip.y - screenY, 0);
-                        const ctx = Math.min(clip.x1 - screenX, width);
-                        const cty = Math.min(clip.y1 - screenY, height);
-                        this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
-                    }
-                    this.x += width;
-                    return this;
-                }
-                charTimes(font, code, times) {
-                    for (let t = 0; t < times; t++) {
-                        this.char(font, code);
-                    }
-                    return this;
-                }
-                specialChar(font, code) {
-                    this.char(font, AnsiSpecialChar[code]);
-                    return this;
-                }
-                specialCharTimes(font, code, times) {
-                    for (let t = 0; t < times; t++) {
-                        this.specialChar(font, code);
-                    }
-                    return this;
-                }
-                textBorder(font, x, y, width, height) {
-                    const clip = this.clip;
-                    const tx = this.tx;
-                    const ty = this.ty;
-                    const x0 = Math.max(x, clip.x - tx);
-                    const y0 = Math.max(y, clip.y - ty);
-                    const x1 = Math.min(x + width, clip.x1 - tx);
-                    const y1 = Math.min(y + height, clip.y1 - ty);
-                    if (x1 <= x0 || y1 <= y0) {
-                        return this;
-                    }
-                    const fontWidth = font.tileWidth;
-                    const fontHeight = font.tileHeight;
-                    if (x0 > x + fontWidth &&
-                        y0 > y + fontHeight &&
-                        x1 < x + width - fontWidth &&
-                        y1 < y + height - fontHeight) {
-                        return this;
-                    }
-                    this.moveCursorTo(x, y);
-                    this.specialChar(font, 10 /* CornerTopLeft */);
-                    this.specialCharTimes(font, 9 /* Horizontal */, width / fontWidth - 2);
-                    this.moveCursorTo(x + width - fontWidth, y);
-                    this.specialChar(font, 11 /* CornerTopRight */);
-                    for (let i = 0; i < height - 2 * fontHeight; i += fontHeight) {
-                        this.moveCursorTo(x, y + fontHeight + i);
-                        this.specialChar(font, 8 /* Vertical */);
-                        this.moveCursorTo(x + width - fontWidth, y + fontHeight + i);
-                        this.specialChar(font, 8 /* Vertical */);
-                    }
-                    this.moveCursorTo(x, y + height - fontHeight);
-                    this.specialChar(font, 12 /* CornerBottomLeft */);
-                    this.specialCharTimes(font, 9 /* Horizontal */, width / fontWidth - 2);
-                    this.moveCursorTo(x + width - fontWidth, y + height - fontHeight);
-                    this.specialChar(font, 13 /* CornerBottomRight */);
-                    return this;
-                }
-                fillChar(font, x, y, width, height, char) {
-                    if (char.length === 0)
-                        return this;
-                    const fontWidth = font.tileWidth;
-                    const fontHeight = font.tileHeight;
-                    const clip = this.clip;
-                    const tx = this.tx;
-                    const ty = this.ty;
-                    const x0 = Math.max(tx + x, floorToMultipleOf(clip.x, fontWidth));
-                    const y0 = Math.max(ty + y, floorToMultipleOf(clip.y, fontHeight));
-                    const x1 = Math.min(tx + x + width, ceilToMultipleOf(clip.x1, fontWidth));
-                    const y1 = Math.min(ty + y + height, ceilToMultipleOf(clip.y1, fontHeight));
-                    if (x1 <= x0 || y1 <= y0) {
-                        return this;
-                    }
-                    const code = char.charCodeAt(0);
-                    const fontTile = font.tiles[code];
-                    for (let screenY = y0; screenY < y1; screenY += fontHeight) {
-                        for (let screenX = x0; screenX < x1; screenX += fontWidth) {
-                            const cfx = Math.max(clip.x - screenX, 0);
-                            const cfy = Math.max(clip.y - screenY, 0);
-                            const ctx = Math.min(clip.x1 - screenX, fontWidth);
-                            const cty = Math.min(clip.y1 - screenY, fontHeight);
-                            this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
-                        }
-                    }
-                    return this;
-                }
-                tilemap(x, y, tilemap, indexes) {
-                    const tileWidth = tilemap.tileWidth;
-                    const tileHeight = tilemap.tileHeight;
-                    const clip = this.clip;
-                    const tx = this.tx;
-                    const ty = this.ty;
-                    if (indexes.length == 0)
-                        return this;
-                    const height = indexes.length * tileHeight;
-                    const width = indexes[0].length * tileWidth;
-                    const rtx = tx + x;
-                    const rty = ty + y;
-                    const x0 = Math.max(tx + x, floorToMultipleOf(clip.x - rtx, tileWidth) + rtx);
-                    const y0 = Math.max(ty + y, floorToMultipleOf(clip.y - rty, tileHeight) + rty);
-                    const x1 = Math.min(tx + x + width, ceilToMultipleOf(clip.x1 - rtx, tileWidth) + rtx);
-                    const y1 = Math.min(ty + y + height, ceilToMultipleOf(clip.y1 - rty, tileHeight) + rty);
-                    if (x1 <= x0 || y1 <= y0) {
-                        return this;
-                    }
-                    const tiles = tilemap.tiles;
-                    let tileY = ((y0 - y - ty) / tileHeight) | 0;
-                    for (let screenY = y0; screenY < y1; screenY += tileHeight, tileY++) {
-                        const row = indexes[tileY];
-                        let tileX = ((x0 - x - tx) / tileWidth) | 0;
-                        for (let screenX = x0; screenX < x1; screenX += tileWidth, tileX++) {
-                            const tileIndex = row[tileX];
-                            if (tileIndex >= 0) {
-                                const cfx = Math.max(clip.x - screenX, 0);
-                                const cfy = Math.max(clip.y - screenY, 0);
-                                const ctx = Math.min(clip.x1 - screenX, tileWidth);
-                                const cty = Math.min(clip.y1 - screenY, tileHeight);
-                                this.nativeContext.setTile(tiles[tileIndex], screenX, screenY, cfx, cfy, ctx, cty);
-                            }
-                        }
-                    }
-                    return this;
-                }
-                tile(x, y, t) {
-                    const screenX = x + this.tx;
-                    const screenY = y + this.ty;
-                    const clip = this.clip;
-                    const width = t.width;
-                    const height = t.height;
-                    if (screenX + width > clip.x &&
-                        screenX < clip.x1 &&
-                        screenY + height > clip.y &&
-                        screenY < clip.y1) {
-                        const cfx = Math.max(clip.x - screenX, 0);
-                        const cfy = Math.max(clip.y - screenY, 0);
-                        const ctx = Math.min(clip.x1 - screenX, width);
-                        const cty = Math.min(clip.y1 - screenY, height);
-                        this.nativeContext.setTile(t, screenX, screenY, cfx, cfy, ctx, cty);
-                    }
-                    return this;
-                }
-                fillRect(x, y, width, height, color) {
-                    const clip = this.clip;
-                    const tx = this.tx;
-                    const ty = this.ty;
-                    const x0 = Math.max(tx + x, clip.x);
-                    const y0 = Math.max(ty + y, clip.y);
-                    const x1 = Math.min(tx + x + width, clip.x1);
-                    const y1 = Math.min(ty + y + height, clip.y1);
-                    if (x1 <= x0 || y1 <= y0) {
-                        return this;
-                    }
-                    this.nativeContext.fillRect(color, x0, y0, x1 - x0, y1 - y0);
-                    return this;
-                }
-            };
-            exports_6("EngineContextImpl", EngineContextImpl);
+            exports_6("ScrollableContainerWidget", ScrollableContainerWidget);
         }
     };
 });
@@ -1039,6 +1071,7 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                 constructor(id) {
                     this.invalidRects = [];
                     this.children = [];
+                    this.onNextDrawNative = [];
                     this.id = id;
                 }
             };
@@ -1046,8 +1079,9 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                 constructor(nativeContext) {
                     this.screenSize = new types_ts_4.Size();
                     this.layers = [];
-                    this.mainScrollable = null;
-                    this.mainScrollableOffset = new types_ts_4.Point();
+                    this.scrollables = new Map();
+                    this.lastWidgetUnderMouse = null;
+                    this.lastWidgetUnderMouseEventType = "move";
                     this.nativeContext = nativeContext;
                     this.context = new context_ts_1.EngineContextImpl(this.nativeContext.screen);
                     this.nativeContext.input.onMouseEvent((e) => this.onMouseEventInternal(e));
@@ -1121,6 +1155,24 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                     }
                     return { drawnRects, drawnArea };
                 }
+                drawOnNextDrawNative(layer) {
+                    let drawnRects = 0;
+                    let drawnArea = 0;
+                    for (let i = 0; i < layer.onNextDrawNative.length; i++) {
+                        layer.onNextDrawNative[i]({
+                            context: this.nativeContext.screen,
+                            invalidateRect: (rect) => layer.invalidRects.push(rect),
+                        });
+                        const stats = this.drawInvalidRects(layer);
+                        drawnRects += stats.drawnRects;
+                        drawnArea += stats.drawnArea;
+                    }
+                    layer.onNextDrawNative.length = 0;
+                    return {
+                        drawnRects,
+                        drawnArea,
+                    };
+                }
                 draw() {
                     const startTime = performance.now();
                     this.context.beginDraw();
@@ -1130,38 +1182,8 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                         this.context.setTargetLayer(layer.id);
                         let { drawnRects: drawnRects1 } = this.drawInvalidRects(layer);
                         drawnRects += drawnRects1;
-                        if (this.mainScrollable !== null &&
-                            this.mainScrollable.layer === layer.id) {
-                            const dx = this.mainScrollableOffset.x - this.mainScrollable.offsetX;
-                            const dy = this.mainScrollableOffset.y - this.mainScrollable.offsetY;
-                            if (dx !== 0 || dy !== 0) {
-                                const bbox = this.mainScrollable.getBoundingBox();
-                                if (Math.abs(dx) < bbox.width && Math.abs(dy) < bbox.height) {
-                                    this.mainScrollable.setOffset(this.mainScrollableOffset.x, this.mainScrollableOffset.y, false);
-                                    this.nativeContext.screen.scrollRect(bbox.x, bbox.y, bbox.width, bbox.height, dx, dy);
-                                    if (dy > 0) {
-                                        layer.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y, bbox.width, dy));
-                                    }
-                                    else if (dy < 0) {
-                                        layer.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy));
-                                    }
-                                    if (dx > 0) {
-                                        layer.invalidRects.push(new types_ts_4.Rect(bbox.x, bbox.y, dx, bbox.height));
-                                    }
-                                    else if (dx < 0) {
-                                        layer.invalidRects.push(new types_ts_4.Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height));
-                                    }
-                                    this.mainScrollable.overlappingFixedWidgets.forEach((w) => {
-                                        layer.invalidRects.push(w.getBoundingBox().clone().expand(Math.max(Math.abs(dx), Math.abs(dy))));
-                                    });
-                                }
-                                else {
-                                    this.mainScrollable.setOffset(this.mainScrollableOffset.x, this.mainScrollableOffset.y);
-                                }
-                                const { drawnRects: drawnRects2 } = this.drawInvalidRects(layer);
-                                drawnRects += drawnRects2;
-                            }
-                        }
+                        let { drawnRects: drawnRects2 } = this.drawOnNextDrawNative(layer);
+                        drawnRects += drawnRects2;
                     }
                     this.context.endDraw();
                     const endTime = performance.now();
@@ -1210,12 +1232,8 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                 destroy() {
                     this.nativeContext.destroy();
                 }
-                setMainScrollable(scrollable) {
-                    this.mainScrollable = scrollable;
-                }
-                setMainScroll(offsetX, offsetY) {
-                    this.mainScrollableOffset.x = offsetX | 0;
-                    this.mainScrollableOffset.y = offsetY | 0;
+                onNextDrawNative(layer, cb) {
+                    this.layers[layer].onNextDrawNative.push(cb);
                 }
                 getWidgetAt(x, y) {
                     for (let l = this.layers.length - 1; l >= 0; l--) {
@@ -1231,9 +1249,18 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                 }
                 onMouseEventInternal(e) {
                     const w = this.getWidgetAt(e.x, e.y);
+                    if (w !== this.lastWidgetUnderMouse &&
+                        this.lastWidgetUnderMouse !== null &&
+                        this.lastWidgetUnderMouseEventType !== "up") {
+                        const bbox = this.lastWidgetUnderMouse.getBoundingBox();
+                        this.lastWidgetUnderMouse.mouse({ type: "out", x: e.x - bbox.x, y: e.y - bbox.y });
+                        this.lastWidgetUnderMouse = null;
+                    }
                     if (w !== null) {
                         const bbox = w.getBoundingBox();
                         w.mouse({ type: e.type, x: e.x - bbox.x, y: e.y - bbox.y });
+                        this.lastWidgetUnderMouse = w;
+                        this.lastWidgetUnderMouseEventType = e.type;
                     }
                 }
                 setFullscreen(fullscreen) {
@@ -1944,10 +1971,10 @@ System.register("game/src/types", [], function (exports_19, context_19) {
 System.register("game/src/utils", [], function (exports_20, context_20) {
     "use strict";
     var __moduleName = context_20 && context_20.id;
-    function followAvatar(avatar, map, engine) {
+    function followAvatar(avatar, map) {
         let newOffsetX = -avatar.x + Math.floor(map.width * 0.5);
         let newOffsetY = -avatar.y + Math.floor(map.height * 0.5);
-        engine.setMainScroll(Math.max(Math.min(newOffsetX, 0), -(map.tilemapsBounds.width - map.width)), Math.max(Math.min(newOffsetY, 0), -(map.tilemapsBounds.height - map.height)));
+        map.setOffset(Math.max(Math.min(newOffsetX, 0), -(map.tilemapsBounds.width - map.width)), Math.max(Math.min(newOffsetY, 0), -(map.tilemapsBounds.height - map.height)));
     }
     exports_20("followAvatar", followAvatar);
     function isKeyDown(game, key) {
@@ -1984,7 +2011,7 @@ System.register("engine/src/widgets/button", ["engine/src/widgets/widget"], func
         ],
         execute: function () {
             ButtonWidget = class ButtonWidget extends widget_ts_6.BaseWidget {
-                constructor(font, text, foreColor, backColor, onTapped = null) {
+                constructor(font, text, foreColor, backColor, pressedColor, onTapped = null) {
                     super();
                     this.onTapped = null;
                     this._text = "";
@@ -1995,6 +2022,7 @@ System.register("engine/src/widgets/button", ["engine/src/widgets/widget"], func
                     this.text = text;
                     this.foreColor = foreColor;
                     this.backColor = backColor;
+                    this.pressedColor = pressedColor;
                     this.onTapped = onTapped;
                 }
                 set text(val) {
@@ -2010,7 +2038,8 @@ System.register("engine/src/widgets/button", ["engine/src/widgets/widget"], func
                     return this._text;
                 }
                 drawSelf(context) {
-                    context.textColor(this.foreColor, this.backColor);
+                    const backColor = this.down ? this.pressedColor : this.backColor;
+                    context.textColor(this.foreColor, backColor);
                     context.textBorder(this.font, 0, 0, this.width, this.height);
                     for (let i = 0; i < this._lines.length; i++) {
                         context.moveCursorTo(this.font.tileWidth, (i + 1) * this.font.tileHeight)
@@ -2018,15 +2047,23 @@ System.register("engine/src/widgets/button", ["engine/src/widgets/widget"], func
                     }
                 }
                 mouse(e) {
-                    if (e.type === "down") {
-                        this.down = true;
-                    }
-                    else if (e.type === "up") {
-                        if (this.down) {
+                    switch (e.type) {
+                        case "down":
+                            this.down = true;
+                            this.invalidate();
+                            break;
+                        case "out":
                             this.down = false;
-                            if (this.onTapped !== null)
-                                this.onTapped();
-                        }
+                            this.invalidate();
+                            break;
+                        case "up":
+                            if (this.down) {
+                                this.down = false;
+                                this.invalidate();
+                                if (this.onTapped !== null)
+                                    this.onTapped();
+                            }
+                            break;
                     }
                 }
             };
@@ -2038,7 +2075,7 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/button",
     "use strict";
     var types_ts_8, button_ts_1, box_ts_1;
     var __moduleName = context_22 && context_22.id;
-    function initUI(engine, assets) {
+    function initUI(engine, assets, native) {
         const font = assets.defaultFont;
         const mainUI = new box_ts_1.BoxContainerWidget(font, 0);
         mainUI.layer = 1 /* UI */;
@@ -2076,8 +2113,23 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/button",
             type: "vertical",
             spacing: font.tileHeight,
         };
-        new button_ts_1.ButtonWidget(font, "Full", types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, () => engine.setFullscreen(true)).parent = buttonsContainer;
-        new button_ts_1.ButtonWidget(font, "Stat", types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, () => engine.toggleStats()).parent = buttonsContainer;
+        let isFullcreen = false;
+        const fullScreenButton = new button_ts_1.ButtonWidget(font, "Full", types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, types_ts_8.FixedColor.Yellow, () => {
+            if (isFullcreen) {
+                engine.setFullscreen(false);
+            }
+            else {
+                engine.setFullscreen(true);
+            }
+        });
+        native.screen.onFullScreenChanged((fullscreen) => {
+            if (isFullcreen !== fullscreen) {
+                isFullcreen = fullscreen;
+                fullScreenButton.text = isFullcreen ? "Exit" : "Full";
+            }
+        });
+        fullScreenButton.parent = buttonsContainer;
+        new button_ts_1.ButtonWidget(font, "Stat", types_ts_8.FixedColor.White, types_ts_8.FixedColor.Green, types_ts_8.FixedColor.Yellow, () => engine.toggleStats()).parent = buttonsContainer;
         return { mainUI, statsContainer, buttonsContainer };
     }
     exports_22("initUI", initUI);
@@ -2193,8 +2245,8 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
                 break;
         }
     }
-    function initGame(engine, assets) {
-        const { mainUI, statsContainer, buttonsContainer } = ui_ts_1.initUI(engine, assets);
+    function initGame(engine, assets, native) {
+        const { mainUI, statsContainer, buttonsContainer } = ui_ts_1.initUI(engine, assets, native);
         const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
         map.layer = 0 /* Game */;
         map.layout = { heightPercent: 100, widthPercent: 100 };
@@ -2238,11 +2290,10 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
         engine.addWidget(mainUI, 1 /* UI */);
         engine.onKeyEvent((e) => onKeyEvent(game, e));
         engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
-        engine.setMainScrollable(map);
         return game;
     }
     exports_23("initGame", initGame);
-    function updateGame(engine, game) {
+    function updateGame(game) {
         const { p1, p2, avatars, updateables, map } = game;
         if (utils_ts_1.isKeyDown(game, "a") || utils_ts_1.isSpecialKeyDown(game, 1 /* ArrowLeft */)) {
             p1.move(-1, 0);
@@ -2277,7 +2328,7 @@ System.register("game/src/game", ["game/src/avatar", "game/src/map", "game/src/r
             avatar.y = Math.max(Math.min(avatar.y, map.tilemapsBounds.height), 0);
         });
         updateables.forEach((u) => u.update());
-        utils_ts_1.followAvatar(p1, map, engine);
+        utils_ts_1.followAvatar(p1, map);
         return true;
     }
     exports_23("updateGame", updateGame);
@@ -2902,14 +2953,22 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         const layersCtx = initCanvasResult.layersCtx;
         let screenMultiplier = initCanvasResult.multiplier;
         const screenSize = new types_ts_10.Size(256, 256);
-        let screenSizeChangedListeners = [];
-        let keyListeners = [];
-        let mouseListeners = [];
+        const screenSizeChangedListeners = [];
+        const keyListeners = [];
+        const mouseListeners = [];
+        const focusListeners = [];
+        const fullScreenListeners = [];
         const disptachKeyEvent = (e) => {
             keyListeners.forEach((l) => l(e));
         };
         const dispatchMouseEvent = (e) => {
             mouseListeners.forEach((l) => l(e));
+        };
+        const dispatchFocusEvent = (focus) => {
+            focusListeners.forEach((l) => l(focus));
+        };
+        const dispatchFullScreenEvent = (fullscreen) => {
+            fullScreenListeners.forEach((l) => l(fullscreen));
         };
         const updateScreenSize = () => {
             screenSize.set(layers[0].width, layers[0].height);
@@ -2970,6 +3029,16 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
             drawing.setSize(screenSize.width, screenSize.height);
             screenSizeChangedListeners.forEach((l) => l(screenSize));
         };
+        const handleVisibilityChange = () => {
+            const focus = document.visibilityState === "visible";
+            dispatchFocusEvent(focus);
+        };
+        const handleFullScreenChange = () => {
+            const fullscreen = !!document.fullscreenElement;
+            dispatchFullScreenEvent(fullscreen);
+        };
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        document.addEventListener("fullscreenchange", handleFullScreenChange);
         window.addEventListener("keydown", (e) => handleKey(e, "down"));
         window.addEventListener("keyup", (e) => handleKey(e, "up"));
         window.addEventListener("keypress", (e) => handleKey(e, "press"));
@@ -3000,6 +3069,9 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
                 getScreenSize: () => screenSize,
                 onScreenSizeChanged: (listener) => {
                     screenSizeChangedListeners.push(listener);
+                },
+                onFullScreenChanged: (listener) => {
+                    fullScreenListeners.push(listener);
                 },
                 setFullscreen: (fullscreen) => {
                     const elem = document.documentElement;
@@ -3040,6 +3112,11 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
                 },
                 onMouseEvent: (listener) => {
                     mouseListeners.push(listener);
+                },
+            },
+            focus: {
+                onFocusChanged: (listener) => {
+                    focusListeners.push(listener);
                 },
             },
             init: async () => {
@@ -3396,7 +3473,7 @@ System.register("web/src/stats", [], function (exports_30, context_30) {
 });
 System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_31, context_31) {
     "use strict";
-    var types_ts_12, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, MAX_PENDING_FRAMES, engine, nativeContext, fpsLabel, game, updateFpsFrames, updateFpsTime, engineStats, firstUpdate, lastUpdateTime, timeToNextUpdate;
+    var types_ts_12, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, TARGET_FPS, MAX_PENDING_FRAMES, engine, nativeContext, fpsLabel, game, focused, updateFpsFrames, updateFpsTime, engineStats, ignoreUpdate, lastUpdateTime, timeToNextUpdate;
     var __moduleName = context_31 && context_31.id;
     function updateFps() {
         const now = performance.now();
@@ -3418,6 +3495,12 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             updateFpsFrames = 0;
         }
     }
+    async function waitNoPendingFrames() {
+        while (!nativeContext.screen.readyForNextFrame(0)) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            nativeContext.screen.processPendingFrames();
+        }
+    }
     async function init() {
         console.log("Initializing Engine");
         const assets = await assets_ts_1.initAssets();
@@ -3426,27 +3509,23 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
                 engineStats.renderNative.addSample(stats.time);
             }
         });
+        nativeContext.focus.onFocusChanged((focus) => {
+            if (focus)
+                ignoreUpdate = true;
+            focused = focus;
+        });
         engine = await engine_ts_1.buildEngine(nativeContext);
         console.log("Engine Initialized");
-        game = game_ts_1.initGame(engine, assets);
+        game = game_ts_1.initGame(engine, assets, nativeContext);
         console.log("Game Initialized");
         fpsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_12.FixedColor.White, game.statsContainer.backColor);
         fpsLabel.parent = game.statsContainer;
         //Wait engine ready
-        while (!nativeContext.screen.readyForNextFrame(0)) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            nativeContext.screen.processPendingFrames();
-        }
+        await waitNoPendingFrames();
         //Preload tiles
-        const tiles = [];
         for (const tilemap of assets.tilemaps.values()) {
-            tiles.push(...tilemap.tiles);
-        }
-        nativeContext.screen.preloadTiles(tiles);
-        //Wait preload tiles ready
-        while (!nativeContext.screen.readyForNextFrame(0)) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            nativeContext.screen.processPendingFrames();
+            nativeContext.screen.preloadTiles(tilemap.tiles);
+            await waitNoPendingFrames();
         }
         return engine;
     }
@@ -3454,7 +3533,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         updateFps();
         const preUpdateTime = performance.now();
         engine.update();
-        game_ts_1.updateGame(engine, game);
+        game_ts_1.updateGame(game);
         const postUpdateTime = performance.now();
         engineStats.update.addSample(postUpdateTime - preUpdateTime);
     }
@@ -3465,6 +3544,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         }
     }
     function update() {
+        if (!focused)
+            return;
         nativeContext.screen.processPendingFrames();
         const now = performance.now();
         const delta = now - lastUpdateTime;
@@ -3472,8 +3553,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         timeToNextUpdate -= delta;
         if (timeToNextUpdate < -1000)
             timeToNextUpdate = -1000;
-        if (firstUpdate) {
-            firstUpdate = false;
+        if (ignoreUpdate) {
+            ignoreUpdate = false;
             timeToNextUpdate = 1000 / TARGET_FPS;
             return;
         }
@@ -3534,10 +3615,11 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         execute: function () {
             TARGET_FPS = 30;
             MAX_PENDING_FRAMES = 1;
+            focused = true;
             updateFpsFrames = 0;
             updateFpsTime = performance.now();
             engineStats = new stats_ts_1.EngineStats();
-            firstUpdate = true;
+            ignoreUpdate = true;
             lastUpdateTime = 0;
             timeToNextUpdate = 0;
             run();

@@ -6,12 +6,11 @@ import { ScrollableTilesContainerWidget } from "../../engine/src/widgets/tiles-c
 export function followAvatar(
   avatar: Avatar,
   map: ScrollableTilesContainerWidget,
-  engine: Engine,
 ) {
   let newOffsetX = -avatar.x + Math.floor(map.width * 0.5);
   let newOffsetY = -avatar.y + Math.floor(map.height * 0.5);
 
-  engine.setMainScroll(
+  map.setOffset(
     Math.max(
       Math.min(newOffsetX, 0),
       -(map.tilemapsBounds.width - map.width),

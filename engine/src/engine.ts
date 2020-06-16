@@ -9,6 +9,8 @@ import {
   DrawStats,
   LayerId,
   LAYERS_COUNT,
+  EngineMouseEventType,
+  DrawNativeParams,
 } from "./types.ts";
 import { EngineContextImpl } from "./context.ts";
 import { NativeContext } from "./native-types.ts";
@@ -18,6 +20,7 @@ class EngineLayer {
   public id: LayerId;
   public invalidRects: Rect[] = [];
   public children: Widget[] = [];
+  public onNextDrawNative: ((params: DrawNativeParams) => void)[] = [];
   constructor(id: LayerId) {
     this.id = id;
   }
@@ -28,8 +31,7 @@ class EngineImpl implements Engine {
   private context: EngineContextImpl;
   private screenSize = new Size();
   private layers: EngineLayer[] = [];
-  private mainScrollable: ScrollableContainerWidget | null = null;
-  private mainScrollableOffset = new Point();
+  private scrollables = new Map<ScrollableContainerWidget, Point>();
 
   constructor(nativeContext: NativeContext) {
     this.nativeContext = nativeContext;
@@ -128,6 +130,30 @@ class EngineImpl implements Engine {
     return { drawnRects, drawnArea };
   }
 
+  private drawOnNextDrawNative(layer: EngineLayer) {
+    let drawnRects = 0;
+    let drawnArea = 0;
+
+    for (let i = 0; i < layer.onNextDrawNative.length; i++) {
+      layer.onNextDrawNative[i]({
+        context: this.nativeContext.screen,
+        invalidateRect: (rect) => layer.invalidRects.push(rect),
+      });
+
+      const stats = this.drawInvalidRects(layer);
+
+      drawnRects += stats.drawnRects;
+      drawnArea += stats.drawnArea;
+    }
+
+    layer.onNextDrawNative.length = 0;
+
+    return {
+      drawnRects,
+      drawnArea,
+    };
+  }
+
   public draw(): DrawStats {
     const startTime = performance.now();
 
@@ -140,73 +166,9 @@ class EngineImpl implements Engine {
       this.context.setTargetLayer(layer.id);
 
       let { drawnRects: drawnRects1 } = this.drawInvalidRects(layer);
-
       drawnRects += drawnRects1;
-
-      if (
-        this.mainScrollable !== null &&
-        this.mainScrollable.layer === layer.id
-      ) {
-        const dx = this.mainScrollableOffset.x - this.mainScrollable.offsetX;
-        const dy = this.mainScrollableOffset.y - this.mainScrollable.offsetY;
-        if (dx !== 0 || dy !== 0) {
-          const bbox = this.mainScrollable.getBoundingBox();
-
-          if (Math.abs(dx) < bbox.width && Math.abs(dy) < bbox.height) {
-            this.mainScrollable.setOffset(
-              this.mainScrollableOffset.x,
-              this.mainScrollableOffset.y,
-              false,
-            );
-
-            this.nativeContext.screen.scrollRect(
-              bbox.x,
-              bbox.y,
-              bbox.width,
-              bbox.height,
-              dx,
-              dy,
-            );
-
-            if (dy > 0) {
-              layer.invalidRects.push(
-                new Rect(bbox.x, bbox.y, bbox.width, dy),
-              );
-            } else if (dy < 0) {
-              layer.invalidRects.push(
-                new Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy),
-              );
-            }
-
-            if (dx > 0) {
-              layer.invalidRects.push(
-                new Rect(bbox.x, bbox.y, dx, bbox.height),
-              );
-            } else if (dx < 0) {
-              layer.invalidRects.push(
-                new Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height),
-              );
-            }
-
-            this.mainScrollable.overlappingFixedWidgets.forEach((w) => {
-              layer.invalidRects.push(
-                w.getBoundingBox().clone().expand(
-                  Math.max(Math.abs(dx), Math.abs(dy)),
-                ),
-              );
-            });
-          } else {
-            this.mainScrollable.setOffset(
-              this.mainScrollableOffset.x,
-              this.mainScrollableOffset.y,
-            );
-          }
-
-          const { drawnRects: drawnRects2 } = this.drawInvalidRects(layer);
-
-          drawnRects += drawnRects2;
-        }
-      }
+      let { drawnRects: drawnRects2 } = this.drawOnNextDrawNative(layer);
+      drawnRects += drawnRects2;
     }
 
     this.context.endDraw();
@@ -273,13 +235,11 @@ class EngineImpl implements Engine {
     this.nativeContext.destroy();
   }
 
-  public setMainScrollable(scrollable: ScrollableContainerWidget): void {
-    this.mainScrollable = scrollable;
-  }
-
-  public setMainScroll(offsetX: number, offsetY: number): void {
-    this.mainScrollableOffset.x = offsetX | 0;
-    this.mainScrollableOffset.y = offsetY | 0;
+  public onNextDrawNative(
+    layer: LayerId,
+    cb: (params: DrawNativeParams) => void,
+  ): void {
+    this.layers[layer].onNextDrawNative.push(cb);
   }
 
   public getWidgetAt(x: number, y: number): Widget | null {
@@ -295,11 +255,29 @@ class EngineImpl implements Engine {
     return null;
   }
 
+  private lastWidgetUnderMouse: Widget | null = null;
+  private lastWidgetUnderMouseEventType: EngineMouseEventType = "move";
+
   private onMouseEventInternal(e: EngineMouseEvent): void {
     const w = this.getWidgetAt(e.x, e.y);
+
+    if (
+      w !== this.lastWidgetUnderMouse &&
+      this.lastWidgetUnderMouse !== null &&
+      this.lastWidgetUnderMouseEventType !== "up"
+    ) {
+      const bbox = this.lastWidgetUnderMouse.getBoundingBox();
+      this.lastWidgetUnderMouse.mouse(
+        { type: "out", x: e.x - bbox.x, y: e.y - bbox.y },
+      );
+      this.lastWidgetUnderMouse = null;
+    }
+
     if (w !== null) {
       const bbox = w.getBoundingBox();
       w.mouse({ type: e.type, x: e.x - bbox.x, y: e.y - bbox.y });
+      this.lastWidgetUnderMouse = w;
+      this.lastWidgetUnderMouseEventType = e.type;
     }
   }
 
