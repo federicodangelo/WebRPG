@@ -30,13 +30,25 @@ export class TilemapWidget extends BaseWidget {
   }
 
   public setTileIndex(x: number, y: number, index: number) {
+    if (x < 0 || y < 0 || x >= this.tilesWidth || y >= this.tilesHeight) return;
     this.tiles[y][x] = index;
+  }
+
+  public getTileIndex(x: number, y: number) {
+    return this.tiles[y][x];
+  }
+
+  public getTile(x: number, y: number) {
+    return this.tilemap.tiles[this.getTileIndex(x, y)];
+  }
+
+  public getTileId(x: number, y: number) {
+    return this.getTile(x, y).id;
   }
 
   drawSelf(context: DrawContext) {
     const tilemap = this.tilemap;
     const tiles = this.tiles;
-    //Draw tilemap
     context.tilemap(0, 0, tilemap, tiles);
   }
 }

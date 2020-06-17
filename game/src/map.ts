@@ -56,13 +56,11 @@ export default function initMap(
   floor.sortingLayer = -3;
   floor2.sortingLayer = -2;
 
-  const floorTiles = floor.tiles;
-
   tilesContainer.addTilemap(floor);
   tilesContainer.addTilemap(floor2);
 
   const setFloor2Tile = (x: number, y: number, id: string) => {
-    floor2.tiles[y][x] = floor2.tilemap.getTile(id).index;
+    floor2.setTileIndex(x, y, floor2.tilemap.getTile(id).index);
   };
 
   const addTile = (x: number, y: number, id: string) => {
@@ -74,13 +72,16 @@ export default function initMap(
   };
 
   const getTerrainId = (x: number, y: number) => {
-    return floorTilemap.tiles[floorTiles[y][x]].id.split("-")[0];
+    return floor.getTileId(x, y).split("-")[0];
   };
 
   for (let y = 0; y < MAP_SIZE; y++) {
-    const row = floorTiles[y];
     for (let x = 0; x < MAP_SIZE; x++) {
-      row[x] = floorTilemap.getTile(randomCenterTile(mainTerrain)).index;
+      floor.setTileIndex(
+        x,
+        y,
+        floor.tilemap.getTile(randomCenterTile(mainTerrain)).index,
+      );
     }
   }
 
@@ -96,8 +97,11 @@ export default function initMap(
 
     for (let y = fy; y < ty; y++) {
       for (let x = fx; x < tx; x++) {
-        floorTiles[y][x] =
-          floorTilemap.getTile(randomCenterTile(terrainId)).index;
+        floor.setTileIndex(
+          x,
+          y,
+          floor.tilemap.getTile(randomCenterTile(terrainId)).index,
+        );
       }
     }
 
