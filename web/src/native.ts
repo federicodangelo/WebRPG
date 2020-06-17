@@ -81,14 +81,6 @@ export function getWebNativeContext(
   const initCanvasResult = initLayers();
   const useOffscreenCanvas = initCanvasResult.useOffscreenCanvas;
   const layers = initCanvasResult.layers;
-  const layersCtx: CanvasRenderingContext2D[] = !useOffscreenCanvas
-    ? layers.map((c, index) =>
-      c.getContext(
-        "2d",
-        index === 0 ? { alpha: false } : {},
-      ) as CanvasRenderingContext2D
-    )
-    : [];
   let screenMultiplier = initCanvasResult.multiplier;
   const screenSize = new Size(256, 256);
 
@@ -219,23 +211,6 @@ export function getWebNativeContext(
   window.addEventListener("resize", handleResize);
 
   const drawingDone = (result: DrawingDoneResult) => {
-    for (let i = 0; i < result.dirtyParams.length; i++) {
-      const params = result.dirtyParams[i];
-      layersCtx[params.layer].putImageData(
-        new ImageData(
-          new Uint8ClampedArray(params.pixels),
-          params.pixelsWidth,
-          params.pixelsHeight,
-        ),
-        0,
-        0,
-        params.dirtyRect.x,
-        params.dirtyRect.y,
-        params.dirtyRect.width,
-        params.dirtyRect.height,
-      );
-    }
-
     onStats(result.stats);
   };
 
@@ -251,10 +226,22 @@ export function getWebNativeContext(
       useOffscreenCanvas
         ? layers.map((c) => c.transferControlToOffscreen())
         : [],
+      useOffscreenCanvas ? [] : layers.map((c, index) =>
+        c.getContext(
+          "2d",
+          index === 0 ? { alpha: false } : {},
+        ) as CanvasRenderingContext2D
+      ),
     )
     : new DrawingReal(
       screenSize.width,
       screenSize.height,
+      layers.map((c, index) =>
+        c.getContext(
+          "2d",
+          index === 0 ? { alpha: false } : {},
+        ) as CanvasRenderingContext2D
+      ),
       drawingDone,
     );
 

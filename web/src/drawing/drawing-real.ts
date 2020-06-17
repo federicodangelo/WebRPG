@@ -35,7 +35,10 @@ class DrawingRealLayer {
     this.imageDataPixels32 = new Uint32Array(this.pixels);
   }
 
-  public setSize(width: number, height: number) {
+  public setSize(
+    width: number,
+    height: number,
+  ) {
     this.pixels = new ArrayBuffer(width * height * 4);
     this.pixelsWidth = width;
     this.pixelsHeight = height;
@@ -94,10 +97,12 @@ export class DrawingReal implements Drawing {
   private dirty = false;
   private dirtyTime = 0;
   private targetLayer: DrawingRealLayer;
+  private canvasesCtx: CanvasImageData[];
 
   public constructor(
     width: number,
     height: number,
+    canvasesCtx: CanvasImageData[],
     drawingDone: DrawingDoneFn,
   ) {
     this.drawingDone = drawingDone;
@@ -107,6 +112,7 @@ export class DrawingReal implements Drawing {
     }
 
     this.targetLayer = this.layers[0];
+    this.canvasesCtx = canvasesCtx;
   }
 
   public setSize(width: number, height: number) {
@@ -441,16 +447,36 @@ export class DrawingReal implements Drawing {
 
     for (let i = 0; i < this.layers.length; i++) {
       const layer = this.layers[i];
+      const canvas = i < this.canvasesCtx.length ? this.canvasesCtx[i] : null;
+
       if (layer.dirty) {
-        dirtyParams.push(
-          {
-            layer: i,
-            dirtyRect: layer.getDirtyRect(),
-            pixels: layer.pixels,
-            pixelsWidth: layer.pixelsWidth,
-            pixelsHeight: layer.pixelsHeight,
-          },
-        );
+        const dirtyRect = layer.getDirtyRect();
+
+        if (canvas) {
+          canvas.putImageData(
+            new ImageData(
+              new Uint8ClampedArray(layer.pixels),
+              layer.pixelsWidth,
+              layer.pixelsHeight,
+            ),
+            0,
+            0,
+            dirtyRect.x,
+            dirtyRect.y,
+            dirtyRect.width,
+            dirtyRect.height,
+          );
+        } else {
+          dirtyParams.push(
+            {
+              layer: i,
+              dirtyRect,
+              pixels: layer.pixels,
+              pixelsWidth: layer.pixelsWidth,
+              pixelsHeight: layer.pixelsHeight,
+            },
+          );
+        }
         drawnPixels += layer.dirtyPixels;
       }
     }

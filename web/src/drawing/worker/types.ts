@@ -15,6 +15,8 @@ export const enum DrawingCommandType {
 export type DrawingRequestInit = {
   type: "init";
   canvases: OffscreenCanvas[];
+  width: number;
+  height: number;
 };
 
 export type DrawingRequestBatch = {

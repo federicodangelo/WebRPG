@@ -2701,7 +2701,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 }
             };
             DrawingReal = class DrawingReal {
-                constructor(width, height, drawingDone) {
+                constructor(width, height, canvasesCtx, drawingDone) {
                     this.layers = [];
                     this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
@@ -2711,6 +2711,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
+                    this.canvasesCtx = canvasesCtx;
                 }
                 setSize(width, height) {
                     for (let i = 0; i < this.layers.length; i++) {
@@ -2991,14 +2992,21 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     let drawnPixels = 0;
                     for (let i = 0; i < this.layers.length; i++) {
                         const layer = this.layers[i];
+                        const canvas = i < this.canvasesCtx.length ? this.canvasesCtx[i] : null;
                         if (layer.dirty) {
-                            dirtyParams.push({
-                                layer: i,
-                                dirtyRect: layer.getDirtyRect(),
-                                pixels: layer.pixels,
-                                pixelsWidth: layer.pixelsWidth,
-                                pixelsHeight: layer.pixelsHeight,
-                            });
+                            const dirtyRect = layer.getDirtyRect();
+                            if (canvas) {
+                                canvas.putImageData(new ImageData(new Uint8ClampedArray(layer.pixels), layer.pixelsWidth, layer.pixelsHeight), 0, 0, dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height);
+                            }
+                            else {
+                                dirtyParams.push({
+                                    layer: i,
+                                    dirtyRect,
+                                    pixels: layer.pixels,
+                                    pixelsWidth: layer.pixelsWidth,
+                                    pixelsHeight: layer.pixelsHeight,
+                                });
+                            }
                             drawnPixels += layer.dirtyPixels;
                         }
                     }
@@ -3043,7 +3051,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
         setters: [],
         execute: function () {
             DrawingWorker = class DrawingWorker {
-                constructor(width, height, drawingDone, offscreenCanvases) {
+                constructor(width, height, drawingDone, offscreenCanvases, canvasesCtx) {
                     this.ready = false;
                     this.drawQueueLen = 0;
                     this.tileMappings = new Map();
@@ -3053,13 +3061,13 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                     this.worker = new Worker("./worker.js", { type: "module" });
                     this.worker.onmessage = (e) => this.onMessage(e.data);
                     this.drawingDone = drawingDone;
-                    this.pixelsWidth = -1;
-                    this.pixelsHeight = -1;
+                    this.pixelsWidth = width;
+                    this.pixelsHeight = height;
                     this.drawQueue = new ArrayBuffer(1024 * 1024);
                     this.drawQueue32 = new Int32Array(this.drawQueue);
                     this.drawQueueLen = 0;
                     this.offscreenCanvases = offscreenCanvases;
-                    this.setSize(width, height);
+                    this.canvasesCtx = canvasesCtx;
                 }
                 enqueueOptimizedCommand(cmd, ...args) {
                     while (this.drawQueueLen + 2 + args.length >=
@@ -3153,9 +3161,14 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                     if (this.pendingDoneResults.length > 0) {
                         const result = this.pendingDoneResults.shift();
                         for (let i = result.dirtyParams.length - 1; i >= 0; i--) {
-                            if (result.dirtyParams[i].pixelsWidth !== this.pixelsWidth ||
-                                result.dirtyParams[i].pixelsHeight !== this.pixelsHeight) {
-                                //Ignore dirty from different size, must be an old frame
+                            const params = result.dirtyParams[i];
+                            if (params.pixelsWidth === this.pixelsWidth ||
+                                params.pixelsHeight === this.pixelsHeight) {
+                                if (params.layer < this.canvasesCtx.length) {
+                                    this.canvasesCtx[params.layer].putImageData(new ImageData(new Uint8ClampedArray(params.pixels), params.pixelsWidth, params.pixelsHeight), 0, 0, params.dirtyRect.x, params.dirtyRect.y, params.dirtyRect.width, params.dirtyRect.height);
+                                }
+                            }
+                            else {
                                 result.dirtyParams.splice(i, 1);
                             }
                         }
@@ -3165,6 +3178,8 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                 dispatchInit() {
                     const init = {
                         type: "init",
+                        width: this.pixelsWidth,
+                        height: this.pixelsHeight,
                         canvases: this.offscreenCanvases,
                     };
                     this.worker.postMessage(init, this.offscreenCanvases);
@@ -3228,9 +3243,6 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         const initCanvasResult = initLayers();
         const useOffscreenCanvas = initCanvasResult.useOffscreenCanvas;
         const layers = initCanvasResult.layers;
-        const layersCtx = !useOffscreenCanvas
-            ? layers.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {}))
-            : [];
         let screenMultiplier = initCanvasResult.multiplier;
         const screenSize = new types_ts_11.Size(256, 256);
         const screenSizeChangedListeners = [];
@@ -3333,10 +3345,6 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         }
         window.addEventListener("resize", handleResize);
         const drawingDone = (result) => {
-            for (let i = 0; i < result.dirtyParams.length; i++) {
-                const params = result.dirtyParams[i];
-                layersCtx[params.layer].putImageData(new ImageData(new Uint8ClampedArray(params.pixels), params.pixelsWidth, params.pixelsHeight), 0, 0, params.dirtyRect.x, params.dirtyRect.y, params.dirtyRect.width, params.dirtyRect.height);
-            }
             onStats(result.stats);
         };
         screenSize.copyFrom(getCanvasSize());
@@ -3344,8 +3352,8 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         const drawing = USE_WORKER
             ? new drawing_worker_ts_1.DrawingWorker(screenSize.width, screenSize.height, drawingDone, useOffscreenCanvas
                 ? layers.map((c) => c.transferControlToOffscreen())
-                : [])
-            : new drawing_real_ts_1.DrawingReal(screenSize.width, screenSize.height, drawingDone);
+                : [], useOffscreenCanvas ? [] : layers.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {})))
+            : new drawing_real_ts_1.DrawingReal(screenSize.width, screenSize.height, layers.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {})), drawingDone);
         return {
             screen: {
                 getScreenSize: () => screenSize,

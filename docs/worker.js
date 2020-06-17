@@ -348,7 +348,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 }
             };
             DrawingReal = class DrawingReal {
-                constructor(width, height, drawingDone) {
+                constructor(width, height, canvasesCtx, drawingDone) {
                     this.layers = [];
                     this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
@@ -358,6 +358,7 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
+                    this.canvasesCtx = canvasesCtx;
                 }
                 setSize(width, height) {
                     for (let i = 0; i < this.layers.length; i++) {
@@ -638,14 +639,21 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                     let drawnPixels = 0;
                     for (let i = 0; i < this.layers.length; i++) {
                         const layer = this.layers[i];
+                        const canvas = i < this.canvasesCtx.length ? this.canvasesCtx[i] : null;
                         if (layer.dirty) {
-                            dirtyParams.push({
-                                layer: i,
-                                dirtyRect: layer.getDirtyRect(),
-                                pixels: layer.pixels,
-                                pixelsWidth: layer.pixelsWidth,
-                                pixelsHeight: layer.pixelsHeight,
-                            });
+                            const dirtyRect = layer.getDirtyRect();
+                            if (canvas) {
+                                canvas.putImageData(new ImageData(new Uint8ClampedArray(layer.pixels), layer.pixelsWidth, layer.pixelsHeight), 0, 0, dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height);
+                            }
+                            else {
+                                dirtyParams.push({
+                                    layer: i,
+                                    dirtyRect,
+                                    pixels: layer.pixels,
+                                    pixelsWidth: layer.pixelsWidth,
+                                    pixelsHeight: layer.pixelsHeight,
+                                });
+                            }
                             drawnPixels += layer.dirtyPixels;
                         }
                     }
@@ -684,7 +692,7 @@ System.register("web/src/drawing/worker/types", [], function (exports_5, context
 });
 System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"], function (exports_6, context_6) {
     "use strict";
-    var drawing_real_ts_1, offscreenCanvases, offscreenCanvasesCtx, drawing, tilesMapping;
+    var drawing_real_ts_1, offscreenCanvases, drawing, tilesMapping;
     var __moduleName = context_6 && context_6.id;
     function sendResponse(response) {
         if (response.type === "result") {
@@ -692,17 +700,9 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             const dirtyParamsToRemove = [];
             for (let i = 0; i < response.result.dirtyParams.length; i++) {
                 const params = response.result.dirtyParams[i];
-                if (params.layer < offscreenCanvases.length) {
-                    //Apply locally
-                    offscreenCanvasesCtx[params.layer].putImageData(new ImageData(new Uint8ClampedArray(params.pixels), params.pixelsWidth, params.pixelsHeight), 0, 0, params.dirtyRect.x, params.dirtyRect.y, params.dirtyRect.width, params.dirtyRect.height);
-                    dirtyParamsToRemove.push(params);
-                }
-                else {
-                    //Send copy main thread to apply
-                    const pixelsCopy = response.result.dirtyParams[i].pixels.slice(0);
-                    response.result.dirtyParams[i].pixels = pixelsCopy;
-                    transferables.push(pixelsCopy);
-                }
+                const pixelsCopy = params.pixels.slice(0);
+                params.pixels = pixelsCopy;
+                transferables.push(pixelsCopy);
             }
             response.result.dirtyParams = response.result.dirtyParams.filter((params) => !dirtyParamsToRemove.includes(params));
             //@ts-ignore
@@ -724,6 +724,8 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
     }
     function handleCommands(commands, commandsLen) {
         let index = 0;
+        if (drawing === null)
+            return;
         while (index < commandsLen) {
             const cmd = commands[index++];
             const argsLen = commands[index++];
@@ -778,10 +780,17 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
                 handleCommands(new Int32Array(request.commands), request.commandsLen);
                 break;
             case "init":
-                offscreenCanvases.length = 0;
-                offscreenCanvasesCtx.length = 0;
-                offscreenCanvases.push(...request.canvases);
-                offscreenCanvasesCtx.push(...request.canvases.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {})));
+                {
+                    offscreenCanvases.length = 0;
+                    offscreenCanvases.push(...request.canvases);
+                    const canvasesCtx = request.canvases.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {}));
+                    drawing = new drawing_real_ts_1.DrawingReal(request.width, request.height, canvasesCtx, (result) => {
+                        sendResponse({
+                            type: "result",
+                            result,
+                        });
+                    });
+                }
                 break;
         }
     }
@@ -793,18 +802,12 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
         ],
         execute: function () {
             offscreenCanvases = [];
-            offscreenCanvasesCtx = [];
-            drawing = new drawing_real_ts_1.DrawingReal(8, 8, (result) => {
-                sendResponse({
-                    type: "result",
-                    result,
-                });
-            });
+            drawing = null;
             tilesMapping = new Map();
             self.onmessage = (e) => {
                 const command = e.data;
                 handleRequest(command);
-                drawing.dispatch();
+                drawing?.dispatch();
             };
             sendResponse({ type: "ready" });
             console.log("Drawing Worker Started");

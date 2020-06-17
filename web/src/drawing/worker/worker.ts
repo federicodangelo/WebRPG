@@ -9,11 +9,11 @@ import {
   DrawingTile,
   DrawingDoneResult,
   DrawingDoneDirtyParams,
+  Drawing,
 } from "../types.ts";
 import { AlphaType } from "../../../../engine/src/types.ts";
 
 const offscreenCanvases: OffscreenCanvas[] = [];
-const offscreenCanvasesCtx: OffscreenCanvasRenderingContext2D[] = [];
 
 function sendResponse(response: DrawingResponse) {
   if (response.type === "result") {
@@ -22,29 +22,9 @@ function sendResponse(response: DrawingResponse) {
 
     for (let i = 0; i < response.result.dirtyParams.length; i++) {
       const params = response.result.dirtyParams[i];
-
-      if (params.layer < offscreenCanvases.length) {
-        //Apply locally
-        offscreenCanvasesCtx[params.layer].putImageData(
-          new ImageData(
-            new Uint8ClampedArray(params.pixels),
-            params.pixelsWidth,
-            params.pixelsHeight,
-          ),
-          0,
-          0,
-          params.dirtyRect.x,
-          params.dirtyRect.y,
-          params.dirtyRect.width,
-          params.dirtyRect.height,
-        );
-        dirtyParamsToRemove.push(params);
-      } else {
-        //Send copy main thread to apply
-        const pixelsCopy = response.result.dirtyParams[i].pixels.slice(0);
-        response.result.dirtyParams[i].pixels = pixelsCopy;
-        transferables.push(pixelsCopy);
-      }
+      const pixelsCopy = params.pixels.slice(0);
+      params.pixels = pixelsCopy;
+      transferables.push(pixelsCopy);
     }
 
     response.result.dirtyParams = response.result.dirtyParams.filter((params) =>
@@ -59,12 +39,7 @@ function sendResponse(response: DrawingResponse) {
   }
 }
 
-const drawing = new DrawingReal(8, 8, (result: DrawingDoneResult) => {
-  sendResponse({
-    type: "result",
-    result,
-  });
-});
+let drawing: Drawing | null = null;
 
 const tilesMapping = new Map<number, DrawingTile>();
 
@@ -80,6 +55,7 @@ function addTile(tid: TileId, tile: DrawingTile) {
 
 function handleCommands(commands: Int32Array, commandsLen: number) {
   let index = 0;
+  if (drawing === null) return;
   while (index < commandsLen) {
     const cmd: DrawingCommandType = commands[index++];
     const argsLen = commands[index++];
@@ -174,17 +150,27 @@ function handleRequest(request: DrawingRequest) {
       );
       break;
     case "init":
-      offscreenCanvases.length = 0;
-      offscreenCanvasesCtx.length = 0;
-      offscreenCanvases.push(...request.canvases);
-      offscreenCanvasesCtx.push(
-        ...request.canvases.map((c, index) =>
+      {
+        offscreenCanvases.length = 0;
+        offscreenCanvases.push(...request.canvases);
+        const canvasesCtx = request.canvases.map((c, index) =>
           c.getContext(
             "2d",
             index === 0 ? { alpha: false } : {},
           ) as OffscreenCanvasRenderingContext2D
-        ),
-      );
+        );
+        drawing = new DrawingReal(
+          request.width,
+          request.height,
+          canvasesCtx,
+          (result: DrawingDoneResult) => {
+            sendResponse({
+              type: "result",
+              result,
+            });
+          },
+        );
+      }
       break;
   }
 }
@@ -192,7 +178,7 @@ function handleRequest(request: DrawingRequest) {
 self.onmessage = (e: MessageEvent) => {
   const command: DrawingRequest = e.data;
   handleRequest(command);
-  drawing.dispatch();
+  drawing?.dispatch();
 };
 
 sendResponse({ type: "ready" });

@@ -31,6 +31,7 @@ export class DrawingWorker implements Drawing {
   private nextTileId = 0;
   private pendingDoneResults: DrawingDoneResult[] = [];
   private offscreenCanvases: OffscreenCanvas[];
+  private canvasesCtx: CanvasImageData[];
 
   private drawingDone: DrawingDoneFn;
   private pendingFrames = 0;
@@ -40,18 +41,18 @@ export class DrawingWorker implements Drawing {
     height: number,
     drawingDone: DrawingDoneFn,
     offscreenCanvases: OffscreenCanvas[],
+    canvasesCtx: CanvasImageData[],
   ) {
     this.worker = new Worker("./worker.js", { type: "module" });
     this.worker.onmessage = (e) => this.onMessage(e.data);
     this.drawingDone = drawingDone;
-    this.pixelsWidth = -1;
-    this.pixelsHeight = -1;
+    this.pixelsWidth = width;
+    this.pixelsHeight = height;
     this.drawQueue = new ArrayBuffer(1024 * 1024);
     this.drawQueue32 = new Int32Array(this.drawQueue);
     this.drawQueueLen = 0;
     this.offscreenCanvases = offscreenCanvases;
-
-    this.setSize(width, height);
+    this.canvasesCtx = canvasesCtx;
   }
 
   private enqueueOptimizedCommand(
@@ -239,11 +240,27 @@ export class DrawingWorker implements Drawing {
     if (this.pendingDoneResults.length > 0) {
       const result = this.pendingDoneResults.shift() as DrawingDoneResult;
       for (let i = result.dirtyParams.length - 1; i >= 0; i--) {
+        const params = result.dirtyParams[i];
         if (
-          result.dirtyParams[i].pixelsWidth !== this.pixelsWidth ||
-          result.dirtyParams[i].pixelsHeight !== this.pixelsHeight
+          params.pixelsWidth === this.pixelsWidth ||
+          params.pixelsHeight === this.pixelsHeight
         ) {
-          //Ignore dirty from different size, must be an old frame
+          if (params.layer < this.canvasesCtx.length) {
+            this.canvasesCtx[params.layer].putImageData(
+              new ImageData(
+                new Uint8ClampedArray(params.pixels),
+                params.pixelsWidth,
+                params.pixelsHeight,
+              ),
+              0,
+              0,
+              params.dirtyRect.x,
+              params.dirtyRect.y,
+              params.dirtyRect.width,
+              params.dirtyRect.height,
+            );
+          }
+        } else {
           result.dirtyParams.splice(i, 1);
         }
       }
@@ -254,6 +271,8 @@ export class DrawingWorker implements Drawing {
   private dispatchInit() {
     const init: DrawingRequestInit = {
       type: "init",
+      width: this.pixelsWidth,
+      height: this.pixelsHeight,
       canvases: this.offscreenCanvases,
     };
     this.worker.postMessage(init, this.offscreenCanvases);
