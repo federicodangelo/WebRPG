@@ -13,6 +13,7 @@ import {
   TileId,
   DrawingRequestBatch,
   DrawingCommandType,
+  DrawingRequestInit,
 } from "./worker/types.ts";
 
 export class DrawingWorker implements Drawing {
@@ -29,6 +30,7 @@ export class DrawingWorker implements Drawing {
   private tileMappings = new Map<DrawingTile, TileId>();
   private nextTileId = 0;
   private pendingDoneResults: DrawingDoneResult[] = [];
+  private offscreenCanvases: OffscreenCanvas[];
 
   private drawingDone: DrawingDoneFn;
   private pendingFrames = 0;
@@ -37,6 +39,7 @@ export class DrawingWorker implements Drawing {
     width: number,
     height: number,
     drawingDone: DrawingDoneFn,
+    offscreenCanvases: OffscreenCanvas[],
   ) {
     this.worker = new Worker("./worker.js", { type: "module" });
     this.worker.onmessage = (e) => this.onMessage(e.data);
@@ -46,6 +49,7 @@ export class DrawingWorker implements Drawing {
     this.drawQueue = new ArrayBuffer(1024 * 1024);
     this.drawQueue32 = new Int32Array(this.drawQueue);
     this.drawQueueLen = 0;
+    this.offscreenCanvases = offscreenCanvases;
 
     this.setSize(width, height);
   }
@@ -100,6 +104,7 @@ export class DrawingWorker implements Drawing {
     switch (response.type) {
       case "ready":
         this.ready = true;
+        this.dispatchInit();
         this.dispatch();
         break;
 
@@ -244,6 +249,14 @@ export class DrawingWorker implements Drawing {
       }
       this.drawingDone(result);
     }
+  }
+
+  private dispatchInit() {
+    const init: DrawingRequestInit = {
+      type: "init",
+      canvases: this.offscreenCanvases,
+    };
+    this.worker.postMessage(init, this.offscreenCanvases);
   }
 
   public preloadTiles(tiles: DrawingTile[]) {

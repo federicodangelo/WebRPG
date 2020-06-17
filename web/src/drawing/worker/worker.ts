@@ -5,18 +5,51 @@ import {
   TileId,
   DrawingCommandType,
 } from "./types.ts";
-import { DrawingTile, DrawingDoneResult } from "../types.ts";
+import {
+  DrawingTile,
+  DrawingDoneResult,
+  DrawingDoneDirtyParams,
+} from "../types.ts";
 import { AlphaType } from "../../../../engine/src/types.ts";
+
+const offscreenCanvases: OffscreenCanvas[] = [];
+const offscreenCanvasesCtx: OffscreenCanvasRenderingContext2D[] = [];
 
 function sendResponse(response: DrawingResponse) {
   if (response.type === "result") {
     const transferables: Transferable[] = [];
+    const dirtyParamsToRemove: DrawingDoneDirtyParams[] = [];
 
     for (let i = 0; i < response.result.dirtyParams.length; i++) {
-      const pixelsCopy = response.result.dirtyParams[i].pixels.slice(0);
-      response.result.dirtyParams[i].pixels = pixelsCopy;
-      transferables.push(pixelsCopy);
+      const params = response.result.dirtyParams[i];
+
+      if (params.layer < offscreenCanvases.length) {
+        //Apply locally
+        offscreenCanvasesCtx[params.layer].putImageData(
+          new ImageData(
+            new Uint8ClampedArray(params.pixels),
+            params.pixelsWidth,
+            params.pixelsHeight,
+          ),
+          0,
+          0,
+          params.dirtyRect.x,
+          params.dirtyRect.y,
+          params.dirtyRect.width,
+          params.dirtyRect.height,
+        );
+        dirtyParamsToRemove.push(params);
+      } else {
+        //Send copy main thread to apply
+        const pixelsCopy = response.result.dirtyParams[i].pixels.slice(0);
+        response.result.dirtyParams[i].pixels = pixelsCopy;
+        transferables.push(pixelsCopy);
+      }
     }
+
+    response.result.dirtyParams = response.result.dirtyParams.filter((params) =>
+      !dirtyParamsToRemove.includes(params)
+    );
 
     //@ts-ignore
     self.postMessage(response, transferables);
@@ -99,6 +132,10 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
           commands[index + 0],
           commands[index + 1],
         );
+        for (let i = 0; i < offscreenCanvases.length; i++) {
+          offscreenCanvases[i].width = commands[index + 0];
+          offscreenCanvases[i].height = commands[index + 1];
+        }
         break;
       case DrawingCommandType.SetLayer:
         drawing.setLayer(
@@ -134,6 +171,19 @@ function handleRequest(request: DrawingRequest) {
       handleCommands(
         new Int32Array(request.commands),
         request.commandsLen,
+      );
+      break;
+    case "init":
+      offscreenCanvases.length = 0;
+      offscreenCanvasesCtx.length = 0;
+      offscreenCanvases.push(...request.canvases);
+      offscreenCanvasesCtx.push(
+        ...request.canvases.map((c, index) =>
+          c.getContext(
+            "2d",
+            index === 0 ? { alpha: false } : {},
+          ) as OffscreenCanvasRenderingContext2D
+        ),
       );
       break;
   }

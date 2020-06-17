@@ -12,6 +12,11 @@ export const enum DrawingCommandType {
   AddTile,
 }
 
+export type DrawingRequestInit = {
+  type: "init";
+  canvases: OffscreenCanvas[];
+};
+
 export type DrawingRequestBatch = {
   type: "batch";
   // Drawing commands, Int32Array, format:
@@ -28,7 +33,9 @@ export type DrawingRequestBatch = {
   commandsLen: number;
 };
 
-export type DrawingRequest = DrawingRequestBatch;
+export type DrawingRequest =
+  | DrawingRequestInit
+  | DrawingRequestBatch;
 
 export type DrawingResponseResult = {
   type: "result";

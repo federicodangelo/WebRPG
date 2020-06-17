@@ -684,16 +684,27 @@ System.register("web/src/drawing/worker/types", [], function (exports_5, context
 });
 System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"], function (exports_6, context_6) {
     "use strict";
-    var drawing_real_ts_1, drawing, tilesMapping;
+    var drawing_real_ts_1, offscreenCanvases, offscreenCanvasesCtx, drawing, tilesMapping;
     var __moduleName = context_6 && context_6.id;
     function sendResponse(response) {
         if (response.type === "result") {
             const transferables = [];
+            const dirtyParamsToRemove = [];
             for (let i = 0; i < response.result.dirtyParams.length; i++) {
-                const pixelsCopy = response.result.dirtyParams[i].pixels.slice(0);
-                response.result.dirtyParams[i].pixels = pixelsCopy;
-                transferables.push(pixelsCopy);
+                const params = response.result.dirtyParams[i];
+                if (params.layer < offscreenCanvases.length) {
+                    //Apply locally
+                    offscreenCanvasesCtx[params.layer].putImageData(new ImageData(new Uint8ClampedArray(params.pixels), params.pixelsWidth, params.pixelsHeight), 0, 0, params.dirtyRect.x, params.dirtyRect.y, params.dirtyRect.width, params.dirtyRect.height);
+                    dirtyParamsToRemove.push(params);
+                }
+                else {
+                    //Send copy main thread to apply
+                    const pixelsCopy = response.result.dirtyParams[i].pixels.slice(0);
+                    response.result.dirtyParams[i].pixels = pixelsCopy;
+                    transferables.push(pixelsCopy);
+                }
             }
+            response.result.dirtyParams = response.result.dirtyParams.filter((params) => !dirtyParamsToRemove.includes(params));
             //@ts-ignore
             self.postMessage(response, transferables);
         }
@@ -731,6 +742,10 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
                     break;
                 case 4 /* SetSize */:
                     drawing.setSize(commands[index + 0], commands[index + 1]);
+                    for (let i = 0; i < offscreenCanvases.length; i++) {
+                        offscreenCanvases[i].width = commands[index + 0];
+                        offscreenCanvases[i].height = commands[index + 1];
+                    }
                     break;
                 case 5 /* SetLayer */:
                     drawing.setLayer(commands[index + 0]);
@@ -762,6 +777,12 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             case "batch":
                 handleCommands(new Int32Array(request.commands), request.commandsLen);
                 break;
+            case "init":
+                offscreenCanvases.length = 0;
+                offscreenCanvasesCtx.length = 0;
+                offscreenCanvases.push(...request.canvases);
+                offscreenCanvasesCtx.push(...request.canvases.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {})));
+                break;
         }
     }
     return {
@@ -771,6 +792,8 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             }
         ],
         execute: function () {
+            offscreenCanvases = [];
+            offscreenCanvasesCtx = [];
             drawing = new drawing_real_ts_1.DrawingReal(8, 8, (result) => {
                 sendResponse({
                     type: "result",

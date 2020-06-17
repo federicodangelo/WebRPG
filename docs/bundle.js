@@ -3043,7 +3043,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
         setters: [],
         execute: function () {
             DrawingWorker = class DrawingWorker {
-                constructor(width, height, drawingDone) {
+                constructor(width, height, drawingDone, offscreenCanvases) {
                     this.ready = false;
                     this.drawQueueLen = 0;
                     this.tileMappings = new Map();
@@ -3058,6 +3058,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                     this.drawQueue = new ArrayBuffer(1024 * 1024);
                     this.drawQueue32 = new Int32Array(this.drawQueue);
                     this.drawQueueLen = 0;
+                    this.offscreenCanvases = offscreenCanvases;
                     this.setSize(width, height);
                 }
                 enqueueOptimizedCommand(cmd, ...args) {
@@ -3091,6 +3092,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                     switch (response.type) {
                         case "ready":
                             this.ready = true;
+                            this.dispatchInit();
                             this.dispatch();
                             break;
                         case "result":
@@ -3160,6 +3162,13 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                         this.drawingDone(result);
                     }
                 }
+                dispatchInit() {
+                    const init = {
+                        type: "init",
+                        canvases: this.offscreenCanvases,
+                    };
+                    this.worker.postMessage(init, this.offscreenCanvases);
+                }
                 preloadTiles(tiles) {
                     for (let i = 0; i < tiles.length; i++) {
                         this.getTileId(tiles[i]);
@@ -3173,16 +3182,19 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
 });
 System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-real", "web/src/drawing/drawing-worker"], function (exports_29, context_29) {
     "use strict";
-    var types_ts_11, drawing_real_ts_1, drawing_worker_ts_1, USE_DEVICE_PIXEL_RATIO, USE_WORKER;
+    var types_ts_11, drawing_real_ts_1, drawing_worker_ts_1, USE_DEVICE_PIXEL_RATIO, USE_WORKER, USE_OFFLINE_CANVASES;
     var __moduleName = context_29 && context_29.id;
-    function updateCanvasSize(canvas, zIndex) {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+    function getCanvasSize() {
+        return new types_ts_11.Size(window.innerWidth, window.innerHeight);
+    }
+    function updateCanvasSize(canvas, width, height, zIndex, isOffscreen) {
         const devicePixelRatio = USE_DEVICE_PIXEL_RATIO
             ? Math.min(window.devicePixelRatio || 1, 2)
             : 1;
-        canvas.width = width * devicePixelRatio;
-        canvas.height = height * devicePixelRatio;
+        if (!isOffscreen) {
+            canvas.width = width * devicePixelRatio;
+            canvas.height = height * devicePixelRatio;
+        }
         if (USE_DEVICE_PIXEL_RATIO) {
             canvas.setAttribute("style", `width: ${width}px;height: ${height}px;image-rendering: pixelated;position: absolute; left: 0; top: 0; z-index:${zIndex};`);
         }
@@ -3193,7 +3205,8 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
     }
     function createFullScreenCanvas(zIndex) {
         const canvas = document.createElement("canvas");
-        const multiplier = updateCanvasSize(canvas, zIndex);
+        const { width, height } = getCanvasSize();
+        const multiplier = updateCanvasSize(canvas, width, height, zIndex, false);
         document.body.appendChild(canvas);
         return { canvas, multiplier };
     }
@@ -3201,26 +3214,23 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         const tmpGameCanvas = createFullScreenCanvas(0);
         const tmpUICanvas = createFullScreenCanvas(1);
         const gameCanvas = tmpGameCanvas.canvas;
-        const gameCtx = gameCanvas.getContext("2d", { alpha: false });
         const uiCanvas = tmpUICanvas.canvas;
-        const uiCtx = uiCanvas.getContext("2d");
         const layers = [gameCanvas, uiCanvas];
-        const layersCtx = [gameCtx, uiCtx];
-        gameCtx.imageSmoothingEnabled = false;
-        uiCtx.imageSmoothingEnabled = false;
-        return { layers, layersCtx, multiplier: tmpGameCanvas.multiplier };
-    }
-    function resizeLayers(layers) {
-        let multiplier = 1;
-        for (let i = 0; i < layers.length; i++) {
-            multiplier = Math.max(multiplier, updateCanvasSize(layers[i], i));
-        }
-        return multiplier;
+        const useOffscreenCanvas = USE_WORKER && USE_OFFLINE_CANVASES &&
+            !!gameCanvas.transferControlToOffscreen;
+        return {
+            layers,
+            multiplier: tmpGameCanvas.multiplier,
+            useOffscreenCanvas,
+        };
     }
     function getWebNativeContext(onStats) {
         const initCanvasResult = initLayers();
+        const useOffscreenCanvas = initCanvasResult.useOffscreenCanvas;
         const layers = initCanvasResult.layers;
-        const layersCtx = initCanvasResult.layersCtx;
+        const layersCtx = !useOffscreenCanvas
+            ? layers.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {}))
+            : [];
         let screenMultiplier = initCanvasResult.multiplier;
         const screenSize = new types_ts_11.Size(256, 256);
         const screenSizeChangedListeners = [];
@@ -3239,9 +3249,6 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         };
         const dispatchFullScreenEvent = (fullscreen) => {
             fullScreenListeners.forEach((l) => l(fullscreen));
-        };
-        const updateScreenSize = () => {
-            screenSize.set(layers[0].width, layers[0].height);
         };
         const handleKey = (e, type) => {
             const key = e.key;
@@ -3294,8 +3301,10 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
             mouseDown = false;
         };
         const handleResize = () => {
-            screenMultiplier = resizeLayers(layers);
-            updateScreenSize();
+            screenSize.copyFrom(getCanvasSize());
+            for (let i = 0; i < layers.length; i++) {
+                updateCanvasSize(layers[i], screenSize.width, screenSize.height, i, useOffscreenCanvas);
+            }
             drawing.setSize(screenSize.width, screenSize.height);
             screenSizeChangedListeners.forEach((l) => l(screenSize));
         };
@@ -3330,9 +3339,12 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
             }
             onStats(result.stats);
         };
-        updateScreenSize();
+        screenSize.copyFrom(getCanvasSize());
+        console.log("Using offscreen canvases: " + useOffscreenCanvas);
         const drawing = USE_WORKER
-            ? new drawing_worker_ts_1.DrawingWorker(screenSize.width, screenSize.height, drawingDone)
+            ? new drawing_worker_ts_1.DrawingWorker(screenSize.width, screenSize.height, drawingDone, useOffscreenCanvas
+                ? layers.map((c) => c.transferControlToOffscreen())
+                : [])
             : new drawing_real_ts_1.DrawingReal(screenSize.width, screenSize.height, drawingDone);
         return {
             screen: {
@@ -3389,9 +3401,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
                     focusListeners.push(listener);
                 },
             },
-            init: async () => {
-                updateScreenSize();
-            },
+            init: async () => { },
             destroy: () => { },
         };
     }
@@ -3411,6 +3421,7 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
         execute: function () {
             USE_DEVICE_PIXEL_RATIO = false;
             USE_WORKER = true;
+            USE_OFFLINE_CANVASES = true;
         }
     };
 });

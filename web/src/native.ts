@@ -12,19 +12,28 @@ import { DrawingWorker } from "./drawing/drawing-worker.ts";
 
 const USE_DEVICE_PIXEL_RATIO = false;
 const USE_WORKER = true;
+const USE_OFFLINE_CANVASES = true;
+
+function getCanvasSize() {
+  return new Size(window.innerWidth, window.innerHeight);
+}
 
 function updateCanvasSize(
   canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
   zIndex: number,
+  isOffscreen: boolean,
 ) {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
   const devicePixelRatio = USE_DEVICE_PIXEL_RATIO
     ? Math.min(window.devicePixelRatio || 1, 2)
     : 1;
 
-  canvas.width = width * devicePixelRatio;
-  canvas.height = height * devicePixelRatio;
+  if (!isOffscreen) {
+    canvas.width = width * devicePixelRatio;
+    canvas.height = height * devicePixelRatio;
+  }
+
   if (USE_DEVICE_PIXEL_RATIO) {
     canvas.setAttribute(
       "style",
@@ -42,7 +51,8 @@ function updateCanvasSize(
 
 function createFullScreenCanvas(zIndex: number) {
   const canvas = document.createElement("canvas");
-  const multiplier = updateCanvasSize(canvas, zIndex);
+  const { width, height } = getCanvasSize();
+  const multiplier = updateCanvasSize(canvas, width, height, zIndex, false);
   document.body.appendChild(canvas);
   return { canvas, multiplier };
 }
@@ -52,41 +62,34 @@ function initLayers() {
   const tmpUICanvas = createFullScreenCanvas(1);
 
   const gameCanvas = tmpGameCanvas.canvas;
-  const gameCtx = gameCanvas.getContext(
-    "2d",
-    { alpha: false },
-  ) as CanvasRenderingContext2D;
-
   const uiCanvas = tmpUICanvas.canvas;
-  const uiCtx = uiCanvas.getContext("2d") as CanvasRenderingContext2D;
-
   const layers = [gameCanvas, uiCanvas];
-  const layersCtx = [gameCtx, uiCtx];
 
-  gameCtx.imageSmoothingEnabled = false;
-  uiCtx.imageSmoothingEnabled = false;
+  const useOffscreenCanvas = USE_WORKER && USE_OFFLINE_CANVASES &&
+    !!gameCanvas.transferControlToOffscreen;
 
-  return { layers, layersCtx, multiplier: tmpGameCanvas.multiplier };
-}
-
-function resizeLayers(layers: HTMLCanvasElement[]) {
-  let multiplier = 1;
-
-  for (let i = 0; i < layers.length; i++) {
-    multiplier = Math.max(multiplier, updateCanvasSize(layers[i], i));
-  }
-
-  return multiplier;
+  return {
+    layers,
+    multiplier: tmpGameCanvas.multiplier,
+    useOffscreenCanvas,
+  };
 }
 
 export function getWebNativeContext(
   onStats: (stats: NativeDrawStats) => void,
 ): NativeContext {
   const initCanvasResult = initLayers();
+  const useOffscreenCanvas = initCanvasResult.useOffscreenCanvas;
   const layers = initCanvasResult.layers;
-  const layersCtx = initCanvasResult.layersCtx;
+  const layersCtx: CanvasRenderingContext2D[] = !useOffscreenCanvas
+    ? layers.map((c, index) =>
+      c.getContext(
+        "2d",
+        index === 0 ? { alpha: false } : {},
+      ) as CanvasRenderingContext2D
+    )
+    : [];
   let screenMultiplier = initCanvasResult.multiplier;
-
   const screenSize = new Size(256, 256);
 
   const screenSizeChangedListeners: ((size: Size) => void)[] = [];
@@ -109,10 +112,6 @@ export function getWebNativeContext(
 
   const dispatchFullScreenEvent = (fullscreen: boolean) => {
     fullScreenListeners.forEach((l) => l(fullscreen));
-  };
-
-  const updateScreenSize = () => {
-    screenSize.set(layers[0].width, layers[0].height);
   };
 
   const handleKey = (e: KeyboardEvent, type: EngineKeyEventType) => {
@@ -176,8 +175,16 @@ export function getWebNativeContext(
   };
 
   const handleResize = () => {
-    screenMultiplier = resizeLayers(layers);
-    updateScreenSize();
+    screenSize.copyFrom(getCanvasSize());
+    for (let i = 0; i < layers.length; i++) {
+      updateCanvasSize(
+        layers[i],
+        screenSize.width,
+        screenSize.height,
+        i,
+        useOffscreenCanvas,
+      );
+    }
     drawing.setSize(screenSize.width, screenSize.height);
     screenSizeChangedListeners.forEach((l) => l(screenSize));
   };
@@ -232,13 +239,18 @@ export function getWebNativeContext(
     onStats(result.stats);
   };
 
-  updateScreenSize();
+  screenSize.copyFrom(getCanvasSize());
+
+  console.log("Using offscreen canvases: " + useOffscreenCanvas);
 
   const drawing: Drawing = USE_WORKER
     ? new DrawingWorker(
       screenSize.width,
       screenSize.height,
       drawingDone,
+      useOffscreenCanvas
+        ? layers.map((c) => c.transferControlToOffscreen())
+        : [],
     )
     : new DrawingReal(
       screenSize.width,
@@ -299,9 +311,7 @@ export function getWebNativeContext(
         focusListeners.push(listener);
       },
     },
-    init: async () => {
-      updateScreenSize();
-    },
+    init: async () => {},
     destroy: () => {},
   };
 }
