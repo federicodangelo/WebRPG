@@ -10,6 +10,8 @@ import {
   DrawingDoneFn,
   DrawingTile,
   DrawingDoneDirtyParams,
+  AnyCanvasContextType,
+  AnyCanvasType,
 } from "./types.ts";
 
 class DrawingRealLayer {
@@ -97,12 +99,14 @@ export class DrawingReal implements Drawing {
   private dirty = false;
   private dirtyTime = 0;
   private targetLayer: DrawingRealLayer;
-  private canvasesCtx: CanvasImageData[];
+  private canvases: AnyCanvasType[];
+  private canvasesCtx: AnyCanvasContextType[];
+  private useCanvases = false;
 
   public constructor(
     width: number,
     height: number,
-    canvasesCtx: CanvasImageData[],
+    canvases: AnyCanvasType[],
     drawingDone: DrawingDoneFn,
   ) {
     this.drawingDone = drawingDone;
@@ -112,16 +116,30 @@ export class DrawingReal implements Drawing {
     }
 
     this.targetLayer = this.layers[0];
-    this.canvasesCtx = canvasesCtx;
+
+    this.canvases = canvases;
+    this.canvasesCtx = canvases.map((c, index) => {
+      const ctx = c.getContext(
+        "2d",
+        index === 0 ? { alpha: false } : {},
+      );
+      if (!ctx) throw new Error("Context creation error");
+      return ctx;
+    });
+    this.useCanvases = canvases.length > 0;
   }
 
   public setSize(width: number, height: number) {
     for (let i = 0; i < this.layers.length; i++) {
       this.layers[i].setSize(width, height);
     }
+    for (let i = 0; i < this.canvases.length; i++) {
+      this.canvases[i].width = width;
+      this.canvases[i].height = height;
+    }
   }
 
-  public setLayer(layer: LayerId) {
+  public setTargetLayer(layer: LayerId) {
     this.targetLayer = this.layers[layer];
   }
 
@@ -441,19 +459,18 @@ export class DrawingReal implements Drawing {
     }
   }
 
-  public dispatch() {
+  public commit() {
     const dirtyParams: DrawingDoneDirtyParams[] = [];
     let drawnPixels = 0;
 
     for (let i = 0; i < this.layers.length; i++) {
       const layer = this.layers[i];
-      const canvas = i < this.canvasesCtx.length ? this.canvasesCtx[i] : null;
 
       if (layer.dirty) {
         const dirtyRect = layer.getDirtyRect();
 
-        if (canvas) {
-          canvas.putImageData(
+        if (this.useCanvases) {
+          this.canvasesCtx[i].putImageData(
             new ImageData(
               new Uint8ClampedArray(layer.pixels),
               layer.pixelsWidth,
@@ -497,11 +514,11 @@ export class DrawingReal implements Drawing {
     return this.dirty;
   }
 
-  public readyForNextFrame() {
+  public isReadyForNextFrame() {
     return true;
   }
 
-  processPendingFrames() {}
+  public update() {}
 
   public preloadTiles(tiles: DrawingTile[]) {}
 }

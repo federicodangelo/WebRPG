@@ -9,7 +9,7 @@
     },
     "bundle-worker": {
       "tsconfig": "../tsconfig.json",
-      "cmd": "deno bundle src/drawing/worker/worker.ts ../docs/worker.js"
+      "cmd": "deno bundle src/native/screen/drawing/worker/worker.ts ../docs/worker.js"
     }
   },
   "watcher": {

@@ -311,10 +311,10 @@ function loadAvatar(
   addAnimation(avatarId + "-down-slash", 14, 0, 5, false);
   addAnimation(avatarId + "-right-slash", 15, 0, 5, false);
 
-  addAnimation(avatarId + "-up-shoot", 16, 0, 12, false, 75);
-  addAnimation(avatarId + "-left-shoot", 17, 0, 12, false, 75);
-  addAnimation(avatarId + "-down-shoot", 18, 0, 12, false, 75);
-  addAnimation(avatarId + "-right-shoot", 19, 0, 12, false, 75);
+  addAnimation(avatarId + "-up-shoot", 16, 0, 12, false, 2);
+  addAnimation(avatarId + "-left-shoot", 17, 0, 12, false, 2);
+  addAnimation(avatarId + "-down-shoot", 18, 0, 12, false, 2);
+  addAnimation(avatarId + "-right-shoot", 19, 0, 12, false, 2);
 
   addAnimation(avatarId + "-up-hurt", 20, 0, 5, false);
   addAnimation(avatarId + "-left-hurt", 20, 0, 5, false);

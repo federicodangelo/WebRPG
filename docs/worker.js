@@ -6,8 +6,7 @@
 
 // @ts-nocheck
 /* eslint-disable */
-let System, __instantiateAsync, __instantiate;
-
+let System, __instantiate;
 (() => {
   const r = new Map();
 
@@ -16,7 +15,6 @@ let System, __instantiateAsync, __instantiate;
       r.set(id, { d, f, exp: {} });
     },
   };
-
   async function dI(mid, src) {
     let id = mid.replace(/\.\w+$/i, "");
     if (id.includes("./")) {
@@ -93,17 +91,10 @@ let System, __instantiateAsync, __instantiate;
     }
     return m.exp;
   }
-
-  __instantiateAsync = async (m) => {
-    System = __instantiateAsync = __instantiate = undefined;
+  __instantiate = (m, a) => {
+    System = __instantiate = undefined;
     rF(m);
-    return gExpA(m);
-  };
-
-  __instantiate = (m) => {
-    System = __instantiateAsync = __instantiate = undefined;
-    rF(m);
-    return gExp(m);
+    return a ? gExpA(m) : gExp(m);
   };
 })();
 
@@ -281,7 +272,7 @@ System.register("engine/src/types", [], function (exports_2, context_2) {
         }
     };
 });
-System.register("web/src/drawing/types", [], function (exports_3, context_3) {
+System.register("web/src/native/screen/drawing/types", [], function (exports_3, context_3) {
     "use strict";
     var __moduleName = context_3 && context_3.id;
     return {
@@ -290,7 +281,7 @@ System.register("web/src/drawing/types", [], function (exports_3, context_3) {
         }
     };
 });
-System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_4, context_4) {
+System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types"], function (exports_4, context_4) {
     "use strict";
     var types_ts_1, DrawingRealLayer, DrawingReal;
     var __moduleName = context_4 && context_4.id;
@@ -348,24 +339,36 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 }
             };
             DrawingReal = class DrawingReal {
-                constructor(width, height, canvasesCtx, drawingDone) {
+                constructor(width, height, canvases, drawingDone) {
                     this.layers = [];
                     this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
                     this.dirtyTime = 0;
+                    this.useCanvases = false;
                     this.drawingDone = drawingDone;
                     for (let i = 0; i < types_ts_1.LAYERS_COUNT; i++) {
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
-                    this.canvasesCtx = canvasesCtx;
+                    this.canvases = canvases;
+                    this.canvasesCtx = canvases.map((c, index) => {
+                        const ctx = c.getContext("2d", index === 0 ? { alpha: false } : {});
+                        if (!ctx)
+                            throw new Error("Context creation error");
+                        return ctx;
+                    });
+                    this.useCanvases = canvases.length > 0;
                 }
                 setSize(width, height) {
                     for (let i = 0; i < this.layers.length; i++) {
                         this.layers[i].setSize(width, height);
                     }
+                    for (let i = 0; i < this.canvases.length; i++) {
+                        this.canvases[i].width = width;
+                        this.canvases[i].height = height;
+                    }
                 }
-                setLayer(layer) {
+                setTargetLayer(layer) {
                     this.targetLayer = this.layers[layer];
                 }
                 setDirty(x, y, width, height) {
@@ -634,16 +637,15 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         to += copyOffset;
                     }
                 }
-                dispatch() {
+                commit() {
                     const dirtyParams = [];
                     let drawnPixels = 0;
                     for (let i = 0; i < this.layers.length; i++) {
                         const layer = this.layers[i];
-                        const canvas = i < this.canvasesCtx.length ? this.canvasesCtx[i] : null;
                         if (layer.dirty) {
                             const dirtyRect = layer.getDirtyRect();
-                            if (canvas) {
-                                canvas.putImageData(new ImageData(new Uint8ClampedArray(layer.pixels), layer.pixelsWidth, layer.pixelsHeight), 0, 0, dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height);
+                            if (this.useCanvases) {
+                                this.canvasesCtx[i].putImageData(new ImageData(new Uint8ClampedArray(layer.pixels), layer.pixelsWidth, layer.pixelsHeight), 0, 0, dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height);
                             }
                             else {
                                 dirtyParams.push({
@@ -671,17 +673,17 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 willDispatch() {
                     return this.dirty;
                 }
-                readyForNextFrame() {
+                isReadyForNextFrame() {
                     return true;
                 }
-                processPendingFrames() { }
+                update() { }
                 preloadTiles(tiles) { }
             };
             exports_4("DrawingReal", DrawingReal);
         }
     };
 });
-System.register("web/src/drawing/worker/types", [], function (exports_5, context_5) {
+System.register("web/src/native/screen/drawing/worker/types", [], function (exports_5, context_5) {
     "use strict";
     var __moduleName = context_5 && context_5.id;
     return {
@@ -690,9 +692,9 @@ System.register("web/src/drawing/worker/types", [], function (exports_5, context
         }
     };
 });
-System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"], function (exports_6, context_6) {
+System.register("web/src/native/screen/drawing/worker/worker", ["web/src/native/screen/drawing/drawing-real"], function (exports_6, context_6) {
     "use strict";
-    var drawing_real_ts_1, offscreenCanvases, drawing, tilesMapping;
+    var drawing_real_ts_1, drawing, tilesMapping;
     var __moduleName = context_6 && context_6.id;
     function sendResponse(response) {
         if (response.type === "result") {
@@ -744,13 +746,9 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
                     break;
                 case 4 /* SetSize */:
                     drawing.setSize(commands[index + 0], commands[index + 1]);
-                    for (let i = 0; i < offscreenCanvases.length; i++) {
-                        offscreenCanvases[i].width = commands[index + 0];
-                        offscreenCanvases[i].height = commands[index + 1];
-                    }
                     break;
-                case 5 /* SetLayer */:
-                    drawing.setLayer(commands[index + 0]);
+                case 5 /* SetTargetLayer */:
+                    drawing.setTargetLayer(commands[index + 0]);
                     break;
                 case 6 /* AddTile */: {
                     const id = commands[index + 0];
@@ -781,10 +779,7 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
                 break;
             case "init":
                 {
-                    offscreenCanvases.length = 0;
-                    offscreenCanvases.push(...request.canvases);
-                    const canvasesCtx = request.canvases.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {}));
-                    drawing = new drawing_real_ts_1.DrawingReal(request.width, request.height, canvasesCtx, (result) => {
+                    drawing = new drawing_real_ts_1.DrawingReal(request.width, request.height, request.canvases, (result) => {
                         sendResponse({
                             type: "result",
                             result,
@@ -801,13 +796,12 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
             }
         ],
         execute: function () {
-            offscreenCanvases = [];
             drawing = null;
             tilesMapping = new Map();
             self.onmessage = (e) => {
                 const command = e.data;
                 handleRequest(command);
-                drawing?.dispatch();
+                drawing?.commit();
             };
             sendResponse({ type: "ready" });
             console.log("Drawing Worker Started");
@@ -815,4 +809,4 @@ System.register("web/src/drawing/worker/worker", ["web/src/drawing/drawing-real"
     };
 });
 
-__instantiate("web/src/drawing/worker/worker");
+__instantiate("web/src/native/screen/drawing/worker/worker", false);

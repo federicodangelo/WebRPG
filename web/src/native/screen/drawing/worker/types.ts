@@ -8,7 +8,7 @@ export const enum DrawingCommandType {
   FillRect,
   ScrollRect,
   SetSize,
-  SetLayer,
+  SetTargetLayer,
   AddTile,
 }
 

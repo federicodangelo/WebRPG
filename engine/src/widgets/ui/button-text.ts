@@ -1,5 +1,4 @@
-import { BaseWidget } from "../widget.ts";
-import { Color, DrawContext, Font, EngineMouseEvent } from "../../types.ts";
+import { Color, DrawContext, Font } from "../../types.ts";
 import { ButtonWidget } from "./button.ts";
 
 export class TextButtonWidget extends ButtonWidget {

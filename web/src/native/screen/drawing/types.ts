@@ -5,6 +5,11 @@ import {
 } from "engine/types.ts";
 import { NativeDrawStats } from "engine/native-types.ts";
 
+export type AnyCanvasType = HTMLCanvasElement | OffscreenCanvas;
+export type AnyCanvasContextType =
+  | CanvasRenderingContext2D
+  | OffscreenCanvasRenderingContext2D;
+
 export type DrawingDoneDirtyParams = {
   layer: LayerId;
   dirtyRect: {
@@ -34,15 +39,15 @@ export type DrawingTile = {
 };
 
 export type Drawing = {
-  processPendingFrames(): void;
+  update(): void;
 
-  readyForNextFrame(maxPendingFrames: number): boolean;
+  isReadyForNextFrame(maxPendingFrames: number): boolean;
 
   preloadTiles(t: DrawingTile[]): void;
 
   setSize(width: number, height: number): void;
 
-  setLayer(layer: LayerId): void;
+  setTargetLayer(layer: LayerId): void;
 
   tintTile(
     t: DrawingTile,
@@ -83,5 +88,5 @@ export type Drawing = {
     dy: number,
   ): void;
 
-  dispatch(): void;
+  commit(): void;
 };

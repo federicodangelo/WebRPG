@@ -11,9 +11,7 @@ import {
   DrawingDoneDirtyParams,
   Drawing,
 } from "../types.ts";
-import { AlphaType } from "../../../../engine/src/types.ts";
-
-const offscreenCanvases: OffscreenCanvas[] = [];
+import { AlphaType } from "engine/types.ts";
 
 function sendResponse(response: DrawingResponse) {
   if (response.type === "result") {
@@ -108,13 +106,9 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
           commands[index + 0],
           commands[index + 1],
         );
-        for (let i = 0; i < offscreenCanvases.length; i++) {
-          offscreenCanvases[i].width = commands[index + 0];
-          offscreenCanvases[i].height = commands[index + 1];
-        }
         break;
-      case DrawingCommandType.SetLayer:
-        drawing.setLayer(
+      case DrawingCommandType.SetTargetLayer:
+        drawing.setTargetLayer(
           commands[index + 0],
         );
         break;
@@ -151,18 +145,10 @@ function handleRequest(request: DrawingRequest) {
       break;
     case "init":
       {
-        offscreenCanvases.length = 0;
-        offscreenCanvases.push(...request.canvases);
-        const canvasesCtx = request.canvases.map((c, index) =>
-          c.getContext(
-            "2d",
-            index === 0 ? { alpha: false } : {},
-          ) as OffscreenCanvasRenderingContext2D
-        );
         drawing = new DrawingReal(
           request.width,
           request.height,
-          canvasesCtx,
+          request.canvases,
           (result: DrawingDoneResult) => {
             sendResponse({
               type: "result",
@@ -178,7 +164,7 @@ function handleRequest(request: DrawingRequest) {
 self.onmessage = (e: MessageEvent) => {
   const command: DrawingRequest = e.data;
   handleRequest(command);
-  drawing?.dispatch();
+  drawing?.commit();
 };
 
 sendResponse({ type: "ready" });

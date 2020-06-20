@@ -7,6 +7,8 @@ import {
   DrawingTile,
   DrawingDoneFn,
   DrawingDoneResult,
+  AnyCanvasType,
+  AnyCanvasContextType,
 } from "./types.ts";
 import {
   DrawingResponse,
@@ -15,6 +17,14 @@ import {
   DrawingCommandType,
   DrawingRequestInit,
 } from "./worker/types.ts";
+
+const ALLOW_OFFSCREEN_CANVASES = true;
+
+function canTransferControlToOffscreen(
+  test: AnyCanvasType,
+): test is HTMLCanvasElement {
+  return typeof (test as any)["transferControlToOffscreen"] === "function";
+}
 
 export class DrawingWorker implements Drawing {
   private ready = false;
@@ -30,8 +40,11 @@ export class DrawingWorker implements Drawing {
   private tileMappings = new Map<DrawingTile, TileId>();
   private nextTileId = 0;
   private pendingDoneResults: DrawingDoneResult[] = [];
+
+  private canvases: AnyCanvasType[];
+  private canvasesCtx: AnyCanvasContextType[];
   private offscreenCanvases: OffscreenCanvas[];
-  private canvasesCtx: CanvasImageData[];
+  private useOffscreenCanvases = false;
 
   private drawingDone: DrawingDoneFn;
   private pendingFrames = 0;
@@ -39,9 +52,8 @@ export class DrawingWorker implements Drawing {
   public constructor(
     width: number,
     height: number,
+    canvases: AnyCanvasType[],
     drawingDone: DrawingDoneFn,
-    offscreenCanvases: OffscreenCanvas[],
-    canvasesCtx: CanvasImageData[],
   ) {
     this.worker = new Worker("./worker.js", { type: "module" });
     this.worker.onmessage = (e) => this.onMessage(e.data);
@@ -51,8 +63,32 @@ export class DrawingWorker implements Drawing {
     this.drawQueue = new ArrayBuffer(1024 * 1024);
     this.drawQueue32 = new Int32Array(this.drawQueue);
     this.drawQueueLen = 0;
-    this.offscreenCanvases = offscreenCanvases;
-    this.canvasesCtx = canvasesCtx;
+    this.canvases = canvases;
+    this.canvasesCtx = [];
+    this.offscreenCanvases = [];
+
+    for (let i = 0; i < canvases.length; i++) {
+      const canvas = canvases[i];
+
+      if (ALLOW_OFFSCREEN_CANVASES && canTransferControlToOffscreen(canvas)) {
+        this.offscreenCanvases.push(canvas.transferControlToOffscreen());
+      } else {
+        const ctx = canvas.getContext(
+          "2d",
+          i === 0 ? { alpha: false } : {},
+        );
+        if (!ctx) throw new Error("Error creating context");
+        this.canvasesCtx.push(ctx);
+      }
+    }
+
+    if (this.offscreenCanvases.length > 0 && this.canvasesCtx.length > 0) {
+      throw new Error("Can't have mixed offscreen / non-offscreen canvases");
+    }
+
+    this.useOffscreenCanvases = this.offscreenCanvases.length > 0;
+
+    console.log("Using offscreen canvases: " + this.useOffscreenCanvases);
   }
 
   private enqueueOptimizedCommand(
@@ -106,7 +142,7 @@ export class DrawingWorker implements Drawing {
       case "ready":
         this.ready = true;
         this.dispatchInit();
-        this.dispatch();
+        this.commit();
         break;
 
       case "result":
@@ -122,10 +158,17 @@ export class DrawingWorker implements Drawing {
     this.pixelsHeight = height;
     if (this.ready) this.resetQueues();
     this.enqueueOptimizedCommand(DrawingCommandType.SetSize, width, height);
+
+    if (!this.useOffscreenCanvases) {
+      for (let i = 0; i < this.canvases.length; i++) {
+        this.canvases[i].width = width;
+        this.canvases[i].height = height;
+      }
+    }
   }
 
-  public setLayer(layer: LayerId) {
-    this.enqueueOptimizedCommand(DrawingCommandType.SetLayer, layer);
+  public setTargetLayer(layer: LayerId) {
+    this.enqueueOptimizedCommand(DrawingCommandType.SetTargetLayer, layer);
   }
 
   public tintTile(
@@ -210,7 +253,7 @@ export class DrawingWorker implements Drawing {
     );
   }
 
-  public dispatch() {
+  public commit() {
     if (!this.ready) return;
     if (this.drawQueueLen === 0) return;
 
@@ -231,12 +274,12 @@ export class DrawingWorker implements Drawing {
     this.drawQueueLen = 0;
   }
 
-  public readyForNextFrame(maxPendingFrames: number) {
+  public isReadyForNextFrame(maxPendingFrames: number) {
     return this.ready && this.pendingFrames <= maxPendingFrames &&
       this.pendingDoneResults.length <= maxPendingFrames;
   }
 
-  public processPendingFrames() {
+  public update() {
     if (this.pendingDoneResults.length > 0) {
       const result = this.pendingDoneResults.shift() as DrawingDoneResult;
       for (let i = result.dirtyParams.length - 1; i >= 0; i--) {
@@ -245,8 +288,9 @@ export class DrawingWorker implements Drawing {
           params.pixelsWidth === this.pixelsWidth ||
           params.pixelsHeight === this.pixelsHeight
         ) {
-          if (params.layer < this.canvasesCtx.length) {
-            this.canvasesCtx[params.layer].putImageData(
+          const ctx = this.canvasesCtx[params.layer];
+          if (ctx) {
+            ctx.putImageData(
               new ImageData(
                 new Uint8ClampedArray(params.pixels),
                 params.pixelsWidth,
@@ -282,6 +326,6 @@ export class DrawingWorker implements Drawing {
     for (let i = 0; i < tiles.length; i++) {
       this.getTileId(tiles[i]);
     }
-    this.dispatch();
+    this.commit();
   }
 }

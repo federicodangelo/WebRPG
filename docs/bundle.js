@@ -6,8 +6,7 @@
 
 // @ts-nocheck
 /* eslint-disable */
-let System, __instantiateAsync, __instantiate;
-
+let System, __instantiate;
 (() => {
   const r = new Map();
 
@@ -16,7 +15,6 @@ let System, __instantiateAsync, __instantiate;
       r.set(id, { d, f, exp: {} });
     },
   };
-
   async function dI(mid, src) {
     let id = mid.replace(/\.\w+$/i, "");
     if (id.includes("./")) {
@@ -93,17 +91,10 @@ let System, __instantiateAsync, __instantiate;
     }
     return m.exp;
   }
-
-  __instantiateAsync = async (m) => {
-    System = __instantiateAsync = __instantiate = undefined;
+  __instantiate = (m, a) => {
+    System = __instantiate = undefined;
     rF(m);
-    return gExpA(m);
-  };
-
-  __instantiate = (m) => {
-    System = __instantiateAsync = __instantiate = undefined;
-    rF(m);
-    return gExp(m);
+    return a ? gExpA(m) : gExp(m);
   };
 })();
 
@@ -2634,7 +2625,7 @@ System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/s
         }
     };
 });
-System.register("web/src/drawing/types", [], function (exports_25, context_25) {
+System.register("web/src/native/screen/drawing/types", [], function (exports_25, context_25) {
     "use strict";
     var __moduleName = context_25 && context_25.id;
     return {
@@ -2643,7 +2634,7 @@ System.register("web/src/drawing/types", [], function (exports_25, context_25) {
         }
     };
 });
-System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (exports_26, context_26) {
+System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types"], function (exports_26, context_26) {
     "use strict";
     var types_ts_10, DrawingRealLayer, DrawingReal;
     var __moduleName = context_26 && context_26.id;
@@ -2701,24 +2692,36 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 }
             };
             DrawingReal = class DrawingReal {
-                constructor(width, height, canvasesCtx, drawingDone) {
+                constructor(width, height, canvases, drawingDone) {
                     this.layers = [];
                     this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
                     this.dirtyTime = 0;
+                    this.useCanvases = false;
                     this.drawingDone = drawingDone;
                     for (let i = 0; i < types_ts_10.LAYERS_COUNT; i++) {
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
-                    this.canvasesCtx = canvasesCtx;
+                    this.canvases = canvases;
+                    this.canvasesCtx = canvases.map((c, index) => {
+                        const ctx = c.getContext("2d", index === 0 ? { alpha: false } : {});
+                        if (!ctx)
+                            throw new Error("Context creation error");
+                        return ctx;
+                    });
+                    this.useCanvases = canvases.length > 0;
                 }
                 setSize(width, height) {
                     for (let i = 0; i < this.layers.length; i++) {
                         this.layers[i].setSize(width, height);
                     }
+                    for (let i = 0; i < this.canvases.length; i++) {
+                        this.canvases[i].width = width;
+                        this.canvases[i].height = height;
+                    }
                 }
-                setLayer(layer) {
+                setTargetLayer(layer) {
                     this.targetLayer = this.layers[layer];
                 }
                 setDirty(x, y, width, height) {
@@ -2987,16 +2990,15 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                         to += copyOffset;
                     }
                 }
-                dispatch() {
+                commit() {
                     const dirtyParams = [];
                     let drawnPixels = 0;
                     for (let i = 0; i < this.layers.length; i++) {
                         const layer = this.layers[i];
-                        const canvas = i < this.canvasesCtx.length ? this.canvasesCtx[i] : null;
                         if (layer.dirty) {
                             const dirtyRect = layer.getDirtyRect();
-                            if (canvas) {
-                                canvas.putImageData(new ImageData(new Uint8ClampedArray(layer.pixels), layer.pixelsWidth, layer.pixelsHeight), 0, 0, dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height);
+                            if (this.useCanvases) {
+                                this.canvasesCtx[i].putImageData(new ImageData(new Uint8ClampedArray(layer.pixels), layer.pixelsWidth, layer.pixelsHeight), 0, 0, dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height);
                             }
                             else {
                                 dirtyParams.push({
@@ -3024,17 +3026,17 @@ System.register("web/src/drawing/drawing-real", ["engine/src/types"], function (
                 willDispatch() {
                     return this.dirty;
                 }
-                readyForNextFrame() {
+                isReadyForNextFrame() {
                     return true;
                 }
-                processPendingFrames() { }
+                update() { }
                 preloadTiles(tiles) { }
             };
             exports_26("DrawingReal", DrawingReal);
         }
     };
 });
-System.register("web/src/drawing/worker/types", [], function (exports_27, context_27) {
+System.register("web/src/native/screen/drawing/worker/types", [], function (exports_27, context_27) {
     "use strict";
     var __moduleName = context_27 && context_27.id;
     return {
@@ -3043,20 +3045,25 @@ System.register("web/src/drawing/worker/types", [], function (exports_27, contex
         }
     };
 });
-System.register("web/src/drawing/drawing-worker", [], function (exports_28, context_28) {
+System.register("web/src/native/screen/drawing/drawing-worker", [], function (exports_28, context_28) {
     "use strict";
-    var DrawingWorker;
+    var ALLOW_OFFSCREEN_CANVASES, DrawingWorker;
     var __moduleName = context_28 && context_28.id;
+    function canTransferControlToOffscreen(test) {
+        return typeof test["transferControlToOffscreen"] === "function";
+    }
     return {
         setters: [],
         execute: function () {
+            ALLOW_OFFSCREEN_CANVASES = true;
             DrawingWorker = class DrawingWorker {
-                constructor(width, height, drawingDone, offscreenCanvases, canvasesCtx) {
+                constructor(width, height, canvases, drawingDone) {
                     this.ready = false;
                     this.drawQueueLen = 0;
                     this.tileMappings = new Map();
                     this.nextTileId = 0;
                     this.pendingDoneResults = [];
+                    this.useOffscreenCanvases = false;
                     this.pendingFrames = 0;
                     this.worker = new Worker("./worker.js", { type: "module" });
                     this.worker.onmessage = (e) => this.onMessage(e.data);
@@ -3066,8 +3073,26 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                     this.drawQueue = new ArrayBuffer(1024 * 1024);
                     this.drawQueue32 = new Int32Array(this.drawQueue);
                     this.drawQueueLen = 0;
-                    this.offscreenCanvases = offscreenCanvases;
-                    this.canvasesCtx = canvasesCtx;
+                    this.canvases = canvases;
+                    this.canvasesCtx = [];
+                    this.offscreenCanvases = [];
+                    for (let i = 0; i < canvases.length; i++) {
+                        const canvas = canvases[i];
+                        if (ALLOW_OFFSCREEN_CANVASES && canTransferControlToOffscreen(canvas)) {
+                            this.offscreenCanvases.push(canvas.transferControlToOffscreen());
+                        }
+                        else {
+                            const ctx = canvas.getContext("2d", i === 0 ? { alpha: false } : {});
+                            if (!ctx)
+                                throw new Error("Error creating context");
+                            this.canvasesCtx.push(ctx);
+                        }
+                    }
+                    if (this.offscreenCanvases.length > 0 && this.canvasesCtx.length > 0) {
+                        throw new Error("Can't have mixed offscreen / non-offscreen canvases");
+                    }
+                    this.useOffscreenCanvases = this.offscreenCanvases.length > 0;
+                    console.log("Using offscreen canvases: " + this.useOffscreenCanvases);
                 }
                 enqueueOptimizedCommand(cmd, ...args) {
                     while (this.drawQueueLen + 2 + args.length >=
@@ -3101,7 +3126,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                         case "ready":
                             this.ready = true;
                             this.dispatchInit();
-                            this.dispatch();
+                            this.commit();
                             break;
                         case "result":
                             this.pendingFrames--;
@@ -3117,9 +3142,15 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                     if (this.ready)
                         this.resetQueues();
                     this.enqueueOptimizedCommand(4 /* SetSize */, width, height);
+                    if (!this.useOffscreenCanvases) {
+                        for (let i = 0; i < this.canvases.length; i++) {
+                            this.canvases[i].width = width;
+                            this.canvases[i].height = height;
+                        }
+                    }
                 }
-                setLayer(layer) {
-                    this.enqueueOptimizedCommand(5 /* SetLayer */, layer);
+                setTargetLayer(layer) {
+                    this.enqueueOptimizedCommand(5 /* SetTargetLayer */, layer);
                 }
                 tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
                     this.enqueueOptimizedCommand(1 /* TintTile */, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
@@ -3133,7 +3164,7 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                 scrollRect(x, y, width, height, dx, dy) {
                     this.enqueueOptimizedCommand(3 /* ScrollRect */, x, y, width, height, dx, dy);
                 }
-                dispatch() {
+                commit() {
                     if (!this.ready)
                         return;
                     if (this.drawQueueLen === 0)
@@ -3153,19 +3184,20 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                 resetQueues() {
                     this.drawQueueLen = 0;
                 }
-                readyForNextFrame(maxPendingFrames) {
+                isReadyForNextFrame(maxPendingFrames) {
                     return this.ready && this.pendingFrames <= maxPendingFrames &&
                         this.pendingDoneResults.length <= maxPendingFrames;
                 }
-                processPendingFrames() {
+                update() {
                     if (this.pendingDoneResults.length > 0) {
                         const result = this.pendingDoneResults.shift();
                         for (let i = result.dirtyParams.length - 1; i >= 0; i--) {
                             const params = result.dirtyParams[i];
                             if (params.pixelsWidth === this.pixelsWidth ||
                                 params.pixelsHeight === this.pixelsHeight) {
-                                if (params.layer < this.canvasesCtx.length) {
-                                    this.canvasesCtx[params.layer].putImageData(new ImageData(new Uint8ClampedArray(params.pixels), params.pixelsWidth, params.pixelsHeight), 0, 0, params.dirtyRect.x, params.dirtyRect.y, params.dirtyRect.width, params.dirtyRect.height);
+                                const ctx = this.canvasesCtx[params.layer];
+                                if (ctx) {
+                                    ctx.putImageData(new ImageData(new Uint8ClampedArray(params.pixels), params.pixelsWidth, params.pixelsHeight), 0, 0, params.dirtyRect.x, params.dirtyRect.y, params.dirtyRect.width, params.dirtyRect.height);
                                 }
                             }
                             else {
@@ -3188,79 +3220,130 @@ System.register("web/src/drawing/drawing-worker", [], function (exports_28, cont
                     for (let i = 0; i < tiles.length; i++) {
                         this.getTileId(tiles[i]);
                     }
-                    this.dispatch();
+                    this.commit();
                 }
             };
             exports_28("DrawingWorker", DrawingWorker);
         }
     };
 });
-System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-real", "web/src/drawing/drawing-worker"], function (exports_29, context_29) {
+System.register("web/src/native/screen/native-screen", ["engine/src/types", "web/src/native/screen/drawing/drawing-real", "web/src/native/screen/drawing/drawing-worker"], function (exports_29, context_29) {
     "use strict";
-    var types_ts_11, drawing_real_ts_1, drawing_worker_ts_1, USE_DEVICE_PIXEL_RATIO, USE_WORKER, USE_OFFLINE_CANVASES;
+    var types_ts_11, drawing_real_ts_1, drawing_worker_ts_1, USE_WORKER;
     var __moduleName = context_29 && context_29.id;
     function getCanvasSize() {
         return new types_ts_11.Size(window.innerWidth, window.innerHeight);
     }
-    function updateCanvasSize(canvas, width, height, zIndex, isOffscreen) {
-        const devicePixelRatio = USE_DEVICE_PIXEL_RATIO
-            ? Math.min(window.devicePixelRatio || 1, 2)
-            : 1;
-        if (!isOffscreen) {
-            canvas.width = width * devicePixelRatio;
-            canvas.height = height * devicePixelRatio;
-        }
-        if (USE_DEVICE_PIXEL_RATIO) {
-            canvas.setAttribute("style", `width: ${width}px;height: ${height}px;image-rendering: pixelated;position: absolute; left: 0; top: 0; z-index:${zIndex};`);
-        }
-        else {
-            canvas.setAttribute("style", `position: absolute; left: 0; top: 0; z-index:${zIndex};`);
-        }
-        return devicePixelRatio;
-    }
     function createFullScreenCanvas(zIndex) {
         const canvas = document.createElement("canvas");
         const { width, height } = getCanvasSize();
-        const multiplier = updateCanvasSize(canvas, width, height, zIndex, false);
+        canvas.setAttribute("style", `position: absolute; left: 0; top: 0; z-index:${zIndex};`);
+        canvas.width = width;
+        canvas.height = height;
         document.body.appendChild(canvas);
-        return { canvas, multiplier };
+        return canvas;
     }
-    function initLayers() {
-        const tmpGameCanvas = createFullScreenCanvas(0);
-        const tmpUICanvas = createFullScreenCanvas(1);
-        const gameCanvas = tmpGameCanvas.canvas;
-        const uiCanvas = tmpUICanvas.canvas;
-        const layers = [gameCanvas, uiCanvas];
-        const useOffscreenCanvas = USE_WORKER && USE_OFFLINE_CANVASES &&
-            !!gameCanvas.transferControlToOffscreen;
-        return {
-            layers,
-            multiplier: tmpGameCanvas.multiplier,
-            useOffscreenCanvas,
-        };
+    function initCanvases() {
+        const gameCanvas = createFullScreenCanvas(0);
+        const uiCanvas = createFullScreenCanvas(1);
+        const canvases = [gameCanvas, uiCanvas];
+        return canvases;
     }
-    function getWebNativeContext(onStats) {
-        const initCanvasResult = initLayers();
-        const useOffscreenCanvas = initCanvasResult.useOffscreenCanvas;
-        const layers = initCanvasResult.layers;
-        let screenMultiplier = initCanvasResult.multiplier;
+    function getWebNativeScreen(onStats) {
+        const canvases = initCanvases();
         const screenSize = new types_ts_11.Size(256, 256);
         const screenSizeChangedListeners = [];
+        const fullScreenListeners = [];
+        const dispatchFullScreenEvent = (fullscreen) => {
+            fullScreenListeners.forEach((l) => l(fullscreen));
+        };
+        const handleResize = () => {
+            screenSize.copyFrom(getCanvasSize());
+            drawing.setSize(screenSize.width, screenSize.height);
+            screenSizeChangedListeners.forEach((l) => l(screenSize));
+        };
+        const handleFullScreenChange = () => {
+            const fullscreen = !!document.fullscreenElement;
+            dispatchFullScreenEvent(fullscreen);
+        };
+        document.addEventListener("fullscreenchange", handleFullScreenChange);
+        window.addEventListener("resize", handleResize);
+        const drawingDone = (result) => {
+            onStats(result.stats);
+        };
+        screenSize.copyFrom(getCanvasSize());
+        const drawing = USE_WORKER
+            ? new drawing_worker_ts_1.DrawingWorker(screenSize.width, screenSize.height, canvases, drawingDone)
+            : new drawing_real_ts_1.DrawingReal(screenSize.width, screenSize.height, canvases, drawingDone);
+        return {
+            getScreenSize: () => screenSize,
+            onScreenSizeChanged: (listener) => {
+                screenSizeChangedListeners.push(listener);
+            },
+            onFullScreenChanged: (listener) => {
+                fullScreenListeners.push(listener);
+            },
+            setFullscreen: (fullscreen) => {
+                const elem = document.documentElement;
+                if (fullscreen) {
+                    elem.requestFullscreen();
+                }
+                else {
+                    document.exitFullscreen();
+                }
+            },
+            toggleStats: () => {
+                // deno-lint-ignore no-explicit-any
+                if (globalThis.statsPaused) {
+                    // deno-lint-ignore no-explicit-any
+                    globalThis.resumeStats();
+                }
+                else {
+                    // deno-lint-ignore no-explicit-any
+                    globalThis.pauseStats();
+                }
+            },
+            preloadTiles: drawing.preloadTiles.bind(drawing),
+            readyForNextFrame: drawing.isReadyForNextFrame.bind(drawing),
+            processPendingFrames: drawing.update.bind(drawing),
+            setTargetLayer: drawing.setTargetLayer.bind(drawing),
+            tintTile: drawing.tintTile.bind(drawing),
+            setTile: drawing.setTile.bind(drawing),
+            fillRect: drawing.fillRect.bind(drawing),
+            scrollRect: drawing.scrollRect.bind(drawing),
+            beginDraw: () => { },
+            endDraw: () => drawing.commit(),
+        };
+    }
+    exports_29("getWebNativeScreen", getWebNativeScreen);
+    return {
+        setters: [
+            function (types_ts_11_1) {
+                types_ts_11 = types_ts_11_1;
+            },
+            function (drawing_real_ts_1_1) {
+                drawing_real_ts_1 = drawing_real_ts_1_1;
+            },
+            function (drawing_worker_ts_1_1) {
+                drawing_worker_ts_1 = drawing_worker_ts_1_1;
+            }
+        ],
+        execute: function () {
+            USE_WORKER = true;
+        }
+    };
+});
+System.register("web/src/native/input/native-input", [], function (exports_30, context_30) {
+    "use strict";
+    var __moduleName = context_30 && context_30.id;
+    function getWebNativeInput() {
         const keyListeners = [];
         const mouseListeners = [];
-        const focusListeners = [];
-        const fullScreenListeners = [];
         const disptachKeyEvent = (e) => {
             keyListeners.forEach((l) => l(e));
         };
         const dispatchMouseEvent = (e) => {
             mouseListeners.forEach((l) => l(e));
-        };
-        const dispatchFocusEvent = (focus) => {
-            focusListeners.forEach((l) => l(focus));
-        };
-        const dispatchFullScreenEvent = (fullscreen) => {
-            fullScreenListeners.forEach((l) => l(fullscreen));
         };
         const handleKey = (e, type) => {
             const key = e.key;
@@ -3289,8 +3372,8 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
             mouseDown = true;
             dispatchMouseEvent({
                 type: "down",
-                x: Math.trunc(e.clientX * screenMultiplier),
-                y: Math.trunc(e.clientY * screenMultiplier),
+                x: Math.trunc(e.clientX),
+                y: Math.trunc(e.clientY),
             });
         };
         const handleMouseMove = (e) => {
@@ -3298,8 +3381,8 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
                 return;
             dispatchMouseEvent({
                 type: "move",
-                x: Math.trunc(e.clientX * screenMultiplier),
-                y: Math.trunc(e.clientY * screenMultiplier),
+                x: Math.trunc(e.clientX),
+                y: Math.trunc(e.clientY),
             });
         };
         const handleMouseUp = (e) => {
@@ -3307,29 +3390,11 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
                 return;
             dispatchMouseEvent({
                 type: "up",
-                x: Math.trunc(e.clientX * screenMultiplier),
-                y: Math.trunc(e.clientY * screenMultiplier),
+                x: Math.trunc(e.clientX),
+                y: Math.trunc(e.clientY),
             });
             mouseDown = false;
         };
-        const handleResize = () => {
-            screenSize.copyFrom(getCanvasSize());
-            for (let i = 0; i < layers.length; i++) {
-                updateCanvasSize(layers[i], screenSize.width, screenSize.height, i, useOffscreenCanvas);
-            }
-            drawing.setSize(screenSize.width, screenSize.height);
-            screenSizeChangedListeners.forEach((l) => l(screenSize));
-        };
-        const handleVisibilityChange = () => {
-            const focus = document.visibilityState === "visible";
-            dispatchFocusEvent(focus);
-        };
-        const handleFullScreenChange = () => {
-            const fullscreen = !!document.fullscreenElement;
-            dispatchFullScreenEvent(fullscreen);
-        };
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-        document.addEventListener("fullscreenchange", handleFullScreenChange);
         window.addEventListener("keydown", (e) => handleKey(e, "down"));
         window.addEventListener("keyup", (e) => handleKey(e, "up"));
         window.addEventListener("keypress", (e) => handleKey(e, "press"));
@@ -3343,100 +3408,76 @@ System.register("web/src/native", ["engine/src/types", "web/src/drawing/drawing-
             window.addEventListener("mouseup", handleMouseUp);
             window.addEventListener("mousemove", handleMouseMove);
         }
-        window.addEventListener("resize", handleResize);
-        const drawingDone = (result) => {
-            onStats(result.stats);
-        };
-        screenSize.copyFrom(getCanvasSize());
-        console.log("Using offscreen canvases: " + useOffscreenCanvas);
-        const drawing = USE_WORKER
-            ? new drawing_worker_ts_1.DrawingWorker(screenSize.width, screenSize.height, drawingDone, useOffscreenCanvas
-                ? layers.map((c) => c.transferControlToOffscreen())
-                : [], useOffscreenCanvas ? [] : layers.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {})))
-            : new drawing_real_ts_1.DrawingReal(screenSize.width, screenSize.height, layers.map((c, index) => c.getContext("2d", index === 0 ? { alpha: false } : {})), drawingDone);
         return {
-            screen: {
-                getScreenSize: () => screenSize,
-                onScreenSizeChanged: (listener) => {
-                    screenSizeChangedListeners.push(listener);
-                },
-                onFullScreenChanged: (listener) => {
-                    fullScreenListeners.push(listener);
-                },
-                setFullscreen: (fullscreen) => {
-                    const elem = document.documentElement;
-                    if (fullscreen) {
-                        elem.requestFullscreen();
-                    }
-                    else {
-                        document.exitFullscreen();
-                    }
-                },
-                toggleStats: () => {
-                    // deno-lint-ignore no-explicit-any
-                    if (globalThis.statsPaused) {
-                        // deno-lint-ignore no-explicit-any
-                        globalThis.resumeStats();
-                    }
-                    else {
-                        // deno-lint-ignore no-explicit-any
-                        globalThis.pauseStats();
-                    }
-                },
-                preloadTiles: drawing.preloadTiles.bind(drawing),
-                readyForNextFrame: drawing.readyForNextFrame.bind(drawing),
-                processPendingFrames: drawing.processPendingFrames.bind(drawing),
-                setTargetLayer: drawing.setLayer.bind(drawing),
-                tintTile: drawing.tintTile.bind(drawing),
-                setTile: drawing.setTile.bind(drawing),
-                fillRect: drawing.fillRect.bind(drawing),
-                scrollRect: drawing.scrollRect.bind(drawing),
-                beginDraw: () => { },
-                endDraw: () => {
-                    drawing.dispatch();
-                },
-            },
-            input: {
-                onKeyEvent: (listener) => {
-                    keyListeners.push(listener);
-                },
-                onMouseEvent: (listener) => {
-                    mouseListeners.push(listener);
-                },
-            },
-            focus: {
-                onFocusChanged: (listener) => {
-                    focusListeners.push(listener);
-                },
-            },
+            onKeyEvent: (listener) => keyListeners.push(listener),
+            onMouseEvent: (listener) => mouseListeners.push(listener),
+        };
+    }
+    exports_30("getWebNativeInput", getWebNativeInput);
+    return {
+        setters: [],
+        execute: function () {
+        }
+    };
+});
+System.register("web/src/native/focus/native-focus", [], function (exports_31, context_31) {
+    "use strict";
+    var __moduleName = context_31 && context_31.id;
+    function getWebNativeFocus() {
+        const focusListeners = [];
+        const dispatchFocusEvent = (focus) => {
+            focusListeners.forEach((l) => l(focus));
+        };
+        const handleVisibilityChange = () => {
+            const focus = document.visibilityState === "visible";
+            dispatchFocusEvent(focus);
+        };
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return {
+            onFocusChanged: (listener) => focusListeners.push(listener),
+        };
+    }
+    exports_31("getWebNativeFocus", getWebNativeFocus);
+    return {
+        setters: [],
+        execute: function () {
+        }
+    };
+});
+System.register("web/src/native/native", ["web/src/native/screen/native-screen", "web/src/native/input/native-input", "web/src/native/focus/native-focus"], function (exports_32, context_32) {
+    "use strict";
+    var native_screen_ts_1, native_input_ts_1, native_focus_ts_1;
+    var __moduleName = context_32 && context_32.id;
+    function getWebNativeContext(onStats) {
+        return {
+            screen: native_screen_ts_1.getWebNativeScreen(onStats),
+            input: native_input_ts_1.getWebNativeInput(),
+            focus: native_focus_ts_1.getWebNativeFocus(),
             init: async () => { },
             destroy: () => { },
         };
     }
-    exports_29("getWebNativeContext", getWebNativeContext);
+    exports_32("getWebNativeContext", getWebNativeContext);
     return {
         setters: [
-            function (types_ts_11_1) {
-                types_ts_11 = types_ts_11_1;
+            function (native_screen_ts_1_1) {
+                native_screen_ts_1 = native_screen_ts_1_1;
             },
-            function (drawing_real_ts_1_1) {
-                drawing_real_ts_1 = drawing_real_ts_1_1;
+            function (native_input_ts_1_1) {
+                native_input_ts_1 = native_input_ts_1_1;
             },
-            function (drawing_worker_ts_1_1) {
-                drawing_worker_ts_1 = drawing_worker_ts_1_1;
+            function (native_focus_ts_1_1) {
+                native_focus_ts_1 = native_focus_ts_1_1;
             }
         ],
         execute: function () {
-            USE_DEVICE_PIXEL_RATIO = false;
-            USE_WORKER = true;
-            USE_OFFLINE_CANVASES = true;
         }
     };
 });
-System.register("web/src/assets", ["engine/src/types"], function (exports_30, context_30) {
+System.register("web/src/assets", ["engine/src/types"], function (exports_33, context_33) {
     "use strict";
     var types_ts_12;
-    var __moduleName = context_30 && context_30.id;
+    var __moduleName = context_33 && context_33.id;
     async function loadImage(src) {
         return new Promise((resolve, reject) => {
             const image = new Image();
@@ -3628,10 +3669,10 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_30, co
         addAnimation(avatarId + "-left-slash", 13, 0, 5, false);
         addAnimation(avatarId + "-down-slash", 14, 0, 5, false);
         addAnimation(avatarId + "-right-slash", 15, 0, 5, false);
-        addAnimation(avatarId + "-up-shoot", 16, 0, 12, false, 75);
-        addAnimation(avatarId + "-left-shoot", 17, 0, 12, false, 75);
-        addAnimation(avatarId + "-down-shoot", 18, 0, 12, false, 75);
-        addAnimation(avatarId + "-right-shoot", 19, 0, 12, false, 75);
+        addAnimation(avatarId + "-up-shoot", 16, 0, 12, false, 2);
+        addAnimation(avatarId + "-left-shoot", 17, 0, 12, false, 2);
+        addAnimation(avatarId + "-down-shoot", 18, 0, 12, false, 2);
+        addAnimation(avatarId + "-right-shoot", 19, 0, 12, false, 2);
         addAnimation(avatarId + "-up-hurt", 20, 0, 5, false);
         addAnimation(avatarId + "-left-hurt", 20, 0, 5, false);
         addAnimation(avatarId + "-down-hurt", 20, 0, 5, false);
@@ -3702,7 +3743,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_30, co
         };
         return assets;
     }
-    exports_30("initAssets", initAssets);
+    exports_33("initAssets", initAssets);
     return {
         setters: [
             function (types_ts_12_1) {
@@ -3713,10 +3754,10 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_30, co
         }
     };
 });
-System.register("web/src/stats", [], function (exports_31, context_31) {
+System.register("web/src/stats", [], function (exports_34, context_34) {
     "use strict";
     var Stat, EngineStats;
-    var __moduleName = context_31 && context_31.id;
+    var __moduleName = context_34 && context_34.id;
     return {
         setters: [],
         execute: function () {
@@ -3756,14 +3797,14 @@ System.register("web/src/stats", [], function (exports_31, context_31) {
                     this.update.reset();
                 }
             };
-            exports_31("EngineStats", EngineStats);
+            exports_34("EngineStats", EngineStats);
         }
     };
 });
-System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/game", "web/src/native", "web/src/assets", "web/src/stats"], function (exports_32, context_32) {
+System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/game", "web/src/native/native", "web/src/assets", "web/src/stats"], function (exports_35, context_35) {
     "use strict";
     var types_ts_13, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, MAX_PENDING_FRAMES, engine, nativeContext, statsLabel, game, focused, updateStatsFrames, updateStatsTime, engineStats, ignoreUpdate, lastUpdateTime;
-    var __moduleName = context_32 && context_32.id;
+    var __moduleName = context_35 && context_35.id;
     function updateStats() {
         const now = performance.now();
         updateStatsFrames++;
@@ -3911,4 +3952,4 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     };
 });
 
-__instantiate("web/src/main");
+__instantiate("web/src/main", false);
