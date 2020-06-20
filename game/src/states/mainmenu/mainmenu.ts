@@ -9,13 +9,12 @@ import {
 } from "engine/types.ts";
 import {
   State,
-  InitParams,
+  StateParams,
   InitResult,
   StateId,
-  StateFactory,
 } from "../../types.ts";
 import {
-  initKeyboard,
+  onKeyEvent,
 } from "../../keyboard.ts";
 import { NativeContext } from "engine/native-types.ts";
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
@@ -43,7 +42,7 @@ function initState(engine: Engine, assets: Assets, native: NativeContext) {
   emptyGame.layout = { widthPercent: 100, heightPercent: 100 };
   emptyGame.backColor = rgb(0, 100, 0);
 
-  const buttonsContainer = new BoxContainerWidget(4);
+  const buttonsContainer = new BoxContainerWidget(20);
   buttonsContainer.width = 40 * font.tileWidth;
   buttonsContainer.height = 8;
   buttonsContainer.layout = {
@@ -52,8 +51,10 @@ function initState(engine: Engine, assets: Assets, native: NativeContext) {
   };
   buttonsContainer.childrenLayout = {
     type: "vertical",
-    spacing: font.tileHeight,
+    spacing: 20,
   };
+  buttonsContainer.borderColor = rgb(0, 0, 100);
+  buttonsContainer.backColor = rgb(0, 0, 100);
 
   buttonsContainer.parent = mainUI;
 
@@ -85,7 +86,6 @@ function initState(engine: Engine, assets: Assets, native: NativeContext) {
     nextStateId: null,
     widgetsToRemove: [],
   };
-  initKeyboard(engine, context);
 
   addButton("Start Game", () => {
     context.nextStateId = StateId.Game;
@@ -95,8 +95,8 @@ function initState(engine: Engine, assets: Assets, native: NativeContext) {
     context.nextStateId = StateId.Game;
   });
 
-  engine.addWidget(mainUI, LayerId.UI);
-  engine.addWidget(emptyGame, LayerId.Game);
+  engine.addWidget(mainUI);
+  engine.addWidget(emptyGame);
   context.widgetsToRemove.push(mainUI);
   context.widgetsToRemove.push(emptyGame);
 
@@ -113,11 +113,9 @@ function destroyState(engine: Engine, context: StateContext) {
 
 export function buildMainMenuState(): State {
   let context: StateContext | null = null;
-  let engine: Engine | null = null;
 
-  const init = (p: InitParams): InitResult => {
+  const init = (p: StateParams): InitResult => {
     context = initState(p.engine, p.assets, p.native);
-    engine = p.engine;
     return {};
   };
 
@@ -126,9 +124,9 @@ export function buildMainMenuState(): State {
     return null;
   };
 
-  const destroy = () => {
-    if (context && engine) {
-      destroyState(engine, context);
+  const destroy = (p: StateParams) => {
+    if (context) {
+      destroyState(p.engine, context);
       context = null;
     }
   };
@@ -138,5 +136,8 @@ export function buildMainMenuState(): State {
     init,
     update,
     destroy,
+    onKeyEvent: (e) => {
+      if (context) onKeyEvent(context, e);
+    },
   };
 }

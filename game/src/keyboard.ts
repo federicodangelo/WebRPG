@@ -1,4 +1,4 @@
-import { KeyCode, EngineKeyEvent, Engine } from "engine/types.ts";
+import { KeyCode, EngineKeyEvent } from "engine/types.ts";
 
 export type KeyDownSource = {
   keysDown: Map<string, boolean>;
@@ -25,7 +25,7 @@ export function setSpecialKeyDown(
   source.specialKeysDown.set(code, down);
 }
 
-function onKeyEvent(source: KeyDownSource, e: EngineKeyEvent) {
+export function onKeyEvent(source: KeyDownSource, e: EngineKeyEvent) {
   if (e.char) {
     if (e.type === "down") {
       setKeyDown(source, e.char, true);
@@ -39,8 +39,4 @@ function onKeyEvent(source: KeyDownSource, e: EngineKeyEvent) {
       setSpecialKeyDown(source, e.code, false);
     }
   }
-}
-
-export function initKeyboard(engine: Engine, source: KeyDownSource) {
-  engine.onKeyEvent((e) => onKeyEvent(source, e));
 }

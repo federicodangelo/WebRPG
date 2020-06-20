@@ -12,12 +12,12 @@ import { Avatar } from "./avatar.ts";
 import initMap1 from "./map.ts";
 import { randomIntervalInt } from "./random.ts";
 import { Npc } from "./npc.ts";
-import { State, InitParams, InitResult, StateId } from "../../types.ts";
+import { State, StateParams, InitResult, StateId } from "../../types.ts";
 import {
   isKeyDown,
   setSpecialKeyDown,
   isSpecialKeyDown,
-  initKeyboard,
+  onKeyEvent,
 } from "../../keyboard.ts";
 import { initUI } from "./ui.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
@@ -281,10 +281,8 @@ function initContext(
     context.nextStateId = StateId.MainMenu;
   });
 
-  engine.addWidget(map, LayerId.Game);
-  engine.addWidget(mainUI, LayerId.UI);
-  initKeyboard(engine, context);
-  engine.onMouseEvent((e) => onMouseEvent(engine, context, e));
+  engine.addWidget(map);
+  engine.addWidget(mainUI);
 
   context.widgetsToRemove.push(map);
   context.widgetsToRemove.push(mainUI);
@@ -347,11 +345,9 @@ function destroyState(engine: Engine, context: StateContext) {
 
 export function buildGameState(): State {
   let context: StateContext | null = null;
-  let engine: Engine | null = null;
 
-  const init = (p: InitParams): InitResult => {
+  const init = (p: StateParams): InitResult => {
     context = initContext(p.engine, p.assets, p.native);
-    engine = p.engine;
     return {
       statsContainer: context.statsContainer,
     };
@@ -365,9 +361,9 @@ export function buildGameState(): State {
     return null;
   };
 
-  const destroy = () => {
-    if (context && engine) {
-      destroyState(engine, context);
+  const destroy = (p: StateParams) => {
+    if (context) {
+      destroyState(p.engine, context);
       context = null;
     }
   };
@@ -377,5 +373,11 @@ export function buildGameState(): State {
     init,
     update,
     destroy,
+    onKeyEvent: (e) => {
+      if (context) onKeyEvent(context, e);
+    },
+    onMouseEvent: (e, p) => {
+      if (context) onMouseEvent(p.engine, context, e);
+    },
   };
 }

@@ -483,7 +483,7 @@ export function isUpdateable(object: any): object is Updateable {
 export interface Engine {
   draw(): DrawStats;
   update(): void;
-  addWidget(widget: Widget, layer: LayerId): void;
+  addWidget(widget: Widget): void;
   removeWidget(widget: Widget): void;
   invalidateRect(rect: Rect, layer: LayerId): void;
   onKeyEvent(listener: (e: EngineKeyEvent) => void): void;

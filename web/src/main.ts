@@ -4,7 +4,7 @@ import { LabelWidget } from "engine/widgets/ui/label.ts";
 import { buildStateFactory } from "game/state-factory.ts";
 import { getWebNativeContext } from "./native/native.ts";
 import { initAssets } from "./assets.ts";
-import { State, StateFactory, StateId } from "game/types.ts";
+import { State, StateFactory, StateId, StateParams } from "game/types.ts";
 import { NativeContext } from "engine/native-types.ts";
 import { EngineStats } from "./stats.ts";
 
@@ -13,6 +13,7 @@ const MAX_PENDING_FRAMES = 1;
 let engine: Engine;
 let native: NativeContext;
 let assets: Assets;
+let stateParams: StateParams;
 let statsLabel: LabelWidget | null = null;
 let currentState: State | null = null;
 let focused = true;
@@ -61,7 +62,7 @@ async function waitNoPendingFrames() {
 function initState(newState: State) {
   if (currentState !== null) {
     console.log(`Destroying ${currentState.id} State`);
-    currentState.destroy();
+    currentState.destroy(stateParams);
     console.log(`State ${currentState.id} Destroyed`);
     currentState = null;
     statsLabel = null;
@@ -69,9 +70,7 @@ function initState(newState: State) {
 
   console.log(`Initializing ${newState.id} State`);
 
-  const initResult = newState.init(
-    { engine, assets, native, stateFactory },
-  );
+  const initResult = newState.init(stateParams);
 
   console.log(`State ${newState.id} Initialized`);
 
@@ -101,17 +100,34 @@ async function init(mainStateId: StateId) {
   });
 
   native.focus.onFocusChanged((focus) => {
-    if (focus) ignoreUpdate = true;
+    if (focus) ignoreNextUpdate = true;
     focused = focus;
   });
 
   engine = await buildEngine(native);
+
+  engine.onKeyEvent((e) => {
+    if (currentState?.onKeyEvent) {
+      currentState?.onKeyEvent(e, stateParams);
+    }
+  });
+  engine.onMouseEvent((e) => {
+    if (currentState?.onMouseEvent) {
+      currentState?.onMouseEvent(e, stateParams);
+    }
+  });
 
   console.log("Engine Initialized");
 
   console.log("Loading Assets");
   assets = await initAssets();
   console.log("Assets Loaded");
+
+  stateParams = {
+    engine,
+    assets,
+    native,
+  };
 
   initState(stateFactory.buildState(mainStateId));
 
@@ -127,7 +143,7 @@ async function init(mainStateId: StateId) {
   return engine;
 }
 
-let ignoreUpdate = true;
+let ignoreNextUpdate = true;
 let lastUpdateTime = 0;
 
 function updateReal() {
@@ -135,7 +151,7 @@ function updateReal() {
   let nextStateId: StateId | null = null;
 
   if (currentState !== null) {
-    nextStateId = currentState.update();
+    nextStateId = currentState.update(stateParams);
   }
 
   engine.update();
@@ -146,6 +162,7 @@ function updateReal() {
 
   if (nextStateId !== null) {
     initState(stateFactory.buildState(nextStateId));
+    ignoreNextUpdate = true;
   }
 }
 
@@ -165,8 +182,8 @@ function update() {
 
   const now = performance.now();
 
-  if (ignoreUpdate) {
-    ignoreUpdate = false;
+  if (ignoreNextUpdate) {
+    ignoreNextUpdate = false;
     lastUpdateTime = now;
     return;
   }
@@ -190,7 +207,7 @@ function hideLoader() {
 }
 
 async function run() {
-  const engine = await init(StateId.Game);
+  const engine = await init(StateId.MainMenu);
 
   updateReal();
   drawReal();

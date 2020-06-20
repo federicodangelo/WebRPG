@@ -753,9 +753,8 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                     this.updateables.forEach((u) => u.onUpdate(params));
                     this.updatesCount++;
                 }
-                addWidget(widget, layer) {
-                    widget.layer = layer;
-                    this.layers[layer].children.push(widget);
+                addWidget(widget) {
+                    this.layers[widget.layer].children.push(widget);
                     widget.engine = this;
                     widget.updateLayout(this.screenSize.width, this.screenSize.height);
                     this.invalidateRect(widget.getBoundingBox(), widget.layer);
@@ -763,6 +762,7 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                 removeWidget(widget) {
                     const layer = this.layers[widget.layer];
                     const bbox = widget.getBoundingBox();
+                    widget.engine = null;
                     const ix = layer.children.indexOf(widget);
                     if (ix >= 0)
                         layer.children.splice(ix, 1);
@@ -2135,10 +2135,7 @@ System.register("game/src/keyboard", [], function (exports_20, context_20) {
             }
         }
     }
-    function initKeyboard(engine, source) {
-        engine.onKeyEvent((e) => onKeyEvent(source, e));
-    }
-    exports_20("initKeyboard", initKeyboard);
+    exports_20("onKeyEvent", onKeyEvent);
     return {
         setters: [],
         execute: function () {
@@ -2556,10 +2553,8 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
         addButton("Quit", () => {
             context.nextStateId = types_ts_10.StateId.MainMenu;
         });
-        engine.addWidget(map, 0 /* Game */);
-        engine.addWidget(mainUI, 1 /* UI */);
-        keyboard_ts_1.initKeyboard(engine, context);
-        engine.onMouseEvent((e) => onMouseEvent(engine, context, e));
+        engine.addWidget(map);
+        engine.addWidget(mainUI);
         context.widgetsToRemove.push(map);
         context.widgetsToRemove.push(mainUI);
         itemsButtons.forEach((tile, button) => {
@@ -2611,10 +2606,8 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
     }
     function buildGameState() {
         let context = null;
-        let engine = null;
         const init = (p) => {
             context = initContext(p.engine, p.assets, p.native);
-            engine = p.engine;
             return {
                 statsContainer: context.statsContainer,
             };
@@ -2626,9 +2619,9 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
             }
             return null;
         };
-        const destroy = () => {
-            if (context && engine) {
-                destroyState(engine, context);
+        const destroy = (p) => {
+            if (context) {
+                destroyState(p.engine, context);
                 context = null;
             }
         };
@@ -2637,6 +2630,14 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
             init,
             update,
             destroy,
+            onKeyEvent: (e) => {
+                if (context)
+                    keyboard_ts_1.onKeyEvent(context, e);
+            },
+            onMouseEvent: (e, p) => {
+                if (context)
+                    onMouseEvent(p.engine, context, e);
+            },
         };
     }
     exports_24("buildGameState", buildGameState);
@@ -2695,7 +2696,7 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
         emptyGame.selfSolid = false;
         emptyGame.layout = { widthPercent: 100, heightPercent: 100 };
         emptyGame.backColor = types_ts_11.rgb(0, 100, 0);
-        const buttonsContainer = new box_ts_2.BoxContainerWidget(4);
+        const buttonsContainer = new box_ts_2.BoxContainerWidget(20);
         buttonsContainer.width = 40 * font.tileWidth;
         buttonsContainer.height = 8;
         buttonsContainer.layout = {
@@ -2704,8 +2705,10 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
         };
         buttonsContainer.childrenLayout = {
             type: "vertical",
-            spacing: font.tileHeight,
+            spacing: 20,
         };
+        buttonsContainer.borderColor = types_ts_11.rgb(0, 0, 100);
+        buttonsContainer.backColor = types_ts_11.rgb(0, 0, 100);
         buttonsContainer.parent = mainUI;
         const addButton = (text, cb) => {
             const button = new button_text_ts_2.TextButtonWidget(font, text, types_ts_11.FixedColor.White, types_ts_11.FixedColor.Green, types_ts_11.FixedColor.Yellow, () => cb()).setLayout({ widthPercent: 100 });
@@ -2722,15 +2725,14 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
             nextStateId: null,
             widgetsToRemove: [],
         };
-        keyboard_ts_2.initKeyboard(engine, context);
         addButton("Start Game", () => {
             context.nextStateId = types_ts_12.StateId.Game;
         });
         addButton("Start Benchmark", () => {
             context.nextStateId = types_ts_12.StateId.Game;
         });
-        engine.addWidget(mainUI, 1 /* UI */);
-        engine.addWidget(emptyGame, 0 /* Game */);
+        engine.addWidget(mainUI);
+        engine.addWidget(emptyGame);
         context.widgetsToRemove.push(mainUI);
         context.widgetsToRemove.push(emptyGame);
         return context;
@@ -2743,10 +2745,8 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
     }
     function buildMainMenuState() {
         let context = null;
-        let engine = null;
         const init = (p) => {
             context = initState(p.engine, p.assets, p.native);
-            engine = p.engine;
             return {};
         };
         const update = () => {
@@ -2754,9 +2754,9 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
                 return updateState(context);
             return null;
         };
-        const destroy = () => {
-            if (context && engine) {
-                destroyState(engine, context);
+        const destroy = (p) => {
+            if (context) {
+                destroyState(p.engine, context);
                 context = null;
             }
         };
@@ -2765,6 +2765,10 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
             init,
             update,
             destroy,
+            onKeyEvent: (e) => {
+                if (context)
+                    keyboard_ts_2.onKeyEvent(context, e);
+            },
         };
     }
     exports_25("buildMainMenuState", buildMainMenuState);
@@ -4006,7 +4010,7 @@ System.register("web/src/stats", [], function (exports_36, context_36) {
 });
 System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/state-factory", "web/src/native/native", "web/src/assets", "game/src/types", "web/src/stats"], function (exports_37, context_37) {
     "use strict";
-    var types_ts_17, engine_ts_1, label_ts_1, state_factory_ts_1, native_ts_1, assets_ts_1, types_ts_18, stats_ts_1, MAX_PENDING_FRAMES, engine, native, assets, statsLabel, currentState, focused, stateFactory, updateStatsFrames, updateStatsTime, engineStats, ignoreUpdate, lastUpdateTime;
+    var types_ts_17, engine_ts_1, label_ts_1, state_factory_ts_1, native_ts_1, assets_ts_1, types_ts_18, stats_ts_1, MAX_PENDING_FRAMES, engine, native, assets, stateParams, statsLabel, currentState, focused, stateFactory, updateStatsFrames, updateStatsTime, engineStats, ignoreNextUpdate, lastUpdateTime;
     var __moduleName = context_37 && context_37.id;
     function updateStats() {
         const now = performance.now();
@@ -4039,13 +4043,13 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     function initState(newState) {
         if (currentState !== null) {
             console.log(`Destroying ${currentState.id} State`);
-            currentState.destroy();
+            currentState.destroy(stateParams);
             console.log(`State ${currentState.id} Destroyed`);
             currentState = null;
             statsLabel = null;
         }
         console.log(`Initializing ${newState.id} State`);
-        const initResult = newState.init({ engine, assets, native, stateFactory });
+        const initResult = newState.init(stateParams);
         console.log(`State ${newState.id} Initialized`);
         if (initResult.statsContainer) {
             statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_17.FixedColor.White, initResult.statsContainer.backColor);
@@ -4063,14 +4067,29 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         });
         native.focus.onFocusChanged((focus) => {
             if (focus)
-                ignoreUpdate = true;
+                ignoreNextUpdate = true;
             focused = focus;
         });
         engine = await engine_ts_1.buildEngine(native);
+        engine.onKeyEvent((e) => {
+            if (currentState?.onKeyEvent) {
+                currentState?.onKeyEvent(e, stateParams);
+            }
+        });
+        engine.onMouseEvent((e) => {
+            if (currentState?.onMouseEvent) {
+                currentState?.onMouseEvent(e, stateParams);
+            }
+        });
         console.log("Engine Initialized");
         console.log("Loading Assets");
         assets = await assets_ts_1.initAssets();
         console.log("Assets Loaded");
+        stateParams = {
+            engine,
+            assets,
+            native,
+        };
         initState(stateFactory.buildState(mainStateId));
         //Wait engine ready
         await waitNoPendingFrames();
@@ -4085,13 +4104,14 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         const preUpdateTime = performance.now();
         let nextStateId = null;
         if (currentState !== null) {
-            nextStateId = currentState.update();
+            nextStateId = currentState.update(stateParams);
         }
         engine.update();
         const postUpdateTime = performance.now();
         engineStats.update.addSample(postUpdateTime - preUpdateTime);
         if (nextStateId !== null) {
             initState(stateFactory.buildState(nextStateId));
+            ignoreNextUpdate = true;
         }
     }
     function drawReal() {
@@ -4106,8 +4126,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         native.screen.processPendingFrames();
         updateStats();
         const now = performance.now();
-        if (ignoreUpdate) {
-            ignoreUpdate = false;
+        if (ignoreNextUpdate) {
+            ignoreNextUpdate = false;
             lastUpdateTime = now;
             return;
         }
@@ -4127,7 +4147,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             document.body.removeChild(loader);
     }
     async function run() {
-        const engine = await init(types_ts_18.StateId.Game);
+        const engine = await init(types_ts_18.StateId.MainMenu);
         updateReal();
         drawReal();
         while (!native.screen.readyForNextFrame(0)) {
@@ -4178,7 +4198,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             updateStatsFrames = 0;
             updateStatsTime = performance.now();
             engineStats = new stats_ts_1.EngineStats();
-            ignoreUpdate = true;
+            ignoreNextUpdate = true;
             lastUpdateTime = 0;
             run();
         }

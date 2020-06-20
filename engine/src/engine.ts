@@ -199,9 +199,8 @@ class EngineImpl implements Engine {
     this.updatesCount++;
   }
 
-  public addWidget(widget: Widget, layer: LayerId): void {
-    widget.layer = layer;
-    this.layers[layer].children.push(widget);
+  public addWidget(widget: Widget): void {
+    this.layers[widget.layer].children.push(widget);
     widget.engine = this;
     widget.updateLayout(this.screenSize.width, this.screenSize.height);
     this.invalidateRect(widget.getBoundingBox(), widget.layer);
@@ -210,6 +209,7 @@ class EngineImpl implements Engine {
   public removeWidget(widget: Widget): void {
     const layer = this.layers[widget.layer];
     const bbox = widget.getBoundingBox();
+    widget.engine = null;
     const ix = layer.children.indexOf(widget);
     if (ix >= 0) layer.children.splice(ix, 1);
     this.invalidateRect(bbox, layer.id);

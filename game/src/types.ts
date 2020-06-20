@@ -1,5 +1,10 @@
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
-import { Engine, Assets } from "engine/types.ts";
+import {
+  Engine,
+  Assets,
+  EngineKeyEvent,
+  EngineMouseEvent,
+} from "engine/types.ts";
 import { NativeContext } from "engine/native-types.ts";
 
 export enum StateId {
@@ -11,18 +16,19 @@ export type InitResult = {
   statsContainer?: BoxContainerWidget;
 };
 
-export type InitParams = {
+export type StateParams = {
   engine: Engine;
   assets: Assets;
   native: NativeContext;
-  stateFactory: StateFactory;
 };
 
 export type State = {
   id: StateId;
-  init(params: InitParams): InitResult;
-  update(): StateId | null;
-  destroy(): void;
+  init(params: StateParams): InitResult;
+  update(params: StateParams): StateId | null;
+  destroy(params: StateParams): void;
+  onKeyEvent?(e: EngineKeyEvent, params: StateParams): void;
+  onMouseEvent?(e: EngineMouseEvent, params: StateParams): void;
 };
 
 export type StateFactory = {
