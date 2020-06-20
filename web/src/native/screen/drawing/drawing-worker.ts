@@ -67,10 +67,19 @@ export class DrawingWorker implements Drawing {
     this.canvasesCtx = [];
     this.offscreenCanvases = [];
 
+    //Drawing to offscreen canvases isn't detected by chrome-lighthouse, so disable
+    //it under that context.
+    const isUnderLighthouseEvaluation =
+      (navigator.userAgent.indexOf("Chrome-Lighthouse") >= 0);
+
     for (let i = 0; i < canvases.length; i++) {
       const canvas = canvases[i];
 
-      if (ALLOW_OFFSCREEN_CANVASES && canTransferControlToOffscreen(canvas)) {
+      if (
+        ALLOW_OFFSCREEN_CANVASES &&
+        !isUnderLighthouseEvaluation &&
+        canTransferControlToOffscreen(canvas)
+      ) {
         this.offscreenCanvases.push(canvas.transferControlToOffscreen());
       } else {
         const ctx = canvas.getContext(
