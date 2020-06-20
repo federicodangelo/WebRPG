@@ -20,7 +20,7 @@ const ITEM_IMAGE_BORDER = 8;
 const ITEM_WIDTH = ITEM_IMAGE_WIDTH + ITEM_IMAGE_BORDER * 2;
 const ITEM_HEIGHT = ITEM_IMAGE_HEIGHT + ITEM_IMAGE_BORDER * 2;
 
-export function initUI(engine: Engine, assets: Assets, native: NativeContext) {
+export function initUI(engine: Engine, assets: Assets) {
   const font = assets.defaultFont;
 
   const mainUI = new BoxContainerWidget(0);
@@ -167,12 +167,12 @@ export function initUI(engine: Engine, assets: Assets, native: NativeContext) {
     }
   });
 
-  native.screen.onFullScreenChanged((fullscreen) => {
+  const onFullScreenChanged = (fullscreen: boolean) => {
     if (isFullcreen !== fullscreen) {
       isFullcreen = fullscreen;
       fullScreenButton.text = isFullcreen ? "Wind" : "Full";
     }
-  });
+  };
 
   return {
     mainUI,
@@ -180,5 +180,6 @@ export function initUI(engine: Engine, assets: Assets, native: NativeContext) {
     buttonsContainer,
     addButton,
     itemsButtons,
+    onFullScreenChanged,
   };
 }

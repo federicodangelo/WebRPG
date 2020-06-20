@@ -1342,6 +1342,7 @@ System.register("game/src/types", [], function (exports_9, context_9) {
             (function (StateId) {
                 StateId["MainMenu"] = "MainMenu";
                 StateId["Game"] = "Game";
+                StateId["Benchmark"] = "Benchmark";
             })(StateId || (StateId = {}));
             exports_9("StateId", StateId);
         }
@@ -1894,24 +1895,61 @@ System.register("engine/src/widgets/game/tiles-container", ["engine/src/types", 
         }
     };
 });
+//Using code from https://github.com/michaeldzjap/rand-seed
 System.register("game/src/states/game/random", [], function (exports_17, context_17) {
     "use strict";
+    var _a, _b, _c, _d;
     var __moduleName = context_17 && context_17.id;
-    function random(arr) {
-        return arr[(Math.random() * arr.length) | 0];
+    function buildSeedFunc(str) {
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < str.length; i++) {
+            h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+        }
+        return () => {
+            h += h << 13;
+            h ^= h >>> 7;
+            h += h << 3;
+            h ^= h >>> 17;
+            return (h += h << 5) >>> 0;
+        };
     }
-    exports_17("random", random);
+    function setRandomSeed(str) {
+        const seed = buildSeedFunc(str);
+        _a = seed();
+        _b = seed();
+        _c = seed();
+        _d = seed();
+    }
+    exports_17("setRandomSeed", setRandomSeed);
+    function randomNumber() {
+        const t = _b << 9;
+        let r = _a * 5;
+        r = (r << 7 | r >>> 25) * 9;
+        _c ^= _a;
+        _d ^= _b;
+        _b ^= _c;
+        _a ^= _d;
+        _c ^= t;
+        _d = _d << 11 | _d >>> 21;
+        return (r >>> 0) / 4294967296;
+    }
+    exports_17("randomNumber", randomNumber);
+    function randomFromArray(arr) {
+        return arr[(randomNumber() * arr.length) | 0];
+    }
+    exports_17("randomFromArray", randomFromArray);
     function randomIntervalInt(min, max) {
-        return (min | 0) + ((Math.random() * (max - min)) | 0);
+        return (min | 0) + ((randomNumber() * (max - min)) | 0);
     }
     exports_17("randomIntervalInt", randomIntervalInt);
     function randomDirection() {
-        return Math.round(Math.random() * 2 - 1) | 0;
+        return Math.round(randomNumber() * 2 - 1) | 0;
     }
     exports_17("randomDirection", randomDirection);
     return {
         setters: [],
         execute: function () {
+            setRandomSeed("hello world");
         }
     };
 });
@@ -1920,21 +1958,22 @@ System.register("game/src/states/game/map", ["engine/src/types", "engine/src/wid
     var types_ts_7, tile_ts_1, tilemap_ts_1, random_ts_1, MAP_SIZE, DECOS_COUNT, ALT_TERRAINS_COUNT, ALT_TERRAINS_MIN_SIZE, ALT_TERRAINS_MAX_SIZE, mainTerrain, altTerrains;
     var __moduleName = context_18 && context_18.id;
     function randomDecoTile(terrainId) {
-        if (Math.random() > 0.5) {
+        if (random_ts_1.randomNumber() > 0.5) {
             return terrainId + "-deco1";
         }
         return terrainId + "-deco2";
     }
     function randomCenterTile(terrainId) {
-        if (Math.random() > 0.1) {
+        if (random_ts_1.randomNumber() > 0.1) {
             return terrainId + "-center";
         }
-        if (Math.random() > 0.5) {
+        if (random_ts_1.randomNumber() > 0.5) {
             return terrainId + "-center2";
         }
         return terrainId + "-center3";
     }
-    function initMap(tilesContainer, assets) {
+    function initMap(tilesContainer, assets, seed = "First Map SS") {
+        random_ts_1.setRandomSeed(seed);
         const floorTilemap = assets.getTilemap("terrain");
         const floor = new tilemap_ts_1.TilemapWidget(floorTilemap, MAP_SIZE, MAP_SIZE, 0);
         const floor2 = new tilemap_ts_1.TilemapWidget(floorTilemap, MAP_SIZE, MAP_SIZE, -1);
@@ -1991,15 +2030,15 @@ System.register("game/src/states/game/map", ["engine/src/types", "engine/src/wid
         for (let i = 0; i < ALT_TERRAINS_COUNT; i++) {
             const w = random_ts_1.randomIntervalInt(ALT_TERRAINS_MIN_SIZE, ALT_TERRAINS_MAX_SIZE);
             const h = random_ts_1.randomIntervalInt(ALT_TERRAINS_MIN_SIZE, ALT_TERRAINS_MAX_SIZE);
-            const terrainId = random_ts_1.random(altTerrains);
+            const terrainId = random_ts_1.randomFromArray(altTerrains);
             const fx = random_ts_1.randomIntervalInt(1, MAP_SIZE - w - 1);
             const fy = random_ts_1.randomIntervalInt(1, MAP_SIZE - h - 1);
             const r = new types_ts_7.Rect(fx, fy, w, h);
             if (altTerrainsRectsOverflow.some((a) => a.intersects(r)))
                 continue;
             addAltTerrain(terrainId, fx, fy, w, h);
-            if (Math.random() > 0.5) {
-                const nestedTerrainId = random_ts_1.random(altTerrains);
+            if (random_ts_1.randomNumber() > 0.5) {
+                const nestedTerrainId = random_ts_1.randomFromArray(altTerrains);
                 if (nestedTerrainId !== terrainId) {
                     addAltTerrain(nestedTerrainId, fx + 2, fy + 2, w - 4, h - 4);
                 }
@@ -2248,7 +2287,7 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
     "use strict";
     var types_ts_8, button_ts_2, box_ts_1, scrollable_ts_2, tile_ts_2, button_text_ts_1, ITEM_IMAGE_WIDTH, ITEM_IMAGE_HEIGHT, ITEM_IMAGE_BORDER, ITEM_WIDTH, ITEM_HEIGHT;
     var __moduleName = context_23 && context_23.id;
-    function initUI(engine, assets, native) {
+    function initUI(engine, assets) {
         const font = assets.defaultFont;
         const mainUI = new box_ts_1.BoxContainerWidget(0);
         mainUI.layer = 1 /* UI */;
@@ -2350,18 +2389,19 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
                 engine.setFullscreen(true);
             }
         });
-        native.screen.onFullScreenChanged((fullscreen) => {
+        const onFullScreenChanged = (fullscreen) => {
             if (isFullcreen !== fullscreen) {
                 isFullcreen = fullscreen;
                 fullScreenButton.text = isFullcreen ? "Wind" : "Full";
             }
-        });
+        };
         return {
             mainUI,
             statsContainer,
             buttonsContainer,
             addButton,
             itemsButtons,
+            onFullScreenChanged,
         };
     }
     exports_23("initUI", initUI);
@@ -2508,13 +2548,12 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
         let newOffsetY = -avatar.y + Math.floor(map.height * 0.5);
         map.setOffset(Math.max(Math.min(newOffsetX, 0), -(map.tilemapsBounds.width - map.width)), Math.max(Math.min(newOffsetY, 0), -(map.tilemapsBounds.height - map.height)));
     }
-    function initContext(engine, assets, native) {
-        const { mainUI, statsContainer, buttonsContainer, itemsButtons, addButton } = ui_ts_1.initUI(engine, assets, native);
+    function initContext(engine, assets) {
+        const { mainUI, statsContainer, buttonsContainer, itemsButtons, addButton, onFullScreenChanged, } = ui_ts_1.initUI(engine, assets);
         const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
         map.layer = 0 /* Game */;
         map.layout = { heightPercent: 100, widthPercent: 100 };
         map.setChildrenLayout({ type: "none" });
-        const scrollable = map;
         const p1 = new avatar_ts_2.Avatar("female1", assets);
         const p2 = new avatar_ts_2.Avatar("female2", assets);
         const npcs = [];
@@ -2537,7 +2576,6 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
         const context = {
             statsContainer,
             buttonsContainer,
-            scrollable,
             avatars,
             map,
             floorLayer1: mapLayers.floor,
@@ -2549,6 +2587,7 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
             specialKeysDown: new Map(),
             nextStateId: null,
             widgetsToRemove: [],
+            onFullScreenChanged,
         };
         addButton("Quit", () => {
             context.nextStateId = types_ts_10.StateId.MainMenu;
@@ -2607,7 +2646,7 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
     function buildGameState() {
         let context = null;
         const init = (p) => {
-            context = initContext(p.engine, p.assets, p.native);
+            context = initContext(p.engine, p.assets);
             return {
                 statsContainer: context.statsContainer,
             };
@@ -2637,6 +2676,10 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
             onMouseEvent: (e, p) => {
                 if (context)
                     onMouseEvent(p.engine, context, e);
+            },
+            onFullScreenChanged: (fs) => {
+                if (context)
+                    context.onFullScreenChanged(fs);
             },
         };
     }
@@ -2729,7 +2772,7 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
             context.nextStateId = types_ts_12.StateId.Game;
         });
         addButton("Start Benchmark", () => {
-            context.nextStateId = types_ts_12.StateId.Game;
+            context.nextStateId = types_ts_12.StateId.Benchmark;
         });
         engine.addWidget(mainUI);
         engine.addWidget(emptyGame);
@@ -2794,56 +2837,242 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
         }
     };
 });
-System.register("game/src/state-factory", ["game/src/types", "game/src/states/game/game", "game/src/states/mainmenu/mainmenu"], function (exports_26, context_26) {
+System.register("game/src/states/benchmark/benchmark", ["engine/src/types", "game/src/types", "game/src/keyboard", "engine/src/widgets/ui/box", "engine/src/widgets/ui/button-text", "game/src/states/game/map", "engine/src/widgets/game/tiles-container", "game/src/states/game/avatar", "game/src/states/game/random"], function (exports_26, context_26) {
     "use strict";
-    var types_ts_13, game_ts_1, mainmenu_ts_1;
+    var types_ts_13, types_ts_14, keyboard_ts_3, box_ts_3, button_text_ts_3, map_ts_2, tiles_container_ts_2, avatar_ts_3, random_ts_4;
     var __moduleName = context_26 && context_26.id;
-    function buildStateFactory() {
+    function initState(engine, assets) {
+        const font = assets.defaultFont;
+        const mainUI = new box_ts_3.BoxContainerWidget(0);
+        mainUI.layer = 1 /* UI */;
+        mainUI.selfSolid = false;
+        mainUI.layout = { widthPercent: 100, heightPercent: 100 };
+        mainUI.backColor = types_ts_13.FixedColor.Transparent;
+        const emptyGame = new box_ts_3.BoxContainerWidget(0);
+        emptyGame.layer = 0 /* Game */;
+        emptyGame.selfSolid = false;
+        emptyGame.layout = { widthPercent: 100, heightPercent: 100 };
+        emptyGame.backColor = types_ts_13.rgb(0, 100, 0);
+        const buttonsContainer = new box_ts_3.BoxContainerWidget(4);
+        buttonsContainer.width = 8 * font.tileWidth;
+        buttonsContainer.height = 8;
+        buttonsContainer.layout = {
+            verticalSpacingPercent: 100,
+            horizontalSpacingPercent: 100,
+        };
+        buttonsContainer.childrenLayout = {
+            type: "vertical",
+            spacing: 20,
+        };
+        buttonsContainer.borderColor = types_ts_13.rgb(0, 0, 100);
+        buttonsContainer.backColor = types_ts_13.rgb(0, 0, 100);
+        buttonsContainer.parent = mainUI;
+        const addButton = (text, cb) => {
+            const button = new button_text_ts_3.TextButtonWidget(font, text, types_ts_13.FixedColor.White, types_ts_13.FixedColor.Green, types_ts_13.FixedColor.Yellow, () => cb()).setLayout({ widthPercent: 100 });
+            button.parent = buttonsContainer;
+            buttonsContainer.height = buttonsContainer.border * 2 +
+                buttonsContainer.children.map((x) => x.height).reduce((acc, v) => acc + v, 0) +
+                Math.max(buttonsContainer.children.length - 1, 0) *
+                    (buttonsContainer.childrenLayout?.spacing || 0);
+            return button;
+        };
+        let isFullcreen = false;
+        const fullScreenButton = addButton("Full", () => {
+            if (isFullcreen) {
+                engine.setFullscreen(false);
+            }
+            else {
+                engine.setFullscreen(true);
+            }
+        });
+        const onFullScreenChanged = (fullscreen) => {
+            if (isFullcreen !== fullscreen) {
+                isFullcreen = fullscreen;
+                fullScreenButton.text = isFullcreen ? "Wind" : "Full";
+            }
+        };
+        const statsContainer = new box_ts_3.BoxContainerWidget(4);
+        statsContainer.solid = false;
+        statsContainer.width = 14 * font.tileWidth + statsContainer.border * 2;
+        statsContainer.height = 5 * font.tileHeight + statsContainer.border * 2;
+        statsContainer.layout = {
+            verticalSpacingPercent: 0,
+            horizontalSpacingPercent: 100,
+        };
+        statsContainer.borderColor = types_ts_13.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
+        statsContainer.backColor = types_ts_13.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
+        statsContainer.parent = mainUI;
+        const map = new tiles_container_ts_2.ScrollableTilesContainerWidget();
+        map.layer = 0 /* Game */;
+        map.layout = { heightPercent: 100, widthPercent: 100 };
+        map.setChildrenLayout({ type: "none" });
+        const mapLayers = map_ts_2.default(map, assets);
+        const avatars = [];
+        random_ts_4.setRandomSeed("Avatarssss");
+        for (let i = 0; i < 10; i++) {
+            const avatar = new avatar_ts_3.Avatar(i % 2 ? "female1" : "female2", assets);
+            avatar.parent = map;
+            avatar.x = random_ts_4.randomIntervalInt(mapLayers.floor.width / 2 - 200, mapLayers.floor.width / 2 + 200);
+            avatar.y = random_ts_4.randomIntervalInt(mapLayers.floor.height / 2 - 200, mapLayers.floor.height / 2 + 200);
+            avatars.push(avatar);
+        }
+        map.setOffset(-avatars[0].x + map.width / 2, -avatars[0].y + map.height / 2, false);
+        const context = {
+            keysDown: new Map(),
+            specialKeysDown: new Map(),
+            nextStateId: null,
+            widgetsToRemove: [mainUI, map],
+            onFullScreenChanged,
+            statsContainer,
+            mapLayers,
+            map,
+            scrollX: 0,
+            scrollY: 0,
+            direction: 4,
+            scrollSteps: 50,
+            avatars,
+        };
+        addButton("Quit", () => {
+            context.nextStateId = types_ts_14.StateId.MainMenu;
+        });
+        engine.addWidget(mainUI);
+        engine.addWidget(map);
+        return context;
+    }
+    function updateState(context) {
+        const { map, nextStateId, avatars } = context;
+        context.scrollX += context.direction;
+        context.scrollY += context.direction;
+        const avatar = avatars[0];
+        for (let i = 1; i < avatars.length; i++) {
+            avatars[i].move(context.direction * 0.25, context.direction * 0.25);
+        }
+        map.setOffset(-avatar.x + map.width / 2 + context.scrollX, -avatar.y + map.height / 2 + context.scrollY);
+        context.scrollSteps--;
+        if (context.scrollSteps === 0) {
+            context.scrollSteps = 100;
+            context.direction *= -1;
+        }
+        return nextStateId;
+    }
+    function destroyState(engine, context) {
+        context.widgetsToRemove.forEach((w) => engine.removeWidget(w));
+    }
+    function buildBenchmarkState() {
+        let context = null;
         return {
-            buildState: (id) => {
-                switch (id) {
-                    case types_ts_13.StateId.Game:
-                        return game_ts_1.buildGameState();
-                    case types_ts_13.StateId.MainMenu:
-                        return mainmenu_ts_1.buildMainMenuState();
+            id: types_ts_14.StateId.Benchmark,
+            init: (p) => {
+                context = initState(p.engine, p.assets);
+                return { statsContainer: context.statsContainer };
+            },
+            update: (p) => context ? updateState(context) : null,
+            destroy: (p) => {
+                if (context) {
+                    destroyState(p.engine, context);
+                    context = null;
                 }
+            },
+            onKeyEvent: (e) => {
+                if (context)
+                    keyboard_ts_3.onKeyEvent(context, e);
+            },
+            onFullScreenChanged: (fs) => {
+                if (context)
+                    context?.onFullScreenChanged(fs);
             },
         };
     }
-    exports_26("buildStateFactory", buildStateFactory);
+    exports_26("buildBenchmarkState", buildBenchmarkState);
     return {
         setters: [
             function (types_ts_13_1) {
                 types_ts_13 = types_ts_13_1;
             },
-            function (game_ts_1_1) {
-                game_ts_1 = game_ts_1_1;
+            function (types_ts_14_1) {
+                types_ts_14 = types_ts_14_1;
             },
-            function (mainmenu_ts_1_1) {
-                mainmenu_ts_1 = mainmenu_ts_1_1;
+            function (keyboard_ts_3_1) {
+                keyboard_ts_3 = keyboard_ts_3_1;
+            },
+            function (box_ts_3_1) {
+                box_ts_3 = box_ts_3_1;
+            },
+            function (button_text_ts_3_1) {
+                button_text_ts_3 = button_text_ts_3_1;
+            },
+            function (map_ts_2_1) {
+                map_ts_2 = map_ts_2_1;
+            },
+            function (tiles_container_ts_2_1) {
+                tiles_container_ts_2 = tiles_container_ts_2_1;
+            },
+            function (avatar_ts_3_1) {
+                avatar_ts_3 = avatar_ts_3_1;
+            },
+            function (random_ts_4_1) {
+                random_ts_4 = random_ts_4_1;
             }
         ],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/screen/drawing/types", [], function (exports_27, context_27) {
+System.register("game/src/state-factory", ["game/src/types", "game/src/states/game/game", "game/src/states/mainmenu/mainmenu", "game/src/states/benchmark/benchmark"], function (exports_27, context_27) {
     "use strict";
+    var types_ts_15, game_ts_1, mainmenu_ts_1, benchmark_ts_1;
     var __moduleName = context_27 && context_27.id;
+    function buildStateFactory() {
+        return {
+            buildState: (id) => {
+                switch (id) {
+                    case types_ts_15.StateId.Game:
+                        return game_ts_1.buildGameState();
+                    case types_ts_15.StateId.MainMenu:
+                        return mainmenu_ts_1.buildMainMenuState();
+                    case types_ts_15.StateId.Benchmark:
+                        return benchmark_ts_1.buildBenchmarkState();
+                }
+            },
+        };
+    }
+    exports_27("buildStateFactory", buildStateFactory);
+    return {
+        setters: [
+            function (types_ts_15_1) {
+                types_ts_15 = types_ts_15_1;
+            },
+            function (game_ts_1_1) {
+                game_ts_1 = game_ts_1_1;
+            },
+            function (mainmenu_ts_1_1) {
+                mainmenu_ts_1 = mainmenu_ts_1_1;
+            },
+            function (benchmark_ts_1_1) {
+                benchmark_ts_1 = benchmark_ts_1_1;
+            }
+        ],
+        execute: function () {
+        }
+    };
+});
+System.register("web/src/native/screen/drawing/types", [], function (exports_28, context_28) {
+    "use strict";
+    var __moduleName = context_28 && context_28.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types"], function (exports_28, context_28) {
+System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types"], function (exports_29, context_29) {
     "use strict";
-    var types_ts_14, DrawingRealLayer, DrawingReal;
-    var __moduleName = context_28 && context_28.id;
+    var types_ts_16, DrawingRealLayer, DrawingReal;
+    var __moduleName = context_29 && context_29.id;
     return {
         setters: [
-            function (types_ts_14_1) {
-                types_ts_14 = types_ts_14_1;
+            function (types_ts_16_1) {
+                types_ts_16 = types_ts_16_1;
             }
         ],
         execute: function () {
@@ -2890,7 +3119,7 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                     const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
                     const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
                     const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
-                    return new types_ts_14.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
+                    return new types_ts_16.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
                 }
             };
             DrawingReal = class DrawingReal {
@@ -2901,7 +3130,7 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                     this.dirtyTime = 0;
                     this.useCanvases = false;
                     this.drawingDone = drawingDone;
-                    for (let i = 0; i < types_ts_14.LAYERS_COUNT; i++) {
+                    for (let i = 0; i < types_ts_16.LAYERS_COUNT; i++) {
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
@@ -3234,23 +3463,23 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                 update() { }
                 preloadTiles(tiles) { }
             };
-            exports_28("DrawingReal", DrawingReal);
+            exports_29("DrawingReal", DrawingReal);
         }
     };
 });
-System.register("web/src/native/screen/drawing/worker/types", [], function (exports_29, context_29) {
+System.register("web/src/native/screen/drawing/worker/types", [], function (exports_30, context_30) {
     "use strict";
-    var __moduleName = context_29 && context_29.id;
+    var __moduleName = context_30 && context_30.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/screen/drawing/drawing-worker", [], function (exports_30, context_30) {
+System.register("web/src/native/screen/drawing/drawing-worker", [], function (exports_31, context_31) {
     "use strict";
     var ALLOW_OFFSCREEN_CANVASES, DrawingWorker;
-    var __moduleName = context_30 && context_30.id;
+    var __moduleName = context_31 && context_31.id;
     function canTransferControlToOffscreen(test) {
         return typeof test["transferControlToOffscreen"] === "function";
     }
@@ -3430,16 +3659,16 @@ System.register("web/src/native/screen/drawing/drawing-worker", [], function (ex
                     this.commit();
                 }
             };
-            exports_30("DrawingWorker", DrawingWorker);
+            exports_31("DrawingWorker", DrawingWorker);
         }
     };
 });
-System.register("web/src/native/screen/native-screen", ["engine/src/types", "web/src/native/screen/drawing/drawing-real", "web/src/native/screen/drawing/drawing-worker"], function (exports_31, context_31) {
+System.register("web/src/native/screen/native-screen", ["engine/src/types", "web/src/native/screen/drawing/drawing-real", "web/src/native/screen/drawing/drawing-worker"], function (exports_32, context_32) {
     "use strict";
-    var types_ts_15, drawing_real_ts_1, drawing_worker_ts_1, USE_WORKER;
-    var __moduleName = context_31 && context_31.id;
+    var types_ts_17, drawing_real_ts_1, drawing_worker_ts_1, USE_WORKER;
+    var __moduleName = context_32 && context_32.id;
     function getCanvasSize() {
-        return new types_ts_15.Size(window.innerWidth, window.innerHeight);
+        return new types_ts_17.Size(window.innerWidth, window.innerHeight);
     }
     function createFullScreenCanvas(zIndex) {
         const canvas = document.createElement("canvas");
@@ -3458,7 +3687,7 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
     }
     function getWebNativeScreen(onStats) {
         const canvases = initCanvases();
-        const screenSize = new types_ts_15.Size(256, 256);
+        const screenSize = new types_ts_17.Size(256, 256);
         const screenSizeChangedListeners = [];
         const fullScreenListeners = [];
         const dispatchFullScreenEvent = (fullscreen) => {
@@ -3522,11 +3751,11 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
             endDraw: () => drawing.commit(),
         };
     }
-    exports_31("getWebNativeScreen", getWebNativeScreen);
+    exports_32("getWebNativeScreen", getWebNativeScreen);
     return {
         setters: [
-            function (types_ts_15_1) {
-                types_ts_15 = types_ts_15_1;
+            function (types_ts_17_1) {
+                types_ts_17 = types_ts_17_1;
             },
             function (drawing_real_ts_1_1) {
                 drawing_real_ts_1 = drawing_real_ts_1_1;
@@ -3540,9 +3769,9 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
         }
     };
 });
-System.register("web/src/native/input/native-input", [], function (exports_32, context_32) {
+System.register("web/src/native/input/native-input", [], function (exports_33, context_33) {
     "use strict";
-    var __moduleName = context_32 && context_32.id;
+    var __moduleName = context_33 && context_33.id;
     function getWebNativeInput() {
         const keyListeners = [];
         const mouseListeners = [];
@@ -3620,16 +3849,16 @@ System.register("web/src/native/input/native-input", [], function (exports_32, c
             onMouseEvent: (listener) => mouseListeners.push(listener),
         };
     }
-    exports_32("getWebNativeInput", getWebNativeInput);
+    exports_33("getWebNativeInput", getWebNativeInput);
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/focus/native-focus", [], function (exports_33, context_33) {
+System.register("web/src/native/focus/native-focus", [], function (exports_34, context_34) {
     "use strict";
-    var __moduleName = context_33 && context_33.id;
+    var __moduleName = context_34 && context_34.id;
     function getWebNativeFocus() {
         const focusListeners = [];
         const dispatchFocusEvent = (focus) => {
@@ -3644,17 +3873,17 @@ System.register("web/src/native/focus/native-focus", [], function (exports_33, c
             onFocusChanged: (listener) => focusListeners.push(listener),
         };
     }
-    exports_33("getWebNativeFocus", getWebNativeFocus);
+    exports_34("getWebNativeFocus", getWebNativeFocus);
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/native", ["web/src/native/screen/native-screen", "web/src/native/input/native-input", "web/src/native/focus/native-focus"], function (exports_34, context_34) {
+System.register("web/src/native/native", ["web/src/native/screen/native-screen", "web/src/native/input/native-input", "web/src/native/focus/native-focus"], function (exports_35, context_35) {
     "use strict";
     var native_screen_ts_1, native_input_ts_1, native_focus_ts_1;
-    var __moduleName = context_34 && context_34.id;
+    var __moduleName = context_35 && context_35.id;
     function getWebNativeContext(onStats) {
         return {
             screen: native_screen_ts_1.getWebNativeScreen(onStats),
@@ -3664,7 +3893,7 @@ System.register("web/src/native/native", ["web/src/native/screen/native-screen",
             destroy: () => { },
         };
     }
-    exports_34("getWebNativeContext", getWebNativeContext);
+    exports_35("getWebNativeContext", getWebNativeContext);
     return {
         setters: [
             function (native_screen_ts_1_1) {
@@ -3681,10 +3910,10 @@ System.register("web/src/native/native", ["web/src/native/screen/native-screen",
         }
     };
 });
-System.register("web/src/assets", ["engine/src/types"], function (exports_35, context_35) {
+System.register("web/src/assets", ["engine/src/types"], function (exports_36, context_36) {
     "use strict";
-    var types_ts_16;
-    var __moduleName = context_35 && context_35.id;
+    var types_ts_18;
+    var __moduleName = context_36 && context_36.id;
     async function loadImage(src) {
         return new Promise((resolve, reject) => {
             const image = new Image();
@@ -3718,7 +3947,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_35, co
             getTile: (id) => tilesById.get(id),
             getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
             getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
-            getTileXYByIndex: (index) => new types_ts_16.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
+            getTileXYByIndex: (index) => new types_ts_18.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
         };
         const setTileId = (index, id) => {
             tiles[index].id = id;
@@ -3886,7 +4115,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_35, co
         addAnimation(avatarId + "-right-hurt", 20, 0, 5, false);
     }
     function loadAnimation(id, json, tilemaps) {
-        const delayInUpdates = json.fps > 0 ? Math.ceil(types_ts_16.UPDATE_FPS / json.fps) : 0;
+        const delayInUpdates = json.fps > 0 ? Math.ceil(types_ts_18.UPDATE_FPS / json.fps) : 0;
         const tiles = [];
         if (json.frames) {
             tiles.push(...json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]));
@@ -3950,21 +4179,21 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_35, co
         };
         return assets;
     }
-    exports_35("initAssets", initAssets);
+    exports_36("initAssets", initAssets);
     return {
         setters: [
-            function (types_ts_16_1) {
-                types_ts_16 = types_ts_16_1;
+            function (types_ts_18_1) {
+                types_ts_18 = types_ts_18_1;
             }
         ],
         execute: function () {
         }
     };
 });
-System.register("web/src/stats", [], function (exports_36, context_36) {
+System.register("web/src/stats", [], function (exports_37, context_37) {
     "use strict";
     var Stat, EngineStats;
-    var __moduleName = context_36 && context_36.id;
+    var __moduleName = context_37 && context_37.id;
     return {
         setters: [],
         execute: function () {
@@ -4004,14 +4233,14 @@ System.register("web/src/stats", [], function (exports_36, context_36) {
                     this.update.reset();
                 }
             };
-            exports_36("EngineStats", EngineStats);
+            exports_37("EngineStats", EngineStats);
         }
     };
 });
-System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/state-factory", "web/src/native/native", "web/src/assets", "game/src/types", "web/src/stats"], function (exports_37, context_37) {
+System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/state-factory", "web/src/native/native", "web/src/assets", "game/src/types", "web/src/stats"], function (exports_38, context_38) {
     "use strict";
-    var types_ts_17, engine_ts_1, label_ts_1, state_factory_ts_1, native_ts_1, assets_ts_1, types_ts_18, stats_ts_1, MAX_PENDING_FRAMES, engine, native, assets, stateParams, statsLabel, currentState, focused, stateFactory, updateStatsFrames, updateStatsTime, engineStats, ignoreNextUpdate, lastUpdateTime;
-    var __moduleName = context_37 && context_37.id;
+    var types_ts_19, engine_ts_1, label_ts_1, state_factory_ts_1, native_ts_1, assets_ts_1, types_ts_20, stats_ts_1, MAX_PENDING_FRAMES, engine, native, assets, stateParams, statsLabel, currentState, focused, stateFactory, updateStatsFrames, updateStatsTime, engineStats, ignoreNextUpdate, lastUpdateTime;
+    var __moduleName = context_38 && context_38.id;
     function updateStats() {
         const now = performance.now();
         updateStatsFrames++;
@@ -4052,7 +4281,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         const initResult = newState.init(stateParams);
         console.log(`State ${newState.id} Initialized`);
         if (initResult.statsContainer) {
-            statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_17.FixedColor.White, initResult.statsContainer.backColor);
+            statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_19.FixedColor.White, initResult.statsContainer.backColor);
             statsLabel.parent = initResult.statsContainer;
         }
         currentState = newState;
@@ -4073,12 +4302,17 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         engine = await engine_ts_1.buildEngine(native);
         engine.onKeyEvent((e) => {
             if (currentState?.onKeyEvent) {
-                currentState?.onKeyEvent(e, stateParams);
+                currentState.onKeyEvent(e, stateParams);
             }
         });
         engine.onMouseEvent((e) => {
             if (currentState?.onMouseEvent) {
-                currentState?.onMouseEvent(e, stateParams);
+                currentState.onMouseEvent(e, stateParams);
+            }
+        });
+        native.screen.onFullScreenChanged((fs) => {
+            if (currentState?.onFullScreenChanged) {
+                currentState.onFullScreenChanged(fs, stateParams);
             }
         });
         console.log("Engine Initialized");
@@ -4132,7 +4366,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             return;
         }
         const delta = now - lastUpdateTime;
-        const targetDeltaUpdate = 1000 / types_ts_17.UPDATE_FPS;
+        const targetDeltaUpdate = 1000 / types_ts_19.UPDATE_FPS;
         if (delta > targetDeltaUpdate - 0.1) {
             lastUpdateTime = Math.max(lastUpdateTime + targetDeltaUpdate, now - 1000);
             updateReal();
@@ -4147,7 +4381,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             document.body.removeChild(loader);
     }
     async function run() {
-        const engine = await init(types_ts_18.StateId.MainMenu);
+        const engine = await init(types_ts_20.StateId.MainMenu);
         updateReal();
         drawReal();
         while (!native.screen.readyForNextFrame(0)) {
@@ -4165,8 +4399,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     }
     return {
         setters: [
-            function (types_ts_17_1) {
-                types_ts_17 = types_ts_17_1;
+            function (types_ts_19_1) {
+                types_ts_19 = types_ts_19_1;
             },
             function (engine_ts_1_1) {
                 engine_ts_1 = engine_ts_1_1;
@@ -4183,8 +4417,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             function (assets_ts_1_1) {
                 assets_ts_1 = assets_ts_1_1;
             },
-            function (types_ts_18_1) {
-                types_ts_18 = types_ts_18_1;
+            function (types_ts_20_1) {
+                types_ts_20 = types_ts_20_1;
             },
             function (stats_ts_1_1) {
                 stats_ts_1 = stats_ts_1_1;

@@ -2,7 +2,12 @@ import { Assets, Rect } from "engine/types.ts";
 import { TileWidget } from "engine/widgets/game/tile.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
 import { TilemapWidget } from "engine/widgets/game/tilemap.ts";
-import { randomIntervalInt, random } from "./random.ts";
+import {
+  randomIntervalInt,
+  randomFromArray,
+  randomNumber,
+  setRandomSeed,
+} from "./random.ts";
 
 const MAP_SIZE = 512;
 
@@ -26,7 +31,7 @@ const altTerrains: string[] = [
 ];
 
 function randomDecoTile(terrainId: string) {
-  if (Math.random() > 0.5) {
+  if (randomNumber() > 0.5) {
     return terrainId + "-deco1";
   }
 
@@ -34,11 +39,11 @@ function randomDecoTile(terrainId: string) {
 }
 
 function randomCenterTile(terrainId: string) {
-  if (Math.random() > 0.1) {
+  if (randomNumber() > 0.1) {
     return terrainId + "-center";
   }
 
-  if (Math.random() > 0.5) {
+  if (randomNumber() > 0.5) {
     return terrainId + "-center2";
   }
 
@@ -48,7 +53,9 @@ function randomCenterTile(terrainId: string) {
 export default function initMap(
   tilesContainer: ScrollableTilesContainerWidget,
   assets: Assets,
+  seed = "First Map SS",
 ) {
+  setRandomSeed(seed);
   const floorTilemap = assets.getTilemap("terrain");
 
   const floor = new TilemapWidget(floorTilemap, MAP_SIZE, MAP_SIZE, 0);
@@ -149,7 +156,7 @@ export default function initMap(
   for (let i = 0; i < ALT_TERRAINS_COUNT; i++) {
     const w = randomIntervalInt(ALT_TERRAINS_MIN_SIZE, ALT_TERRAINS_MAX_SIZE);
     const h = randomIntervalInt(ALT_TERRAINS_MIN_SIZE, ALT_TERRAINS_MAX_SIZE);
-    const terrainId = random(altTerrains);
+    const terrainId = randomFromArray(altTerrains);
     const fx = randomIntervalInt(1, MAP_SIZE - w - 1);
     const fy = randomIntervalInt(1, MAP_SIZE - h - 1);
     const r = new Rect(fx, fy, w, h);
@@ -158,8 +165,8 @@ export default function initMap(
 
     addAltTerrain(terrainId, fx, fy, w, h);
 
-    if (Math.random() > 0.5) {
-      const nestedTerrainId = random(altTerrains);
+    if (randomNumber() > 0.5) {
+      const nestedTerrainId = randomFromArray(altTerrains);
       if (nestedTerrainId !== terrainId) {
         addAltTerrain(nestedTerrainId, fx + 2, fy + 2, w - 4, h - 4);
       }

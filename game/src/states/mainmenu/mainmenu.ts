@@ -92,7 +92,7 @@ function initState(engine: Engine, assets: Assets, native: NativeContext) {
   });
 
   addButton("Start Benchmark", () => {
-    context.nextStateId = StateId.Game;
+    context.nextStateId = StateId.Benchmark;
   });
 
   engine.addWidget(mainUI);

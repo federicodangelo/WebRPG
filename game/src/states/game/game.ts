@@ -21,34 +21,9 @@ import {
 } from "../../keyboard.ts";
 import { initUI } from "./ui.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
-import { NativeContext } from "engine/native-types.ts";
-import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
-import { TilemapWidget } from "engine/widgets/game/tilemap.ts";
 
 const NPCS_COUNT = 10;
 const ENABLE_P2 = true;
-
-type StateContext = {
-  statsContainer: BoxContainerWidget;
-  buttonsContainer: BoxContainerWidget;
-  scrollable: ScrollableTilesContainerWidget;
-
-  avatars: Avatar[];
-  npcs: Avatar[];
-
-  map: ScrollableTilesContainerWidget;
-  floorLayer1: TilemapWidget;
-  floorLayer2: TilemapWidget;
-  p1: Avatar;
-  p2: Avatar;
-
-  keysDown: Map<string, boolean>;
-  specialKeysDown: Map<KeyCode, boolean>;
-
-  nextStateId: StateId | null;
-
-  widgetsToRemove: Widget[];
-};
 
 const enum MouseMode {
   None,
@@ -216,21 +191,24 @@ function followAvatar(
 function initContext(
   engine: Engine,
   assets: Assets,
-  native: NativeContext,
-): StateContext {
-  const { mainUI, statsContainer, buttonsContainer, itemsButtons, addButton } =
-    initUI(
-      engine,
-      assets,
-      native,
-    );
+) {
+  const {
+    mainUI,
+    statsContainer,
+    buttonsContainer,
+    itemsButtons,
+    addButton,
+    onFullScreenChanged,
+  } = initUI(
+    engine,
+    assets,
+  );
 
   const map = new ScrollableTilesContainerWidget();
   map.layer = LayerId.Game;
   map.layout = { heightPercent: 100, widthPercent: 100 };
   map.setChildrenLayout({ type: "none" });
 
-  const scrollable = map;
   const p1 = new Avatar("female1", assets);
   const p2 = new Avatar("female2", assets);
   const npcs: Npc[] = [];
@@ -260,10 +238,9 @@ function initContext(
     );
   });
 
-  const context: StateContext = {
+  const context = {
     statsContainer,
     buttonsContainer,
-    scrollable,
     avatars,
     map,
     floorLayer1: mapLayers.floor,
@@ -273,8 +250,9 @@ function initContext(
     p2,
     keysDown: new Map<string, boolean>(),
     specialKeysDown: new Map<KeyCode, boolean>(),
-    nextStateId: null,
-    widgetsToRemove: [],
+    nextStateId: <StateId | null> null,
+    widgetsToRemove: <Widget[]> [],
+    onFullScreenChanged,
   };
 
   addButton("Quit", () => {
@@ -295,6 +273,8 @@ function initContext(
 
   return context;
 }
+
+type StateContext = ReturnType<typeof initContext>;
 
 function updateContext(context: StateContext): boolean {
   const { p1, p2, avatars, map } = context;
@@ -347,7 +327,7 @@ export function buildGameState(): State {
   let context: StateContext | null = null;
 
   const init = (p: StateParams): InitResult => {
-    context = initContext(p.engine, p.assets, p.native);
+    context = initContext(p.engine, p.assets);
     return {
       statsContainer: context.statsContainer,
     };
@@ -378,6 +358,9 @@ export function buildGameState(): State {
     },
     onMouseEvent: (e, p) => {
       if (context) onMouseEvent(p.engine, context, e);
+    },
+    onFullScreenChanged: (fs) => {
+      if (context) context.onFullScreenChanged(fs);
     },
   };
 }

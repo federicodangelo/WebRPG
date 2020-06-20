@@ -108,12 +108,17 @@ async function init(mainStateId: StateId) {
 
   engine.onKeyEvent((e) => {
     if (currentState?.onKeyEvent) {
-      currentState?.onKeyEvent(e, stateParams);
+      currentState.onKeyEvent(e, stateParams);
     }
   });
   engine.onMouseEvent((e) => {
     if (currentState?.onMouseEvent) {
-      currentState?.onMouseEvent(e, stateParams);
+      currentState.onMouseEvent(e, stateParams);
+    }
+  });
+  native.screen.onFullScreenChanged((fs) => {
+    if (currentState?.onFullScreenChanged) {
+      currentState.onFullScreenChanged(fs, stateParams);
     }
   });
 
