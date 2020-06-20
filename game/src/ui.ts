@@ -10,9 +10,9 @@ import {
 import { ButtonWidget } from "engine/widgets/ui/button.ts";
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
 import { NativeContext } from "engine/native-types.ts";
-import { ScrollableContainerWidget } from "../../engine/src/widgets/scrollable.ts";
-import { TileWidget } from "../../engine/src/widgets/game/tile.ts";
-import { TextButtonWidget } from "../../engine/src/widgets/ui/button-text.ts";
+import { ScrollableContainerWidget } from "engine/widgets/scrollable.ts";
+import { TileWidget } from "engine/widgets/game/tile.ts";
+import { TextButtonWidget } from "engine/widgets/ui/button-text.ts";
 
 const ITEM_IMAGE_WIDTH = 32;
 const ITEM_IMAGE_HEIGHT = 32;

@@ -4,8 +4,8 @@ import { LabelWidget } from "engine/widgets/ui/label.ts";
 import { initGame, updateGame } from "game/game.ts";
 import { getWebNativeContext } from "./native/native.ts";
 import { initAssets } from "./assets.ts";
-import { Game } from "../../game/src/types.ts";
-import { NativeContext } from "../../engine/src/native-types.ts";
+import { Game } from "game/types.ts";
+import { NativeContext } from "engine/native-types.ts";
 import { EngineStats } from "./stats.ts";
 
 const MAX_PENDING_FRAMES = 1;

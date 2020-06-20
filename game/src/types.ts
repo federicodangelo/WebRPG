@@ -2,7 +2,7 @@ import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
 import { Avatar } from "./avatar.ts";
 import { KeyCode } from "engine/types.ts";
-import { TilemapWidget } from "../../engine/src/widgets/game/tilemap.ts";
+import { TilemapWidget } from "engine/widgets/game/tilemap.ts";
 
 export type Game = {
   statsContainer: BoxContainerWidget;
