@@ -776,12 +776,12 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                 }
                 invalidateRect(rect, layer) {
                     const invalidRects = this.layers[layer].invalidRects;
-                    let lastRect = invalidRects.length > 0
-                        ? invalidRects[invalidRects.length - 1]
-                        : null;
-                    if (lastRect !== null && lastRect.intersects(rect)) {
-                        lastRect.union(rect);
-                        return;
+                    for (let i = invalidRects.length - 1; i >= 0; i--) {
+                        const lastRect = invalidRects[i];
+                        if (lastRect.intersects(rect)) {
+                            lastRect.union(rect);
+                            return;
+                        }
                     }
                     invalidRects.push(rect.clone());
                 }
@@ -3263,17 +3263,13 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                                 }
                             }
                             else {
-                                for (let py = 0; py < tileHeight; py++) {
-                                    p = (y + py) * screenWidth + x;
-                                    f = py * tileWidth;
-                                    for (let px = 0; px < tileWidth; px++) {
-                                        if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                                            imageDataPixels32[p++] = tilePixels32[f++];
-                                        }
-                                        else {
-                                            p++;
-                                            f++;
-                                        }
+                                cty = Math.min(cty, tileHeight);
+                                ctx = Math.min(ctx, tileWidth);
+                                for (let py = cfy; py < cty; py++) {
+                                    p = (y + py) * screenWidth + x + cfx;
+                                    f = py * tileWidth + cfx;
+                                    for (let px = cfx; px < ctx; px++) {
+                                        imageDataPixels32[p++] = tilePixels32[f++];
                                     }
                                 }
                             }
@@ -3295,22 +3291,18 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                                 }
                             }
                             else {
-                                for (let py = 0; py < tileHeight; py++) {
-                                    p = (y + py) * screenWidth + x;
-                                    f = py * tileWidth;
-                                    for (let px = 0; px < tileWidth; px++) {
-                                        if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                                            const pixel = tilePixels32[f++];
-                                            if (pixel >> 24 !== 0) {
-                                                imageDataPixels32[p++] = pixel;
-                                            }
-                                            else {
-                                                p++;
-                                            }
+                                cty = Math.min(cty, tileHeight);
+                                ctx = Math.min(ctx, tileWidth);
+                                for (let py = cfy; py < cty; py++) {
+                                    p = (y + py) * screenWidth + x + cfx;
+                                    f = py * tileWidth + cfx;
+                                    for (let px = cfx; px < ctx; px++) {
+                                        const pixel = tilePixels32[f++];
+                                        if (pixel >> 24 !== 0) {
+                                            imageDataPixels32[p++] = pixel;
                                         }
                                         else {
                                             p++;
-                                            f++;
                                         }
                                     }
                                 }
@@ -3322,43 +3314,41 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                                     p = ((y + py) * screenWidth + x) << 2;
                                     f = (py * tileWidth) << 2;
                                     for (let px = 0; px < tileWidth; px++) {
-                                        const r = tilePixels8[f++];
-                                        const g = tilePixels8[f++];
-                                        const b = tilePixels8[f++];
-                                        const a = tilePixels8[f++] / 255;
+                                        const r = tilePixels8[f + 0];
+                                        const g = tilePixels8[f + 1];
+                                        const b = tilePixels8[f + 2];
+                                        const a = tilePixels8[f + 3] / 255;
                                         const invA = 1 - a;
                                         imageDataPixels8[p + 0] = imageDataPixels8[p + 0] * invA + r * a;
                                         imageDataPixels8[p + 1] = imageDataPixels8[p + 1] * invA + g * a;
                                         imageDataPixels8[p + 2] = imageDataPixels8[p + 2] * invA + b * a;
                                         imageDataPixels8[p + 3] = 255; //a
+                                        f += 4;
                                         p += 4;
                                     }
                                 }
                             }
                             else {
-                                for (let py = 0; py < tileHeight; py++) {
-                                    p = ((y + py) * screenWidth + x) << 2;
-                                    f = (py * tileWidth) << 2;
-                                    for (let px = 0; px < tileWidth; px++) {
-                                        if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                                            const r = tilePixels8[f++];
-                                            const g = tilePixels8[f++];
-                                            const b = tilePixels8[f++];
-                                            const a = tilePixels8[f++] / 255;
-                                            const invA = 1 - a;
-                                            imageDataPixels8[p + 0] = imageDataPixels8[p + 0] * invA +
-                                                r * a;
-                                            imageDataPixels8[p + 1] = imageDataPixels8[p + 1] * invA +
-                                                g * a;
-                                            imageDataPixels8[p + 2] = imageDataPixels8[p + 2] * invA +
-                                                b * a;
-                                            imageDataPixels8[p + 3] = 255; //a
-                                            p += 4;
-                                        }
-                                        else {
-                                            p += 4;
-                                            f += 4;
-                                        }
+                                cty = Math.min(cty, tileHeight);
+                                ctx = Math.min(ctx, tileWidth);
+                                for (let py = cfy; py < cty; py++) {
+                                    p = ((y + py) * screenWidth + x + cfx) << 2;
+                                    f = (py * tileWidth + cfx) << 2;
+                                    for (let px = cfx; px < ctx; px++) {
+                                        const r = tilePixels8[f + 0];
+                                        const g = tilePixels8[f + 1];
+                                        const b = tilePixels8[f + 2];
+                                        const a = tilePixels8[f + 3] / 255;
+                                        const invA = 1 - a;
+                                        imageDataPixels8[p + 0] = imageDataPixels8[p + 0] * invA +
+                                            r * a;
+                                        imageDataPixels8[p + 1] = imageDataPixels8[p + 1] * invA +
+                                            g * a;
+                                        imageDataPixels8[p + 2] = imageDataPixels8[p + 2] * invA +
+                                            b * a;
+                                        imageDataPixels8[p + 3] = 255; //a
+                                        f += 4;
+                                        p += 4;
                                     }
                                 }
                             }

@@ -226,13 +226,12 @@ class EngineImpl implements Engine {
   public invalidateRect(rect: Rect, layer: LayerId) {
     const invalidRects = this.layers[layer].invalidRects;
 
-    let lastRect = invalidRects.length > 0
-      ? invalidRects[invalidRects.length - 1]
-      : null;
-
-    if (lastRect !== null && lastRect.intersects(rect)) {
-      lastRect.union(rect);
-      return;
+    for (let i = invalidRects.length - 1; i >= 0; i--) {
+      const lastRect = invalidRects[i];
+      if (lastRect.intersects(rect)) {
+        lastRect.union(rect);
+        return;
+      }
     }
 
     invalidRects.push(rect.clone());
