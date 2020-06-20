@@ -1,20 +1,22 @@
-import { FixedColor, Engine, UPDATE_FPS } from "engine/types.ts";
+import { FixedColor, Engine, UPDATE_FPS, Assets } from "engine/types.ts";
 import { buildEngine } from "engine/engine.ts";
 import { LabelWidget } from "engine/widgets/ui/label.ts";
-import { initGame, updateGame } from "game/game.ts";
+import { buildStateFactory } from "game/state-factory.ts";
 import { getWebNativeContext } from "./native/native.ts";
 import { initAssets } from "./assets.ts";
-import { Game } from "game/types.ts";
+import { State, StateFactory, StateId } from "game/types.ts";
 import { NativeContext } from "engine/native-types.ts";
 import { EngineStats } from "./stats.ts";
 
 const MAX_PENDING_FRAMES = 1;
 
 let engine: Engine;
-let nativeContext: NativeContext;
-let statsLabel: LabelWidget;
-let game: Game;
+let native: NativeContext;
+let assets: Assets;
+let statsLabel: LabelWidget | null = null;
+let currentState: State | null = null;
 let focused = true;
+let stateFactory: StateFactory;
 
 let updateStatsFrames = 0;
 let updateStatsTime = performance.now();
@@ -39,7 +41,9 @@ function updateStats() {
 
     stats += `\nIdle: ${idlePercent.toFixed(1)}%`;
 
-    statsLabel.text = stats;
+    if (statsLabel !== null) {
+      statsLabel.text = stats;
+    }
     updateStatsTime = now;
 
     engineStats.reset();
@@ -48,51 +52,75 @@ function updateStats() {
 }
 
 async function waitNoPendingFrames() {
-  while (!nativeContext.screen.readyForNextFrame(0)) {
+  while (!native.screen.readyForNextFrame(0)) {
     await new Promise((resolve) => setTimeout(resolve, 100));
-    nativeContext.screen.processPendingFrames();
+    native.screen.processPendingFrames();
   }
 }
 
-async function init() {
+function initState(newState: State) {
+  if (currentState !== null) {
+    console.log(`Destroying ${currentState.id} State`);
+    currentState.destroy();
+    console.log(`State ${currentState.id} Destroyed`);
+    currentState = null;
+    statsLabel = null;
+  }
+
+  console.log(`Initializing ${newState.id} State`);
+
+  const initResult = newState.init(
+    { engine, assets, native, stateFactory },
+  );
+
+  console.log(`State ${newState.id} Initialized`);
+
+  if (initResult.statsContainer) {
+    statsLabel = new LabelWidget(
+      assets.defaultFont,
+      "",
+      FixedColor.White,
+      initResult.statsContainer.backColor,
+    );
+
+    statsLabel.parent = initResult.statsContainer;
+  }
+
+  currentState = newState;
+}
+
+async function init(mainStateId: StateId) {
+  stateFactory = buildStateFactory();
+
   console.log("Initializing Engine");
 
-  const assets = await initAssets();
-
-  nativeContext = getWebNativeContext((stats) => {
+  native = getWebNativeContext((stats) => {
     if (stats.drawnPixels > 0) {
       engineStats.renderNative.addSample(stats.time);
     }
   });
 
-  nativeContext.focus.onFocusChanged((focus) => {
+  native.focus.onFocusChanged((focus) => {
     if (focus) ignoreUpdate = true;
     focused = focus;
   });
 
-  engine = await buildEngine(nativeContext);
+  engine = await buildEngine(native);
 
   console.log("Engine Initialized");
 
-  game = initGame(engine, assets, nativeContext);
+  console.log("Loading Assets");
+  assets = await initAssets();
+  console.log("Assets Loaded");
 
-  console.log("Game Initialized");
-
-  statsLabel = new LabelWidget(
-    assets.defaultFont,
-    "",
-    FixedColor.White,
-    game.statsContainer.backColor,
-  );
-
-  statsLabel.parent = game.statsContainer;
+  initState(stateFactory.buildState(mainStateId));
 
   //Wait engine ready
   await waitNoPendingFrames();
 
   //Preload tiles
   for (const tilemap of assets.tilemaps.values()) {
-    nativeContext.screen.preloadTiles(tilemap.tiles);
+    native.screen.preloadTiles(tilemap.tiles);
     await waitNoPendingFrames();
   }
 
@@ -104,14 +132,21 @@ let lastUpdateTime = 0;
 
 function updateReal() {
   const preUpdateTime = performance.now();
+  let nextStateId: StateId | null = null;
 
-  updateGame(game);
+  if (currentState !== null) {
+    nextStateId = currentState.update();
+  }
 
   engine.update();
 
   const postUpdateTime = performance.now();
 
   engineStats.update.addSample(postUpdateTime - preUpdateTime);
+
+  if (nextStateId !== null) {
+    initState(stateFactory.buildState(nextStateId));
+  }
 }
 
 function drawReal() {
@@ -124,7 +159,7 @@ function drawReal() {
 function update() {
   if (!focused) return;
 
-  nativeContext.screen.processPendingFrames();
+  native.screen.processPendingFrames();
 
   updateStats();
 
@@ -144,7 +179,7 @@ function update() {
     updateReal();
   }
 
-  if (nativeContext.screen.readyForNextFrame(MAX_PENDING_FRAMES)) {
+  if (native.screen.readyForNextFrame(MAX_PENDING_FRAMES)) {
     drawReal();
   }
 }
@@ -155,14 +190,14 @@ function hideLoader() {
 }
 
 async function run() {
-  const engine = await init();
+  const engine = await init(StateId.Game);
 
   updateReal();
   drawReal();
 
-  while (!nativeContext.screen.readyForNextFrame(0)) {
+  while (!native.screen.readyForNextFrame(0)) {
     await new Promise((resolve) => setTimeout(resolve, 100));
-    nativeContext.screen.processPendingFrames();
+    native.screen.processPendingFrames();
   }
 
   lastUpdateTime = performance.now();

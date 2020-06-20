@@ -60,7 +60,7 @@ export function initUI(engine: Engine, assets: Assets, native: NativeContext) {
       );
     },
   };
-  itemsContainerContainer.backColor = FixedColor.Transparent;
+  itemsContainerContainer.backColor = FixedColor.None;
 
   const decoTiles = assets.getTilemap("terrain").tiles.filter((x) =>
     x.id.includes("deco")
@@ -170,7 +170,7 @@ export function initUI(engine: Engine, assets: Assets, native: NativeContext) {
   native.screen.onFullScreenChanged((fullscreen) => {
     if (isFullcreen !== fullscreen) {
       isFullcreen = fullscreen;
-      fullScreenButton.text = isFullcreen ? "Exit" : "Full";
+      fullScreenButton.text = isFullcreen ? "Wind" : "Full";
     }
   });
 

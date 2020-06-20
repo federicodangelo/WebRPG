@@ -209,10 +209,10 @@ class EngineImpl implements Engine {
 
   public removeWidget(widget: Widget): void {
     const layer = this.layers[widget.layer];
-
+    const bbox = widget.getBoundingBox();
     const ix = layer.children.indexOf(widget);
     if (ix >= 0) layer.children.splice(ix, 1);
-    this.invalidateRect(widget.getBoundingBox(), layer.id);
+    this.invalidateRect(bbox, layer.id);
   }
 
   public onKeyEvent(listener: (e: EngineKeyEvent) => void): void {

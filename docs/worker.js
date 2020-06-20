@@ -132,6 +132,7 @@ System.register("engine/src/types", [], function (exports_2, context_2) {
             FixedColor = /** @class */ (() => {
                 class FixedColor {
                 }
+                FixedColor.None = -1;
                 FixedColor.Transparent = rgba(0, 0, 0, 0);
                 FixedColor.Black = rgb(12, 12, 12);
                 FixedColor.Red = rgb(197, 15, 31);

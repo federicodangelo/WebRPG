@@ -41,6 +41,7 @@ export const enum SpecialChar {
 }
 
 export class FixedColor {
+  static None = -1;
   static Transparent = rgba(0, 0, 0, 0);
   static Black = rgb(12, 12, 12);
   static Red = rgb(197, 15, 31);

@@ -86,7 +86,7 @@ export class BoxContainerWidget extends BaseWidgetContainer {
       }
     }
 
-    if (this.backColor !== FixedColor.Transparent) {
+    if (this.backColor !== FixedColor.None) {
       context.fillRect(
         this.innerX,
         this.innerY,

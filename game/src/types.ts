@@ -1,25 +1,30 @@
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
-import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
-import { Avatar } from "./avatar.ts";
-import { KeyCode } from "engine/types.ts";
-import { TilemapWidget } from "engine/widgets/game/tilemap.ts";
+import { Engine, Assets } from "engine/types.ts";
+import { NativeContext } from "engine/native-types.ts";
 
-export type Game = {
-  statsContainer: BoxContainerWidget;
-  buttonsContainer: BoxContainerWidget;
-  scrollable: ScrollableTilesContainerWidget;
+export enum StateId {
+  MainMenu = "MainMenu",
+  Game = "Game",
+}
 
-  addButton(text: string, cb: () => void): void;
+export type InitResult = {
+  statsContainer?: BoxContainerWidget;
+};
 
-  avatars: Avatar[];
-  npcs: Avatar[];
+export type InitParams = {
+  engine: Engine;
+  assets: Assets;
+  native: NativeContext;
+  stateFactory: StateFactory;
+};
 
-  map: ScrollableTilesContainerWidget;
-  floorLayer1: TilemapWidget;
-  floorLayer2: TilemapWidget;
-  p1: Avatar;
-  p2: Avatar;
+export type State = {
+  id: StateId;
+  init(params: InitParams): InitResult;
+  update(): StateId | null;
+  destroy(): void;
+};
 
-  keysDown: Map<string, boolean>;
-  specialKeysDown: Map<KeyCode, boolean>;
+export type StateFactory = {
+  buildState(id: StateId): State;
 };

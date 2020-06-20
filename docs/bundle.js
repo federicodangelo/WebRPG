@@ -132,6 +132,7 @@ System.register("engine/src/types", [], function (exports_2, context_2) {
             FixedColor = /** @class */ (() => {
                 class FixedColor {
                 }
+                FixedColor.None = -1;
                 FixedColor.Transparent = rgba(0, 0, 0, 0);
                 FixedColor.Black = rgb(12, 12, 12);
                 FixedColor.Red = rgb(197, 15, 31);
@@ -761,10 +762,11 @@ System.register("engine/src/engine", ["engine/src/types", "engine/src/context"],
                 }
                 removeWidget(widget) {
                     const layer = this.layers[widget.layer];
+                    const bbox = widget.getBoundingBox();
                     const ix = layer.children.indexOf(widget);
                     if (ix >= 0)
                         layer.children.splice(ix, 1);
-                    this.invalidateRect(widget.getBoundingBox(), layer.id);
+                    this.invalidateRect(bbox, layer.id);
                 }
                 onKeyEvent(listener) {
                     this.nativeContext.input.onKeyEvent(listener);
@@ -1262,28 +1264,111 @@ System.register("engine/src/widgets/widget-container", ["engine/src/widgets/widg
         }
     };
 });
-System.register("engine/src/widgets/group", ["engine/src/widgets/widget-container"], function (exports_8, context_8) {
+System.register("engine/src/widgets/ui/box", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_8, context_8) {
     "use strict";
-    var widget_container_ts_1, GroupContainerWidget;
+    var types_ts_4, widget_container_ts_1, BoxContainerWidget;
     var __moduleName = context_8 && context_8.id;
     return {
         setters: [
+            function (types_ts_4_1) {
+                types_ts_4 = types_ts_4_1;
+            },
             function (widget_container_ts_1_1) {
                 widget_container_ts_1 = widget_container_ts_1_1;
             }
         ],
         execute: function () {
-            GroupContainerWidget = class GroupContainerWidget extends widget_container_ts_1.BaseWidgetContainer {
-                drawSelf() { }
+            BoxContainerWidget = class BoxContainerWidget extends widget_container_ts_1.BaseWidgetContainer {
+                constructor(border = 0) {
+                    super();
+                    this.backColor = types_ts_4.FixedColor.Black;
+                    this.borderColor = types_ts_4.FixedColor.Black;
+                    this.border = 0;
+                    this.border = border;
+                }
+                get innerX() {
+                    return this.border;
+                }
+                get innerY() {
+                    return this.border;
+                }
+                get innerWidth() {
+                    return this.width - this.border * 2;
+                }
+                get innerHeight() {
+                    return this.height - this.border * 2;
+                }
+                preDrawChildren(context) {
+                    if (this.innerX > 0 || this.innerY > 0) {
+                        context.pushTransform(this.innerX, this.innerY);
+                        context.pushClip(0, 0, this.innerWidth, this.innerHeight);
+                    }
+                }
+                postDrawChildren(context) {
+                    if (this.innerX > 0 || this.innerY > 0) {
+                        context.popClip();
+                        context.popTransform();
+                    }
+                }
+                drawSelf(context) {
+                    if (this.border > 0) {
+                        if (this.borderColor !== types_ts_4.FixedColor.Transparent) {
+                            //Top border
+                            context.fillRect(0, 0, this.width, this.border, this.borderColor);
+                            //Bottom border
+                            context.fillRect(0, this.height - this.border, this.width, this.border, this.borderColor);
+                            //Left border
+                            context.fillRect(0, 0, this.border, this.height, this.borderColor);
+                            //Right border
+                            context.fillRect(this.width - this.border, 0, this.border, this.height, this.borderColor);
+                        }
+                    }
+                    if (this.backColor !== types_ts_4.FixedColor.None) {
+                        context.fillRect(this.innerX, this.innerY, this.innerWidth, this.innerHeight, this.backColor);
+                    }
+                }
             };
-            exports_8("GroupContainerWidget", GroupContainerWidget);
+            exports_8("BoxContainerWidget", BoxContainerWidget);
         }
     };
 });
-System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/widget"], function (exports_9, context_9) {
+System.register("game/src/types", [], function (exports_9, context_9) {
+    "use strict";
+    var StateId;
+    var __moduleName = context_9 && context_9.id;
+    return {
+        setters: [],
+        execute: function () {
+            (function (StateId) {
+                StateId["MainMenu"] = "MainMenu";
+                StateId["Game"] = "Game";
+            })(StateId || (StateId = {}));
+            exports_9("StateId", StateId);
+        }
+    };
+});
+System.register("engine/src/widgets/group", ["engine/src/widgets/widget-container"], function (exports_10, context_10) {
+    "use strict";
+    var widget_container_ts_2, GroupContainerWidget;
+    var __moduleName = context_10 && context_10.id;
+    return {
+        setters: [
+            function (widget_container_ts_2_1) {
+                widget_container_ts_2 = widget_container_ts_2_1;
+            }
+        ],
+        execute: function () {
+            GroupContainerWidget = class GroupContainerWidget extends widget_container_ts_2.BaseWidgetContainer {
+                drawSelf() { }
+            };
+            exports_10("GroupContainerWidget", GroupContainerWidget);
+        }
+    };
+});
+System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/widget"], function (exports_11, context_11) {
     "use strict";
     var widget_ts_3, AnimatedTileWidget;
-    var __moduleName = context_9 && context_9.id;
+    var __moduleName = context_11 && context_11.id;
     return {
         setters: [
             function (widget_ts_3_1) {
@@ -1355,14 +1440,14 @@ System.register("engine/src/widgets/game/animated-tile", ["engine/src/widgets/wi
                     }
                 }
             };
-            exports_9("AnimatedTileWidget", AnimatedTileWidget);
+            exports_11("AnimatedTileWidget", AnimatedTileWidget);
         }
     };
 });
-System.register("game/src/avatar", ["engine/src/widgets/group", "engine/src/widgets/game/animated-tile"], function (exports_10, context_10) {
+System.register("game/src/states/game/avatar", ["engine/src/widgets/group", "engine/src/widgets/game/animated-tile"], function (exports_12, context_12) {
     "use strict";
     var group_ts_1, animated_tile_ts_1, WALK_SPEED, Avatar;
-    var __moduleName = context_10 && context_10.id;
+    var __moduleName = context_12 && context_12.id;
     return {
         setters: [
             function (group_ts_1_1) {
@@ -1472,14 +1557,14 @@ System.register("game/src/avatar", ["engine/src/widgets/group", "engine/src/widg
                     this.updateAnimations();
                 }
             };
-            exports_10("Avatar", Avatar);
+            exports_12("Avatar", Avatar);
         }
     };
 });
-System.register("engine/src/widgets/game/tile", ["engine/src/widgets/widget"], function (exports_11, context_11) {
+System.register("engine/src/widgets/game/tile", ["engine/src/widgets/widget"], function (exports_13, context_13) {
     "use strict";
     var widget_ts_4, TileWidget;
-    var __moduleName = context_11 && context_11.id;
+    var __moduleName = context_13 && context_13.id;
     return {
         setters: [
             function (widget_ts_4_1) {
@@ -1498,14 +1583,14 @@ System.register("engine/src/widgets/game/tile", ["engine/src/widgets/widget"], f
                     context.tile(0, 0, this.tile);
                 }
             };
-            exports_11("TileWidget", TileWidget);
+            exports_13("TileWidget", TileWidget);
         }
     };
 });
-System.register("engine/src/widgets/game/tilemap", ["engine/src/widgets/widget"], function (exports_12, context_12) {
+System.register("engine/src/widgets/game/tilemap", ["engine/src/widgets/widget"], function (exports_14, context_14) {
     "use strict";
     var widget_ts_5, TilemapWidget;
-    var __moduleName = context_12 && context_12.id;
+    var __moduleName = context_14 && context_14.id;
     return {
         setters: [
             function (widget_ts_5_1) {
@@ -1550,35 +1635,35 @@ System.register("engine/src/widgets/game/tilemap", ["engine/src/widgets/widget"]
                     context.tilemap(0, 0, tilemap, tiles);
                 }
             };
-            exports_12("TilemapWidget", TilemapWidget);
+            exports_14("TilemapWidget", TilemapWidget);
         }
     };
 });
-System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_13, context_13) {
+System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_15, context_15) {
     "use strict";
-    var types_ts_4, widget_container_ts_2, ScrollableContainerWidget;
-    var __moduleName = context_13 && context_13.id;
+    var types_ts_5, widget_container_ts_3, ScrollableContainerWidget;
+    var __moduleName = context_15 && context_15.id;
     return {
         setters: [
-            function (types_ts_4_1) {
-                types_ts_4 = types_ts_4_1;
+            function (types_ts_5_1) {
+                types_ts_5 = types_ts_5_1;
             },
-            function (widget_container_ts_2_1) {
-                widget_container_ts_2 = widget_container_ts_2_1;
+            function (widget_container_ts_3_1) {
+                widget_container_ts_3 = widget_container_ts_3_1;
             }
         ],
         execute: function () {
-            ScrollableContainerWidget = class ScrollableContainerWidget extends widget_container_ts_2.BaseWidgetContainer {
+            ScrollableContainerWidget = class ScrollableContainerWidget extends widget_container_ts_3.BaseWidgetContainer {
                 constructor() {
                     super(...arguments);
-                    this.backColor = types_ts_4.FixedColor.Black;
+                    this.backColor = types_ts_5.FixedColor.Black;
                     this.mouseHorizontalScrollEnabled = false;
                     this._mouseHorizontalScrollLimits = { fromX: -9999999, toX: 9999999 };
                     this._offsetX = 0;
                     this._offsetY = 0;
                     this.down = false;
-                    this.downPos = new types_ts_4.Point();
-                    this.downOffset = new types_ts_4.Point();
+                    this.downPos = new types_ts_5.Point();
+                    this.downOffset = new types_ts_5.Point();
                     this.lastChildUnderMouse = null;
                 }
                 get mouseHorizontalScrollLimits() {
@@ -1628,16 +1713,16 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                         this._offsetY = offsetY;
                         context.scrollRect(bbox.x, bbox.y, bbox.width, bbox.height, dx, dy);
                         if (dy > 0) {
-                            invalidateRect(new types_ts_4.Rect(bbox.x, bbox.y, bbox.width, dy));
+                            invalidateRect(new types_ts_5.Rect(bbox.x, bbox.y, bbox.width, dy));
                         }
                         else if (dy < 0) {
-                            invalidateRect(new types_ts_4.Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy));
+                            invalidateRect(new types_ts_5.Rect(bbox.x, bbox.y + bbox.height + dy, bbox.width, -dy));
                         }
                         if (dx > 0) {
-                            invalidateRect(new types_ts_4.Rect(bbox.x, bbox.y, dx, bbox.height));
+                            invalidateRect(new types_ts_5.Rect(bbox.x, bbox.y, dx, bbox.height));
                         }
                         else if (dx < 0) {
-                            invalidateRect(new types_ts_4.Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height));
+                            invalidateRect(new types_ts_5.Rect(bbox.x + bbox.width + dx, bbox.y, -dx, bbox.height));
                         }
                     });
                 }
@@ -1717,14 +1802,14 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                     }
                 }
             };
-            exports_13("ScrollableContainerWidget", ScrollableContainerWidget);
+            exports_15("ScrollableContainerWidget", ScrollableContainerWidget);
         }
     };
 });
-System.register("engine/src/widgets/game/tiles-container", ["engine/src/types", "engine/src/widgets/scrollable"], function (exports_14, context_14) {
+System.register("engine/src/widgets/game/tiles-container", ["engine/src/types", "engine/src/widgets/scrollable"], function (exports_16, context_16) {
     "use strict";
-    var types_ts_5, scrollable_ts_1, ScrollableTilesContainerWidget;
-    var __moduleName = context_14 && context_14.id;
+    var types_ts_6, scrollable_ts_1, ScrollableTilesContainerWidget;
+    var __moduleName = context_16 && context_16.id;
     function compareChildren(c1, c2) {
         if (c1.sortingLayer === c2.sortingLayer)
             return c1.visibleY - c2.visibleY;
@@ -1732,8 +1817,8 @@ System.register("engine/src/widgets/game/tiles-container", ["engine/src/types", 
     }
     return {
         setters: [
-            function (types_ts_5_1) {
-                types_ts_5 = types_ts_5_1;
+            function (types_ts_6_1) {
+                types_ts_6 = types_ts_6_1;
             },
             function (scrollable_ts_1_1) {
                 scrollable_ts_1 = scrollable_ts_1_1;
@@ -1744,12 +1829,12 @@ System.register("engine/src/widgets/game/tiles-container", ["engine/src/types", 
                 constructor() {
                     super(...arguments);
                     this.tilemaps = [];
-                    this.tilemapsBounds = new types_ts_5.Rect();
+                    this.tilemapsBounds = new types_ts_6.Rect();
                 }
                 addTilemap(tilemap) {
                     tilemap.parent = this;
                     this.tilemaps.push(tilemap);
-                    this.tilemapsBounds.union(new types_ts_5.Rect(0, 0, tilemap.width, tilemap.height));
+                    this.tilemapsBounds.union(new types_ts_6.Rect(0, 0, tilemap.width, tilemap.height));
                 }
                 onChildrenAdded(child) {
                     super.onChildrenAdded(child);
@@ -1805,35 +1890,35 @@ System.register("engine/src/widgets/game/tiles-container", ["engine/src/types", 
                     }
                 }
             };
-            exports_14("ScrollableTilesContainerWidget", ScrollableTilesContainerWidget);
+            exports_16("ScrollableTilesContainerWidget", ScrollableTilesContainerWidget);
         }
     };
 });
-System.register("game/src/random", [], function (exports_15, context_15) {
+System.register("game/src/states/game/random", [], function (exports_17, context_17) {
     "use strict";
-    var __moduleName = context_15 && context_15.id;
+    var __moduleName = context_17 && context_17.id;
     function random(arr) {
         return arr[(Math.random() * arr.length) | 0];
     }
-    exports_15("random", random);
+    exports_17("random", random);
     function randomIntervalInt(min, max) {
         return (min | 0) + ((Math.random() * (max - min)) | 0);
     }
-    exports_15("randomIntervalInt", randomIntervalInt);
+    exports_17("randomIntervalInt", randomIntervalInt);
     function randomDirection() {
         return Math.round(Math.random() * 2 - 1) | 0;
     }
-    exports_15("randomDirection", randomDirection);
+    exports_17("randomDirection", randomDirection);
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("game/src/map", ["engine/src/types", "engine/src/widgets/game/tile", "engine/src/widgets/game/tilemap", "game/src/random"], function (exports_16, context_16) {
+System.register("game/src/states/game/map", ["engine/src/types", "engine/src/widgets/game/tile", "engine/src/widgets/game/tilemap", "game/src/states/game/random"], function (exports_18, context_18) {
     "use strict";
-    var types_ts_6, tile_ts_1, tilemap_ts_1, random_ts_1, MAP_SIZE, DECOS_COUNT, ALT_TERRAINS_COUNT, ALT_TERRAINS_MIN_SIZE, ALT_TERRAINS_MAX_SIZE, mainTerrain, altTerrains;
-    var __moduleName = context_16 && context_16.id;
+    var types_ts_7, tile_ts_1, tilemap_ts_1, random_ts_1, MAP_SIZE, DECOS_COUNT, ALT_TERRAINS_COUNT, ALT_TERRAINS_MIN_SIZE, ALT_TERRAINS_MAX_SIZE, mainTerrain, altTerrains;
+    var __moduleName = context_18 && context_18.id;
     function randomDecoTile(terrainId) {
         if (Math.random() > 0.5) {
             return terrainId + "-deco1";
@@ -1909,7 +1994,7 @@ System.register("game/src/map", ["engine/src/types", "engine/src/widgets/game/ti
             const terrainId = random_ts_1.random(altTerrains);
             const fx = random_ts_1.randomIntervalInt(1, MAP_SIZE - w - 1);
             const fy = random_ts_1.randomIntervalInt(1, MAP_SIZE - h - 1);
-            const r = new types_ts_6.Rect(fx, fy, w, h);
+            const r = new types_ts_7.Rect(fx, fy, w, h);
             if (altTerrainsRectsOverflow.some((a) => a.intersects(r)))
                 continue;
             addAltTerrain(terrainId, fx, fy, w, h);
@@ -1935,11 +2020,11 @@ System.register("game/src/map", ["engine/src/types", "engine/src/widgets/game/ti
             floor2,
         };
     }
-    exports_16("default", initMap);
+    exports_18("default", initMap);
     return {
         setters: [
-            function (types_ts_6_1) {
-                types_ts_6 = types_ts_6_1;
+            function (types_ts_7_1) {
+                types_ts_7 = types_ts_7_1;
             },
             function (tile_ts_1_1) {
                 tile_ts_1 = tile_ts_1_1;
@@ -1972,10 +2057,10 @@ System.register("game/src/map", ["engine/src/types", "engine/src/widgets/game/ti
         }
     };
 });
-System.register("game/src/npc", ["game/src/avatar", "game/src/random"], function (exports_17, context_17) {
+System.register("game/src/states/game/npc", ["game/src/states/game/avatar", "game/src/states/game/random"], function (exports_19, context_19) {
     "use strict";
     var avatar_ts_1, random_ts_2, Npc;
-    var __moduleName = context_17 && context_17.id;
+    var __moduleName = context_19 && context_19.id;
     return {
         setters: [
             function (avatar_ts_1_1) {
@@ -2009,112 +2094,51 @@ System.register("game/src/npc", ["game/src/avatar", "game/src/random"], function
                     super.onUpdate();
                 }
             };
-            exports_17("Npc", Npc);
+            exports_19("Npc", Npc);
         }
     };
 });
-System.register("engine/src/widgets/ui/box", ["engine/src/types", "engine/src/widgets/widget-container"], function (exports_18, context_18) {
-    "use strict";
-    var types_ts_7, widget_container_ts_3, BoxContainerWidget;
-    var __moduleName = context_18 && context_18.id;
-    return {
-        setters: [
-            function (types_ts_7_1) {
-                types_ts_7 = types_ts_7_1;
-            },
-            function (widget_container_ts_3_1) {
-                widget_container_ts_3 = widget_container_ts_3_1;
-            }
-        ],
-        execute: function () {
-            BoxContainerWidget = class BoxContainerWidget extends widget_container_ts_3.BaseWidgetContainer {
-                constructor(border = 0) {
-                    super();
-                    this.backColor = types_ts_7.FixedColor.Black;
-                    this.borderColor = types_ts_7.FixedColor.Black;
-                    this.border = 0;
-                    this.border = border;
-                }
-                get innerX() {
-                    return this.border;
-                }
-                get innerY() {
-                    return this.border;
-                }
-                get innerWidth() {
-                    return this.width - this.border * 2;
-                }
-                get innerHeight() {
-                    return this.height - this.border * 2;
-                }
-                preDrawChildren(context) {
-                    if (this.innerX > 0 || this.innerY > 0) {
-                        context.pushTransform(this.innerX, this.innerY);
-                        context.pushClip(0, 0, this.innerWidth, this.innerHeight);
-                    }
-                }
-                postDrawChildren(context) {
-                    if (this.innerX > 0 || this.innerY > 0) {
-                        context.popClip();
-                        context.popTransform();
-                    }
-                }
-                drawSelf(context) {
-                    if (this.border > 0) {
-                        if (this.borderColor !== types_ts_7.FixedColor.Transparent) {
-                            //Top border
-                            context.fillRect(0, 0, this.width, this.border, this.borderColor);
-                            //Bottom border
-                            context.fillRect(0, this.height - this.border, this.width, this.border, this.borderColor);
-                            //Left border
-                            context.fillRect(0, 0, this.border, this.height, this.borderColor);
-                            //Right border
-                            context.fillRect(this.width - this.border, 0, this.border, this.height, this.borderColor);
-                        }
-                    }
-                    if (this.backColor !== types_ts_7.FixedColor.Transparent) {
-                        context.fillRect(this.innerX, this.innerY, this.innerWidth, this.innerHeight, this.backColor);
-                    }
-                }
-            };
-            exports_18("BoxContainerWidget", BoxContainerWidget);
-        }
-    };
-});
-System.register("game/src/types", [], function (exports_19, context_19) {
-    "use strict";
-    var __moduleName = context_19 && context_19.id;
-    return {
-        setters: [],
-        execute: function () {
-        }
-    };
-});
-System.register("game/src/utils", [], function (exports_20, context_20) {
+System.register("game/src/keyboard", [], function (exports_20, context_20) {
     "use strict";
     var __moduleName = context_20 && context_20.id;
-    function followAvatar(avatar, map) {
-        let newOffsetX = -avatar.x + Math.floor(map.width * 0.5);
-        let newOffsetY = -avatar.y + Math.floor(map.height * 0.5);
-        map.setOffset(Math.max(Math.min(newOffsetX, 0), -(map.tilemapsBounds.width - map.width)), Math.max(Math.min(newOffsetY, 0), -(map.tilemapsBounds.height - map.height)));
-    }
-    exports_20("followAvatar", followAvatar);
-    function isKeyDown(game, key) {
-        return game.keysDown.get(key) || false;
+    function isKeyDown(source, key) {
+        return source.keysDown.get(key) || false;
     }
     exports_20("isKeyDown", isKeyDown);
-    function setKeyDown(game, key, down) {
-        game.keysDown.set(key, down);
+    function setKeyDown(source, key, down) {
+        source.keysDown.set(key, down);
     }
     exports_20("setKeyDown", setKeyDown);
-    function isSpecialKeyDown(game, code) {
-        return game.specialKeysDown.get(code) || false;
+    function isSpecialKeyDown(source, code) {
+        return source.specialKeysDown.get(code) || false;
     }
     exports_20("isSpecialKeyDown", isSpecialKeyDown);
-    function setSpecialKeyDown(game, code, down) {
-        game.specialKeysDown.set(code, down);
+    function setSpecialKeyDown(source, code, down) {
+        source.specialKeysDown.set(code, down);
     }
     exports_20("setSpecialKeyDown", setSpecialKeyDown);
+    function onKeyEvent(source, e) {
+        if (e.char) {
+            if (e.type === "down") {
+                setKeyDown(source, e.char, true);
+            }
+            else if (e.type === "up") {
+                setKeyDown(source, e.char, false);
+            }
+        }
+        else if (e.code) {
+            if (e.type === "down") {
+                setSpecialKeyDown(source, e.code, true);
+            }
+            else if (e.type === "up") {
+                setSpecialKeyDown(source, e.code, false);
+            }
+        }
+    }
+    function initKeyboard(engine, source) {
+        engine.onKeyEvent((e) => onKeyEvent(source, e));
+    }
+    exports_20("initKeyboard", initKeyboard);
     return {
         setters: [],
         execute: function () {
@@ -2223,7 +2247,7 @@ System.register("engine/src/widgets/ui/button-text", ["engine/src/widgets/ui/but
         }
     };
 });
-System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/button", "engine/src/widgets/ui/box", "engine/src/widgets/scrollable", "engine/src/widgets/game/tile", "engine/src/widgets/ui/button-text"], function (exports_23, context_23) {
+System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widgets/ui/button", "engine/src/widgets/ui/box", "engine/src/widgets/scrollable", "engine/src/widgets/game/tile", "engine/src/widgets/ui/button-text"], function (exports_23, context_23) {
     "use strict";
     var types_ts_8, button_ts_2, box_ts_1, scrollable_ts_2, tile_ts_2, button_text_ts_1, ITEM_IMAGE_WIDTH, ITEM_IMAGE_HEIGHT, ITEM_IMAGE_BORDER, ITEM_WIDTH, ITEM_HEIGHT;
     var __moduleName = context_23 && context_23.id;
@@ -2260,7 +2284,7 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/butto
                 w.width = Math.min(w.width, parentWidth - (buttonsContainer.width * 2 + 8));
             },
         };
-        itemsContainerContainer.backColor = types_ts_8.FixedColor.Transparent;
+        itemsContainerContainer.backColor = types_ts_8.FixedColor.None;
         const decoTiles = assets.getTilemap("terrain").tiles.filter((x) => x.id.includes("deco"));
         const itemsCount = decoTiles.length;
         const itemsButtons = new Map();
@@ -2332,7 +2356,7 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/butto
         native.screen.onFullScreenChanged((fullscreen) => {
             if (isFullcreen !== fullscreen) {
                 isFullcreen = fullscreen;
-                fullScreenButton.text = isFullcreen ? "Exit" : "Full";
+                fullScreenButton.text = isFullcreen ? "Wind" : "Full";
             }
         });
         return {
@@ -2374,48 +2398,30 @@ System.register("game/src/ui", ["engine/src/types", "engine/src/widgets/ui/butto
         }
     };
 });
-System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/src/map", "game/src/random", "game/src/npc", "game/src/utils", "game/src/ui", "engine/src/widgets/game/tiles-container"], function (exports_24, context_24) {
+System.register("game/src/states/game/game", ["engine/src/types", "game/src/states/game/avatar", "game/src/states/game/map", "game/src/states/game/random", "game/src/states/game/npc", "game/src/types", "game/src/keyboard", "game/src/states/game/ui", "engine/src/widgets/game/tiles-container"], function (exports_24, context_24) {
     "use strict";
-    var types_ts_9, avatar_ts_2, map_ts_1, random_ts_3, npc_ts_1, utils_ts_1, ui_ts_1, tiles_container_ts_1, NPCS_COUNT, ENABLE_P2, mouseMode, mouseKeyCodes, mouseModeAddTile;
+    var types_ts_9, avatar_ts_2, map_ts_1, random_ts_3, npc_ts_1, types_ts_10, keyboard_ts_1, ui_ts_1, tiles_container_ts_1, NPCS_COUNT, ENABLE_P2, mouseMode, mouseKeyCodes, mouseModeAddTile;
     var __moduleName = context_24 && context_24.id;
-    function onKeyEvent(game, e) {
-        if (e.char) {
-            if (e.type === "down") {
-                utils_ts_1.setKeyDown(game, e.char, true);
-            }
-            else if (e.type === "up") {
-                utils_ts_1.setKeyDown(game, e.char, false);
-            }
-        }
-        else if (e.code) {
-            if (e.type === "down") {
-                utils_ts_1.setSpecialKeyDown(game, e.code, true);
-            }
-            else if (e.type === "up") {
-                utils_ts_1.setSpecialKeyDown(game, e.code, false);
-            }
-        }
-    }
     function switchToAddTileMode(tile) {
         mouseMode = 2 /* AddTile */;
         mouseModeAddTile = tile;
     }
-    function mouseEventToMapCoordinates(engine, game, e) {
+    function mouseEventToMapCoordinates(engine, context, e) {
         let widgetAt = engine.getWidgetAt(e.x, e.y);
-        while (widgetAt !== null && widgetAt !== game.map) {
+        while (widgetAt !== null && widgetAt !== context.map) {
             widgetAt = widgetAt.parent;
         }
         if (widgetAt === null)
             return null;
-        const map = game.map;
+        const map = context.map;
         const bounds = map.getBoundingBox();
         return new types_ts_9.Point(e.x - bounds.x - map.offsetX, e.y - bounds.y - map.offsetY);
     }
-    function mouseEventToKeyCodes(engine, game, e) {
+    function mouseEventToKeyCodes(engine, context, e) {
         const keyCodes = [];
-        if (mouseEventToMapCoordinates(engine, game, e) === null)
+        if (mouseEventToMapCoordinates(engine, context, e) === null)
             return keyCodes;
-        const map = game.map;
+        const map = context.map;
         const bounds = map.getBoundingBox();
         let dx = e.x - bounds.x - bounds.width * 0.5;
         let dy = e.y - bounds.y - bounds.height * 0.5;
@@ -2447,27 +2453,29 @@ System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/s
         }
         return true;
     }
-    function onMouseEvent(engine, game, e) {
+    function onMouseEvent(engine, context, e) {
         switch (e.type) {
             case "down":
                 {
                     if (mouseMode === 2 /* AddTile */ && mouseModeAddTile !== null) {
-                        const mapCoords = mouseEventToMapCoordinates(engine, game, e);
+                        const mapCoords = mouseEventToMapCoordinates(engine, context, e);
                         if (mapCoords !== null) {
-                            const tx = (mapCoords.x / game.floorLayer2.tilemap.tileWidth) | 0;
-                            const ty = (mapCoords.y / game.floorLayer2.tilemap.tileHeight) | 0;
-                            game.floorLayer2.setTileIndex(tx, ty, mouseModeAddTile.index);
-                            game.floorLayer2.invalidate();
+                            const tx = (mapCoords.x / context.floorLayer2.tilemap.tileWidth) |
+                                0;
+                            const ty = (mapCoords.y / context.floorLayer2.tilemap.tileHeight) |
+                                0;
+                            context.floorLayer2.setTileIndex(tx, ty, mouseModeAddTile.index);
+                            context.floorLayer2.invalidate();
                         }
                         mouseMode = 0 /* None */;
                     }
                     else {
-                        const newCodes = mouseEventToKeyCodes(engine, game, e);
+                        const newCodes = mouseEventToKeyCodes(engine, context, e);
                         if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
                             mouseMode = 1 /* Move */;
-                            mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, false));
+                            mouseKeyCodes.forEach((code) => keyboard_ts_1.setSpecialKeyDown(context, code, false));
                             mouseKeyCodes = newCodes;
-                            mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, true));
+                            mouseKeyCodes.forEach((code) => keyboard_ts_1.setSpecialKeyDown(context, code, true));
                         }
                     }
                 }
@@ -2477,11 +2485,11 @@ System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/s
                     switch (mouseMode) {
                         case 1 /* Move */:
                             {
-                                const newCodes = mouseEventToKeyCodes(engine, game, e);
+                                const newCodes = mouseEventToKeyCodes(engine, context, e);
                                 if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
-                                    mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, false));
+                                    mouseKeyCodes.forEach((code) => keyboard_ts_1.setSpecialKeyDown(context, code, false));
                                     mouseKeyCodes = newCodes;
-                                    mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, true));
+                                    mouseKeyCodes.forEach((code) => keyboard_ts_1.setSpecialKeyDown(context, code, true));
                                 }
                             }
                             break;
@@ -2492,14 +2500,19 @@ System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/s
                 switch (mouseMode) {
                     case 1 /* Move */:
                         mouseMode = 0 /* None */;
-                        mouseKeyCodes.forEach((code) => utils_ts_1.setSpecialKeyDown(game, code, false));
+                        mouseKeyCodes.forEach((code) => keyboard_ts_1.setSpecialKeyDown(context, code, false));
                         mouseKeyCodes.length = 0;
                         break;
                 }
         }
     }
-    function initGame(engine, assets, native) {
-        const { mainUI, statsContainer, buttonsContainer, addButton, itemsButtons } = ui_ts_1.initUI(engine, assets, native);
+    function followAvatar(avatar, map) {
+        let newOffsetX = -avatar.x + Math.floor(map.width * 0.5);
+        let newOffsetY = -avatar.y + Math.floor(map.height * 0.5);
+        map.setOffset(Math.max(Math.min(newOffsetX, 0), -(map.tilemapsBounds.width - map.width)), Math.max(Math.min(newOffsetY, 0), -(map.tilemapsBounds.height - map.height)));
+    }
+    function initContext(engine, assets, native) {
+        const { mainUI, statsContainer, buttonsContainer, itemsButtons, addButton } = ui_ts_1.initUI(engine, assets, native);
         const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
         map.layer = 0 /* Game */;
         map.layout = { heightPercent: 100, widthPercent: 100 };
@@ -2524,11 +2537,10 @@ System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/s
             c.x = random_ts_3.randomIntervalInt(map.tilemapsBounds.width / 2 - 100, map.tilemapsBounds.width / 2 + 100);
             c.y = random_ts_3.randomIntervalInt(map.tilemapsBounds.height / 2 - 100, map.tilemapsBounds.height / 2 + 100);
         });
-        const game = {
+        const context = {
             statsContainer,
             buttonsContainer,
             scrollable,
-            addButton,
             avatars,
             map,
             floorLayer1: mapLayers.floor,
@@ -2538,57 +2550,96 @@ System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/s
             p2,
             keysDown: new Map(),
             specialKeysDown: new Map(),
+            nextStateId: null,
+            widgetsToRemove: [],
         };
+        addButton("Quit", () => {
+            context.nextStateId = types_ts_10.StateId.MainMenu;
+        });
         engine.addWidget(map, 0 /* Game */);
         engine.addWidget(mainUI, 1 /* UI */);
-        engine.onKeyEvent((e) => onKeyEvent(game, e));
-        engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
+        keyboard_ts_1.initKeyboard(engine, context);
+        engine.onMouseEvent((e) => onMouseEvent(engine, context, e));
+        context.widgetsToRemove.push(map);
+        context.widgetsToRemove.push(mainUI);
         itemsButtons.forEach((tile, button) => {
             button.onTapped = () => {
                 switchToAddTileMode(tile);
             };
         });
-        return game;
+        return context;
     }
-    exports_24("initGame", initGame);
-    function updateGame(game) {
-        const { p1, p2, avatars, map } = game;
-        if (utils_ts_1.isKeyDown(game, "a") || utils_ts_1.isSpecialKeyDown(game, 1 /* ArrowLeft */)) {
+    function updateContext(context) {
+        const { p1, p2, avatars, map } = context;
+        if (keyboard_ts_1.isKeyDown(context, "a") || keyboard_ts_1.isSpecialKeyDown(context, 1 /* ArrowLeft */)) {
             p1.move(-1, 0);
         }
-        if (utils_ts_1.isKeyDown(game, "d") || utils_ts_1.isSpecialKeyDown(game, 2 /* ArrowRight */)) {
+        if (keyboard_ts_1.isKeyDown(context, "d") || keyboard_ts_1.isSpecialKeyDown(context, 2 /* ArrowRight */)) {
             p1.move(1, 0);
         }
-        if (utils_ts_1.isKeyDown(game, "w") || utils_ts_1.isSpecialKeyDown(game, 3 /* ArrowUp */)) {
+        if (keyboard_ts_1.isKeyDown(context, "w") || keyboard_ts_1.isSpecialKeyDown(context, 3 /* ArrowUp */)) {
             p1.move(0, -1);
         }
-        if (utils_ts_1.isKeyDown(game, "s") || utils_ts_1.isSpecialKeyDown(game, 4 /* ArrowDown */)) {
+        if (keyboard_ts_1.isKeyDown(context, "s") || keyboard_ts_1.isSpecialKeyDown(context, 4 /* ArrowDown */)) {
             p1.move(0, 1);
         }
-        if (utils_ts_1.isKeyDown(game, "f") || utils_ts_1.isKeyDown(game, "z"))
+        if (keyboard_ts_1.isKeyDown(context, "f") || keyboard_ts_1.isKeyDown(context, "z"))
             p1.shoot();
-        if (utils_ts_1.isKeyDown(game, "r") || utils_ts_1.isKeyDown(game, "x"))
+        if (keyboard_ts_1.isKeyDown(context, "r") || keyboard_ts_1.isKeyDown(context, "x"))
             p1.slash();
-        if (utils_ts_1.isKeyDown(game, "j"))
+        if (keyboard_ts_1.isKeyDown(context, "j"))
             p2.move(-1, 0);
-        if (utils_ts_1.isKeyDown(game, "l"))
+        if (keyboard_ts_1.isKeyDown(context, "l"))
             p2.move(1, 0);
-        if (utils_ts_1.isKeyDown(game, "i"))
+        if (keyboard_ts_1.isKeyDown(context, "i"))
             p2.move(0, -1);
-        if (utils_ts_1.isKeyDown(game, "k"))
+        if (keyboard_ts_1.isKeyDown(context, "k"))
             p2.move(0, 1);
-        if (utils_ts_1.isKeyDown(game, ";"))
+        if (keyboard_ts_1.isKeyDown(context, ";"))
             p2.shoot();
-        if (utils_ts_1.isKeyDown(game, "p"))
+        if (keyboard_ts_1.isKeyDown(context, "p"))
             p2.slash();
         avatars.forEach((avatar) => {
             avatar.x = Math.max(Math.min(avatar.x, map.tilemapsBounds.width), 0);
             avatar.y = Math.max(Math.min(avatar.y, map.tilemapsBounds.height), 0);
         });
-        utils_ts_1.followAvatar(p1, map);
+        followAvatar(p1, map);
         return true;
     }
-    exports_24("updateGame", updateGame);
+    function destroyState(engine, context) {
+        context.widgetsToRemove.forEach((w) => engine.removeWidget(w));
+    }
+    function buildGameState() {
+        let context = null;
+        let engine = null;
+        const init = (p) => {
+            context = initContext(p.engine, p.assets, p.native);
+            engine = p.engine;
+            return {
+                statsContainer: context.statsContainer,
+            };
+        };
+        const update = () => {
+            if (context !== null) {
+                updateContext(context);
+                return context.nextStateId;
+            }
+            return null;
+        };
+        const destroy = () => {
+            if (context && engine) {
+                destroyState(engine, context);
+                context = null;
+            }
+        };
+        return {
+            id: types_ts_10.StateId.Game,
+            init,
+            update,
+            destroy,
+        };
+    }
+    exports_24("buildGameState", buildGameState);
     return {
         setters: [
             function (types_ts_9_1) {
@@ -2606,8 +2657,11 @@ System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/s
             function (npc_ts_1_1) {
                 npc_ts_1 = npc_ts_1_1;
             },
-            function (utils_ts_1_1) {
-                utils_ts_1 = utils_ts_1_1;
+            function (types_ts_10_1) {
+                types_ts_10 = types_ts_10_1;
+            },
+            function (keyboard_ts_1_1) {
+                keyboard_ts_1 = keyboard_ts_1_1;
             },
             function (ui_ts_1_1) {
                 ui_ts_1 = ui_ts_1_1;
@@ -2625,23 +2679,167 @@ System.register("game/src/game", ["engine/src/types", "game/src/avatar", "game/s
         }
     };
 });
-System.register("web/src/native/screen/drawing/types", [], function (exports_25, context_25) {
+System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/src/types", "game/src/keyboard", "engine/src/widgets/ui/box", "engine/src/widgets/ui/button-text"], function (exports_25, context_25) {
     "use strict";
+    var types_ts_11, types_ts_12, keyboard_ts_2, box_ts_2, button_text_ts_2;
     var __moduleName = context_25 && context_25.id;
+    function initState(engine, assets, native) {
+        const font = assets.defaultFont;
+        const mainUI = new box_ts_2.BoxContainerWidget(0);
+        mainUI.layer = 1 /* UI */;
+        mainUI.selfSolid = false;
+        mainUI.layout = { widthPercent: 100, heightPercent: 100 };
+        mainUI.backColor = types_ts_11.FixedColor.Transparent;
+        const emptyGame = new box_ts_2.BoxContainerWidget(0);
+        emptyGame.layer = 0 /* Game */;
+        emptyGame.selfSolid = false;
+        emptyGame.layout = { widthPercent: 100, heightPercent: 100 };
+        emptyGame.backColor = types_ts_11.rgb(0, 100, 0);
+        const buttonsContainer = new box_ts_2.BoxContainerWidget(4);
+        buttonsContainer.width = 40 * font.tileWidth;
+        buttonsContainer.height = 8;
+        buttonsContainer.layout = {
+            verticalSpacingPercent: 50,
+            horizontalSpacingPercent: 50,
+        };
+        buttonsContainer.childrenLayout = {
+            type: "vertical",
+            spacing: font.tileHeight,
+        };
+        buttonsContainer.parent = mainUI;
+        const addButton = (text, cb) => {
+            const button = new button_text_ts_2.TextButtonWidget(font, text, types_ts_11.FixedColor.White, types_ts_11.FixedColor.Green, types_ts_11.FixedColor.Yellow, () => cb()).setLayout({ widthPercent: 100 });
+            button.parent = buttonsContainer;
+            buttonsContainer.height = buttonsContainer.border * 2 +
+                buttonsContainer.children.map((x) => x.height).reduce((acc, v) => acc + v, 0) +
+                Math.max(buttonsContainer.children.length - 1, 0) *
+                    (buttonsContainer.childrenLayout?.spacing || 0);
+            return button;
+        };
+        const context = {
+            keysDown: new Map(),
+            specialKeysDown: new Map(),
+            nextStateId: null,
+            widgetsToRemove: [],
+        };
+        keyboard_ts_2.initKeyboard(engine, context);
+        addButton("Start Game", () => {
+            context.nextStateId = types_ts_12.StateId.Game;
+        });
+        addButton("Start Benchmark", () => {
+            context.nextStateId = types_ts_12.StateId.Game;
+        });
+        engine.addWidget(mainUI, 1 /* UI */);
+        engine.addWidget(emptyGame, 0 /* Game */);
+        context.widgetsToRemove.push(mainUI);
+        context.widgetsToRemove.push(emptyGame);
+        return context;
+    }
+    function updateState(context) {
+        return context.nextStateId;
+    }
+    function destroyState(engine, context) {
+        context.widgetsToRemove.forEach((w) => engine.removeWidget(w));
+    }
+    function buildMainMenuState() {
+        let context = null;
+        let engine = null;
+        const init = (p) => {
+            context = initState(p.engine, p.assets, p.native);
+            engine = p.engine;
+            return {};
+        };
+        const update = () => {
+            if (context)
+                return updateState(context);
+            return null;
+        };
+        const destroy = () => {
+            if (context && engine) {
+                destroyState(engine, context);
+                context = null;
+            }
+        };
+        return {
+            id: types_ts_12.StateId.MainMenu,
+            init,
+            update,
+            destroy,
+        };
+    }
+    exports_25("buildMainMenuState", buildMainMenuState);
+    return {
+        setters: [
+            function (types_ts_11_1) {
+                types_ts_11 = types_ts_11_1;
+            },
+            function (types_ts_12_1) {
+                types_ts_12 = types_ts_12_1;
+            },
+            function (keyboard_ts_2_1) {
+                keyboard_ts_2 = keyboard_ts_2_1;
+            },
+            function (box_ts_2_1) {
+                box_ts_2 = box_ts_2_1;
+            },
+            function (button_text_ts_2_1) {
+                button_text_ts_2 = button_text_ts_2_1;
+            }
+        ],
+        execute: function () {
+        }
+    };
+});
+System.register("game/src/state-factory", ["game/src/types", "game/src/states/game/game", "game/src/states/mainmenu/mainmenu"], function (exports_26, context_26) {
+    "use strict";
+    var types_ts_13, game_ts_1, mainmenu_ts_1;
+    var __moduleName = context_26 && context_26.id;
+    function buildStateFactory() {
+        return {
+            buildState: (id) => {
+                switch (id) {
+                    case types_ts_13.StateId.Game:
+                        return game_ts_1.buildGameState();
+                    case types_ts_13.StateId.MainMenu:
+                        return mainmenu_ts_1.buildMainMenuState();
+                }
+            },
+        };
+    }
+    exports_26("buildStateFactory", buildStateFactory);
+    return {
+        setters: [
+            function (types_ts_13_1) {
+                types_ts_13 = types_ts_13_1;
+            },
+            function (game_ts_1_1) {
+                game_ts_1 = game_ts_1_1;
+            },
+            function (mainmenu_ts_1_1) {
+                mainmenu_ts_1 = mainmenu_ts_1_1;
+            }
+        ],
+        execute: function () {
+        }
+    };
+});
+System.register("web/src/native/screen/drawing/types", [], function (exports_27, context_27) {
+    "use strict";
+    var __moduleName = context_27 && context_27.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types"], function (exports_26, context_26) {
+System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types"], function (exports_28, context_28) {
     "use strict";
-    var types_ts_10, DrawingRealLayer, DrawingReal;
-    var __moduleName = context_26 && context_26.id;
+    var types_ts_14, DrawingRealLayer, DrawingReal;
+    var __moduleName = context_28 && context_28.id;
     return {
         setters: [
-            function (types_ts_10_1) {
-                types_ts_10 = types_ts_10_1;
+            function (types_ts_14_1) {
+                types_ts_14 = types_ts_14_1;
             }
         ],
         execute: function () {
@@ -2688,7 +2886,7 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                     const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
                     const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
                     const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
-                    return new types_ts_10.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
+                    return new types_ts_14.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
                 }
             };
             DrawingReal = class DrawingReal {
@@ -2699,7 +2897,7 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                     this.dirtyTime = 0;
                     this.useCanvases = false;
                     this.drawingDone = drawingDone;
-                    for (let i = 0; i < types_ts_10.LAYERS_COUNT; i++) {
+                    for (let i = 0; i < types_ts_14.LAYERS_COUNT; i++) {
                         this.layers.push(new DrawingRealLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
@@ -3032,23 +3230,23 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                 update() { }
                 preloadTiles(tiles) { }
             };
-            exports_26("DrawingReal", DrawingReal);
+            exports_28("DrawingReal", DrawingReal);
         }
     };
 });
-System.register("web/src/native/screen/drawing/worker/types", [], function (exports_27, context_27) {
+System.register("web/src/native/screen/drawing/worker/types", [], function (exports_29, context_29) {
     "use strict";
-    var __moduleName = context_27 && context_27.id;
+    var __moduleName = context_29 && context_29.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/screen/drawing/drawing-worker", [], function (exports_28, context_28) {
+System.register("web/src/native/screen/drawing/drawing-worker", [], function (exports_30, context_30) {
     "use strict";
     var ALLOW_OFFSCREEN_CANVASES, DrawingWorker;
-    var __moduleName = context_28 && context_28.id;
+    var __moduleName = context_30 && context_30.id;
     function canTransferControlToOffscreen(test) {
         return typeof test["transferControlToOffscreen"] === "function";
     }
@@ -3228,16 +3426,16 @@ System.register("web/src/native/screen/drawing/drawing-worker", [], function (ex
                     this.commit();
                 }
             };
-            exports_28("DrawingWorker", DrawingWorker);
+            exports_30("DrawingWorker", DrawingWorker);
         }
     };
 });
-System.register("web/src/native/screen/native-screen", ["engine/src/types", "web/src/native/screen/drawing/drawing-real", "web/src/native/screen/drawing/drawing-worker"], function (exports_29, context_29) {
+System.register("web/src/native/screen/native-screen", ["engine/src/types", "web/src/native/screen/drawing/drawing-real", "web/src/native/screen/drawing/drawing-worker"], function (exports_31, context_31) {
     "use strict";
-    var types_ts_11, drawing_real_ts_1, drawing_worker_ts_1, USE_WORKER;
-    var __moduleName = context_29 && context_29.id;
+    var types_ts_15, drawing_real_ts_1, drawing_worker_ts_1, USE_WORKER;
+    var __moduleName = context_31 && context_31.id;
     function getCanvasSize() {
-        return new types_ts_11.Size(window.innerWidth, window.innerHeight);
+        return new types_ts_15.Size(window.innerWidth, window.innerHeight);
     }
     function createFullScreenCanvas(zIndex) {
         const canvas = document.createElement("canvas");
@@ -3256,7 +3454,7 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
     }
     function getWebNativeScreen(onStats) {
         const canvases = initCanvases();
-        const screenSize = new types_ts_11.Size(256, 256);
+        const screenSize = new types_ts_15.Size(256, 256);
         const screenSizeChangedListeners = [];
         const fullScreenListeners = [];
         const dispatchFullScreenEvent = (fullscreen) => {
@@ -3320,11 +3518,11 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
             endDraw: () => drawing.commit(),
         };
     }
-    exports_29("getWebNativeScreen", getWebNativeScreen);
+    exports_31("getWebNativeScreen", getWebNativeScreen);
     return {
         setters: [
-            function (types_ts_11_1) {
-                types_ts_11 = types_ts_11_1;
+            function (types_ts_15_1) {
+                types_ts_15 = types_ts_15_1;
             },
             function (drawing_real_ts_1_1) {
                 drawing_real_ts_1 = drawing_real_ts_1_1;
@@ -3338,9 +3536,9 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
         }
     };
 });
-System.register("web/src/native/input/native-input", [], function (exports_30, context_30) {
+System.register("web/src/native/input/native-input", [], function (exports_32, context_32) {
     "use strict";
-    var __moduleName = context_30 && context_30.id;
+    var __moduleName = context_32 && context_32.id;
     function getWebNativeInput() {
         const keyListeners = [];
         const mouseListeners = [];
@@ -3418,16 +3616,16 @@ System.register("web/src/native/input/native-input", [], function (exports_30, c
             onMouseEvent: (listener) => mouseListeners.push(listener),
         };
     }
-    exports_30("getWebNativeInput", getWebNativeInput);
+    exports_32("getWebNativeInput", getWebNativeInput);
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/focus/native-focus", [], function (exports_31, context_31) {
+System.register("web/src/native/focus/native-focus", [], function (exports_33, context_33) {
     "use strict";
-    var __moduleName = context_31 && context_31.id;
+    var __moduleName = context_33 && context_33.id;
     function getWebNativeFocus() {
         const focusListeners = [];
         const dispatchFocusEvent = (focus) => {
@@ -3442,17 +3640,17 @@ System.register("web/src/native/focus/native-focus", [], function (exports_31, c
             onFocusChanged: (listener) => focusListeners.push(listener),
         };
     }
-    exports_31("getWebNativeFocus", getWebNativeFocus);
+    exports_33("getWebNativeFocus", getWebNativeFocus);
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/native", ["web/src/native/screen/native-screen", "web/src/native/input/native-input", "web/src/native/focus/native-focus"], function (exports_32, context_32) {
+System.register("web/src/native/native", ["web/src/native/screen/native-screen", "web/src/native/input/native-input", "web/src/native/focus/native-focus"], function (exports_34, context_34) {
     "use strict";
     var native_screen_ts_1, native_input_ts_1, native_focus_ts_1;
-    var __moduleName = context_32 && context_32.id;
+    var __moduleName = context_34 && context_34.id;
     function getWebNativeContext(onStats) {
         return {
             screen: native_screen_ts_1.getWebNativeScreen(onStats),
@@ -3462,7 +3660,7 @@ System.register("web/src/native/native", ["web/src/native/screen/native-screen",
             destroy: () => { },
         };
     }
-    exports_32("getWebNativeContext", getWebNativeContext);
+    exports_34("getWebNativeContext", getWebNativeContext);
     return {
         setters: [
             function (native_screen_ts_1_1) {
@@ -3479,10 +3677,10 @@ System.register("web/src/native/native", ["web/src/native/screen/native-screen",
         }
     };
 });
-System.register("web/src/assets", ["engine/src/types"], function (exports_33, context_33) {
+System.register("web/src/assets", ["engine/src/types"], function (exports_35, context_35) {
     "use strict";
-    var types_ts_12;
-    var __moduleName = context_33 && context_33.id;
+    var types_ts_16;
+    var __moduleName = context_35 && context_35.id;
     async function loadImage(src) {
         return new Promise((resolve, reject) => {
             const image = new Image();
@@ -3516,7 +3714,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_33, co
             getTile: (id) => tilesById.get(id),
             getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
             getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
-            getTileXYByIndex: (index) => new types_ts_12.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
+            getTileXYByIndex: (index) => new types_ts_16.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
         };
         const setTileId = (index, id) => {
             tiles[index].id = id;
@@ -3684,7 +3882,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_33, co
         addAnimation(avatarId + "-right-hurt", 20, 0, 5, false);
     }
     function loadAnimation(id, json, tilemaps) {
-        const delayInUpdates = json.fps > 0 ? Math.ceil(types_ts_12.UPDATE_FPS / json.fps) : 0;
+        const delayInUpdates = json.fps > 0 ? Math.ceil(types_ts_16.UPDATE_FPS / json.fps) : 0;
         const tiles = [];
         if (json.frames) {
             tiles.push(...json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]));
@@ -3748,21 +3946,21 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_33, co
         };
         return assets;
     }
-    exports_33("initAssets", initAssets);
+    exports_35("initAssets", initAssets);
     return {
         setters: [
-            function (types_ts_12_1) {
-                types_ts_12 = types_ts_12_1;
+            function (types_ts_16_1) {
+                types_ts_16 = types_ts_16_1;
             }
         ],
         execute: function () {
         }
     };
 });
-System.register("web/src/stats", [], function (exports_34, context_34) {
+System.register("web/src/stats", [], function (exports_36, context_36) {
     "use strict";
     var Stat, EngineStats;
-    var __moduleName = context_34 && context_34.id;
+    var __moduleName = context_36 && context_36.id;
     return {
         setters: [],
         execute: function () {
@@ -3802,14 +4000,14 @@ System.register("web/src/stats", [], function (exports_34, context_34) {
                     this.update.reset();
                 }
             };
-            exports_34("EngineStats", EngineStats);
+            exports_36("EngineStats", EngineStats);
         }
     };
 });
-System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/game", "web/src/native/native", "web/src/assets", "web/src/stats"], function (exports_35, context_35) {
+System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/state-factory", "web/src/native/native", "web/src/assets", "game/src/types", "web/src/stats"], function (exports_37, context_37) {
     "use strict";
-    var types_ts_13, engine_ts_1, label_ts_1, game_ts_1, native_ts_1, assets_ts_1, stats_ts_1, MAX_PENDING_FRAMES, engine, nativeContext, statsLabel, game, focused, updateStatsFrames, updateStatsTime, engineStats, ignoreUpdate, lastUpdateTime;
-    var __moduleName = context_35 && context_35.id;
+    var types_ts_17, engine_ts_1, label_ts_1, state_factory_ts_1, native_ts_1, assets_ts_1, types_ts_18, stats_ts_1, MAX_PENDING_FRAMES, engine, native, assets, statsLabel, currentState, focused, stateFactory, updateStatsFrames, updateStatsTime, engineStats, ignoreUpdate, lastUpdateTime;
+    var __moduleName = context_37 && context_37.id;
     function updateStats() {
         const now = performance.now();
         updateStatsFrames++;
@@ -3824,52 +4022,77 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             const idleTime = deltaTime - busyTime;
             const idlePercent = idleTime * 100 / deltaTime;
             stats += `\nIdle: ${idlePercent.toFixed(1)}%`;
-            statsLabel.text = stats;
+            if (statsLabel !== null) {
+                statsLabel.text = stats;
+            }
             updateStatsTime = now;
             engineStats.reset();
             updateStatsFrames = 0;
         }
     }
     async function waitNoPendingFrames() {
-        while (!nativeContext.screen.readyForNextFrame(0)) {
+        while (!native.screen.readyForNextFrame(0)) {
             await new Promise((resolve) => setTimeout(resolve, 100));
-            nativeContext.screen.processPendingFrames();
+            native.screen.processPendingFrames();
         }
     }
-    async function init() {
+    function initState(newState) {
+        if (currentState !== null) {
+            console.log(`Destroying ${currentState.id} State`);
+            currentState.destroy();
+            console.log(`State ${currentState.id} Destroyed`);
+            currentState = null;
+            statsLabel = null;
+        }
+        console.log(`Initializing ${newState.id} State`);
+        const initResult = newState.init({ engine, assets, native, stateFactory });
+        console.log(`State ${newState.id} Initialized`);
+        if (initResult.statsContainer) {
+            statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_17.FixedColor.White, initResult.statsContainer.backColor);
+            statsLabel.parent = initResult.statsContainer;
+        }
+        currentState = newState;
+    }
+    async function init(mainStateId) {
+        stateFactory = state_factory_ts_1.buildStateFactory();
         console.log("Initializing Engine");
-        const assets = await assets_ts_1.initAssets();
-        nativeContext = native_ts_1.getWebNativeContext((stats) => {
+        native = native_ts_1.getWebNativeContext((stats) => {
             if (stats.drawnPixels > 0) {
                 engineStats.renderNative.addSample(stats.time);
             }
         });
-        nativeContext.focus.onFocusChanged((focus) => {
+        native.focus.onFocusChanged((focus) => {
             if (focus)
                 ignoreUpdate = true;
             focused = focus;
         });
-        engine = await engine_ts_1.buildEngine(nativeContext);
+        engine = await engine_ts_1.buildEngine(native);
         console.log("Engine Initialized");
-        game = game_ts_1.initGame(engine, assets, nativeContext);
-        console.log("Game Initialized");
-        statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_13.FixedColor.White, game.statsContainer.backColor);
-        statsLabel.parent = game.statsContainer;
+        console.log("Loading Assets");
+        assets = await assets_ts_1.initAssets();
+        console.log("Assets Loaded");
+        initState(stateFactory.buildState(mainStateId));
         //Wait engine ready
         await waitNoPendingFrames();
         //Preload tiles
         for (const tilemap of assets.tilemaps.values()) {
-            nativeContext.screen.preloadTiles(tilemap.tiles);
+            native.screen.preloadTiles(tilemap.tiles);
             await waitNoPendingFrames();
         }
         return engine;
     }
     function updateReal() {
         const preUpdateTime = performance.now();
-        game_ts_1.updateGame(game);
+        let nextStateId = null;
+        if (currentState !== null) {
+            nextStateId = currentState.update();
+        }
         engine.update();
         const postUpdateTime = performance.now();
         engineStats.update.addSample(postUpdateTime - preUpdateTime);
+        if (nextStateId !== null) {
+            initState(stateFactory.buildState(nextStateId));
+        }
     }
     function drawReal() {
         const drawStats = engine.draw();
@@ -3880,7 +4103,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     function update() {
         if (!focused)
             return;
-        nativeContext.screen.processPendingFrames();
+        native.screen.processPendingFrames();
         updateStats();
         const now = performance.now();
         if (ignoreUpdate) {
@@ -3889,12 +4112,12 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             return;
         }
         const delta = now - lastUpdateTime;
-        const targetDeltaUpdate = 1000 / types_ts_13.UPDATE_FPS;
+        const targetDeltaUpdate = 1000 / types_ts_17.UPDATE_FPS;
         if (delta > targetDeltaUpdate - 0.1) {
             lastUpdateTime = Math.max(lastUpdateTime + targetDeltaUpdate, now - 1000);
             updateReal();
         }
-        if (nativeContext.screen.readyForNextFrame(MAX_PENDING_FRAMES)) {
+        if (native.screen.readyForNextFrame(MAX_PENDING_FRAMES)) {
             drawReal();
         }
     }
@@ -3904,12 +4127,12 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             document.body.removeChild(loader);
     }
     async function run() {
-        const engine = await init();
+        const engine = await init(types_ts_18.StateId.Game);
         updateReal();
         drawReal();
-        while (!nativeContext.screen.readyForNextFrame(0)) {
+        while (!native.screen.readyForNextFrame(0)) {
             await new Promise((resolve) => setTimeout(resolve, 100));
-            nativeContext.screen.processPendingFrames();
+            native.screen.processPendingFrames();
         }
         lastUpdateTime = performance.now();
         hideLoader();
@@ -3922,8 +4145,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     }
     return {
         setters: [
-            function (types_ts_13_1) {
-                types_ts_13 = types_ts_13_1;
+            function (types_ts_17_1) {
+                types_ts_17 = types_ts_17_1;
             },
             function (engine_ts_1_1) {
                 engine_ts_1 = engine_ts_1_1;
@@ -3931,8 +4154,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             function (label_ts_1_1) {
                 label_ts_1 = label_ts_1_1;
             },
-            function (game_ts_1_1) {
-                game_ts_1 = game_ts_1_1;
+            function (state_factory_ts_1_1) {
+                state_factory_ts_1 = state_factory_ts_1_1;
             },
             function (native_ts_1_1) {
                 native_ts_1 = native_ts_1_1;
@@ -3940,12 +4163,17 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             function (assets_ts_1_1) {
                 assets_ts_1 = assets_ts_1_1;
             },
+            function (types_ts_18_1) {
+                types_ts_18 = types_ts_18_1;
+            },
             function (stats_ts_1_1) {
                 stats_ts_1 = stats_ts_1_1;
             }
         ],
         execute: function () {
             MAX_PENDING_FRAMES = 1;
+            statsLabel = null;
+            currentState = null;
             focused = true;
             updateStatsFrames = 0;
             updateStatsTime = performance.now();

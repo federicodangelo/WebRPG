@@ -1,47 +1,54 @@
 import {
   Engine,
   Assets,
-  EngineKeyEvent,
   EngineMouseEvent,
   KeyCode,
   LayerId,
   Tile,
   Point,
+  Widget,
 } from "engine/types.ts";
 import { Avatar } from "./avatar.ts";
 import initMap1 from "./map.ts";
 import { randomIntervalInt } from "./random.ts";
 import { Npc } from "./npc.ts";
-import { Game } from "./types.ts";
+import { State, InitParams, InitResult, StateId } from "../../types.ts";
 import {
-  setKeyDown,
   isKeyDown,
-  followAvatar,
   setSpecialKeyDown,
   isSpecialKeyDown,
-} from "./utils.ts";
+  initKeyboard,
+} from "../../keyboard.ts";
 import { initUI } from "./ui.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
 import { NativeContext } from "engine/native-types.ts";
+import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
+import { TilemapWidget } from "engine/widgets/game/tilemap.ts";
 
 const NPCS_COUNT = 10;
 const ENABLE_P2 = true;
 
-function onKeyEvent(game: Game, e: EngineKeyEvent) {
-  if (e.char) {
-    if (e.type === "down") {
-      setKeyDown(game, e.char, true);
-    } else if (e.type === "up") {
-      setKeyDown(game, e.char, false);
-    }
-  } else if (e.code) {
-    if (e.type === "down") {
-      setSpecialKeyDown(game, e.code, true);
-    } else if (e.type === "up") {
-      setSpecialKeyDown(game, e.code, false);
-    }
-  }
-}
+type StateContext = {
+  statsContainer: BoxContainerWidget;
+  buttonsContainer: BoxContainerWidget;
+  scrollable: ScrollableTilesContainerWidget;
+
+  avatars: Avatar[];
+  npcs: Avatar[];
+
+  map: ScrollableTilesContainerWidget;
+  floorLayer1: TilemapWidget;
+  floorLayer2: TilemapWidget;
+  p1: Avatar;
+  p2: Avatar;
+
+  keysDown: Map<string, boolean>;
+  specialKeysDown: Map<KeyCode, boolean>;
+
+  nextStateId: StateId | null;
+
+  widgetsToRemove: Widget[];
+};
 
 const enum MouseMode {
   None,
@@ -59,18 +66,18 @@ function switchToAddTileMode(tile: Tile) {
 
 function mouseEventToMapCoordinates(
   engine: Engine,
-  game: Game,
+  context: StateContext,
   e: EngineMouseEvent,
 ) {
   let widgetAt = engine.getWidgetAt(e.x, e.y);
 
-  while (widgetAt !== null && widgetAt !== game.map) {
+  while (widgetAt !== null && widgetAt !== context.map) {
     widgetAt = widgetAt.parent;
   }
 
   if (widgetAt === null) return null;
 
-  const map = game.map;
+  const map = context.map;
   const bounds = map.getBoundingBox();
 
   return new Point(e.x - bounds.x - map.offsetX, e.y - bounds.y - map.offsetY);
@@ -78,14 +85,14 @@ function mouseEventToMapCoordinates(
 
 function mouseEventToKeyCodes(
   engine: Engine,
-  game: Game,
+  context: StateContext,
   e: EngineMouseEvent,
 ): KeyCode[] {
   const keyCodes: KeyCode[] = [];
 
-  if (mouseEventToMapCoordinates(engine, game, e) === null) return keyCodes;
+  if (mouseEventToMapCoordinates(engine, context, e) === null) return keyCodes;
 
-  const map = game.map;
+  const map = context.map;
   const bounds = map.getBoundingBox();
   let dx = e.x - bounds.x - bounds.width * 0.5;
   let dy = e.y - bounds.y - bounds.height * 0.5;
@@ -118,29 +125,35 @@ function keyCodesEqual(codes1: KeyCode[], codes2: KeyCode[]) {
   return true;
 }
 
-function onMouseEvent(engine: Engine, game: Game, e: EngineMouseEvent) {
+function onMouseEvent(
+  engine: Engine,
+  context: StateContext,
+  e: EngineMouseEvent,
+) {
   switch (e.type) {
     case "down":
       {
         if (mouseMode === MouseMode.AddTile && mouseModeAddTile !== null) {
-          const mapCoords = mouseEventToMapCoordinates(engine, game, e);
+          const mapCoords = mouseEventToMapCoordinates(engine, context, e);
           if (mapCoords !== null) {
-            const tx = (mapCoords.x / game.floorLayer2.tilemap.tileWidth) | 0;
-            const ty = (mapCoords.y / game.floorLayer2.tilemap.tileHeight) | 0;
-            game.floorLayer2.setTileIndex(tx, ty, mouseModeAddTile.index);
-            game.floorLayer2.invalidate();
+            const tx = (mapCoords.x / context.floorLayer2.tilemap.tileWidth) |
+              0;
+            const ty = (mapCoords.y / context.floorLayer2.tilemap.tileHeight) |
+              0;
+            context.floorLayer2.setTileIndex(tx, ty, mouseModeAddTile.index);
+            context.floorLayer2.invalidate();
           }
           mouseMode = MouseMode.None;
         } else {
-          const newCodes = mouseEventToKeyCodes(engine, game, e);
+          const newCodes = mouseEventToKeyCodes(engine, context, e);
           if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
             mouseMode = MouseMode.Move;
             mouseKeyCodes.forEach((code) =>
-              setSpecialKeyDown(game, code, false)
+              setSpecialKeyDown(context, code, false)
             );
             mouseKeyCodes = newCodes;
             mouseKeyCodes.forEach((code) =>
-              setSpecialKeyDown(game, code, true)
+              setSpecialKeyDown(context, code, true)
             );
           }
         }
@@ -152,14 +165,14 @@ function onMouseEvent(engine: Engine, game: Game, e: EngineMouseEvent) {
         switch (mouseMode) {
           case MouseMode.Move:
             {
-              const newCodes = mouseEventToKeyCodes(engine, game, e);
+              const newCodes = mouseEventToKeyCodes(engine, context, e);
               if (!keyCodesEqual(newCodes, mouseKeyCodes)) {
                 mouseKeyCodes.forEach((code) =>
-                  setSpecialKeyDown(game, code, false)
+                  setSpecialKeyDown(context, code, false)
                 );
                 mouseKeyCodes = newCodes;
                 mouseKeyCodes.forEach((code) =>
-                  setSpecialKeyDown(game, code, true)
+                  setSpecialKeyDown(context, code, true)
                 );
               }
             }
@@ -172,19 +185,40 @@ function onMouseEvent(engine: Engine, game: Game, e: EngineMouseEvent) {
       switch (mouseMode) {
         case MouseMode.Move:
           mouseMode = MouseMode.None;
-          mouseKeyCodes.forEach((code) => setSpecialKeyDown(game, code, false));
+          mouseKeyCodes.forEach((code) =>
+            setSpecialKeyDown(context, code, false)
+          );
           mouseKeyCodes.length = 0;
           break;
       }
   }
 }
 
-export function initGame(
+function followAvatar(
+  avatar: Avatar,
+  map: ScrollableTilesContainerWidget,
+) {
+  let newOffsetX = -avatar.x + Math.floor(map.width * 0.5);
+  let newOffsetY = -avatar.y + Math.floor(map.height * 0.5);
+
+  map.setOffset(
+    Math.max(
+      Math.min(newOffsetX, 0),
+      -(map.tilemapsBounds.width - map.width),
+    ),
+    Math.max(
+      Math.min(newOffsetY, 0),
+      -(map.tilemapsBounds.height - map.height),
+    ),
+  );
+}
+
+function initContext(
   engine: Engine,
   assets: Assets,
   native: NativeContext,
-): Game {
-  const { mainUI, statsContainer, buttonsContainer, addButton, itemsButtons } =
+): StateContext {
+  const { mainUI, statsContainer, buttonsContainer, itemsButtons, addButton } =
     initUI(
       engine,
       assets,
@@ -226,11 +260,10 @@ export function initGame(
     );
   });
 
-  const game: Game = {
+  const context: StateContext = {
     statsContainer,
     buttonsContainer,
     scrollable,
-    addButton,
     avatars,
     map,
     floorLayer1: mapLayers.floor,
@@ -240,12 +273,21 @@ export function initGame(
     p2,
     keysDown: new Map<string, boolean>(),
     specialKeysDown: new Map<KeyCode, boolean>(),
+    nextStateId: null,
+    widgetsToRemove: [],
   };
+
+  addButton("Quit", () => {
+    context.nextStateId = StateId.MainMenu;
+  });
 
   engine.addWidget(map, LayerId.Game);
   engine.addWidget(mainUI, LayerId.UI);
-  engine.onKeyEvent((e) => onKeyEvent(game, e));
-  engine.onMouseEvent((e) => onMouseEvent(engine, game, e));
+  initKeyboard(engine, context);
+  engine.onMouseEvent((e) => onMouseEvent(engine, context, e));
+
+  context.widgetsToRemove.push(map);
+  context.widgetsToRemove.push(mainUI);
 
   itemsButtons.forEach((tile, button) => {
     button.onTapped = () => {
@@ -253,33 +295,35 @@ export function initGame(
     };
   });
 
-  return game;
+  return context;
 }
 
-export function updateGame(game: Game): boolean {
-  const { p1, p2, avatars, map } = game;
+function updateContext(context: StateContext): boolean {
+  const { p1, p2, avatars, map } = context;
 
-  if (isKeyDown(game, "a") || isSpecialKeyDown(game, KeyCode.ArrowLeft)) {
+  if (isKeyDown(context, "a") || isSpecialKeyDown(context, KeyCode.ArrowLeft)) {
     p1.move(-1, 0);
   }
-  if (isKeyDown(game, "d") || isSpecialKeyDown(game, KeyCode.ArrowRight)) {
+  if (
+    isKeyDown(context, "d") || isSpecialKeyDown(context, KeyCode.ArrowRight)
+  ) {
     p1.move(1, 0);
   }
-  if (isKeyDown(game, "w") || isSpecialKeyDown(game, KeyCode.ArrowUp)) {
+  if (isKeyDown(context, "w") || isSpecialKeyDown(context, KeyCode.ArrowUp)) {
     p1.move(0, -1);
   }
-  if (isKeyDown(game, "s") || isSpecialKeyDown(game, KeyCode.ArrowDown)) {
+  if (isKeyDown(context, "s") || isSpecialKeyDown(context, KeyCode.ArrowDown)) {
     p1.move(0, 1);
   }
-  if (isKeyDown(game, "f") || isKeyDown(game, "z")) p1.shoot();
-  if (isKeyDown(game, "r") || isKeyDown(game, "x")) p1.slash();
+  if (isKeyDown(context, "f") || isKeyDown(context, "z")) p1.shoot();
+  if (isKeyDown(context, "r") || isKeyDown(context, "x")) p1.slash();
 
-  if (isKeyDown(game, "j")) p2.move(-1, 0);
-  if (isKeyDown(game, "l")) p2.move(1, 0);
-  if (isKeyDown(game, "i")) p2.move(0, -1);
-  if (isKeyDown(game, "k")) p2.move(0, 1);
-  if (isKeyDown(game, ";")) p2.shoot();
-  if (isKeyDown(game, "p")) p2.slash();
+  if (isKeyDown(context, "j")) p2.move(-1, 0);
+  if (isKeyDown(context, "l")) p2.move(1, 0);
+  if (isKeyDown(context, "i")) p2.move(0, -1);
+  if (isKeyDown(context, "k")) p2.move(0, 1);
+  if (isKeyDown(context, ";")) p2.shoot();
+  if (isKeyDown(context, "p")) p2.slash();
 
   avatars.forEach((avatar) => {
     avatar.x = Math.max(
@@ -295,4 +339,43 @@ export function updateGame(game: Game): boolean {
   followAvatar(p1, map);
 
   return true;
+}
+
+function destroyState(engine: Engine, context: StateContext) {
+  context.widgetsToRemove.forEach((w) => engine.removeWidget(w));
+}
+
+export function buildGameState(): State {
+  let context: StateContext | null = null;
+  let engine: Engine | null = null;
+
+  const init = (p: InitParams): InitResult => {
+    context = initContext(p.engine, p.assets, p.native);
+    engine = p.engine;
+    return {
+      statsContainer: context.statsContainer,
+    };
+  };
+
+  const update = () => {
+    if (context !== null) {
+      updateContext(context);
+      return context.nextStateId;
+    }
+    return null;
+  };
+
+  const destroy = () => {
+    if (context && engine) {
+      destroyState(engine, context);
+      context = null;
+    }
+  };
+
+  return {
+    id: StateId.Game,
+    init,
+    update,
+    destroy,
+  };
 }
