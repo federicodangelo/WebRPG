@@ -3108,7 +3108,6 @@ System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types
             DrawingSoft = class DrawingSoft {
                 constructor(width, height, canvases, drawingDone) {
                     this.layers = [];
-                    this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
                     this.dirtyTime = 0;
                     this.useCanvases = false;
@@ -3614,7 +3613,6 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
             DrawingHard = class DrawingHard {
                 constructor(width, height, canvases, buildCanvasFn, drawingDone) {
                     this.layers = [];
-                    this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
                     this.dirtyTime = 0;
                     this.tilesToTexture = new Map();
@@ -4059,13 +4057,13 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_37, co
             for (let x = 0; x < imageWidthInTiles; x++) {
                 const pixels = ctx.getImageData(x * tileWidth, y * tileHeight, tileWidth, tileHeight).data;
                 const pixels32 = new Uint32Array(pixels.buffer);
-                const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
-                const hasAlphaSolid = pixels32.every((x) => ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0);
                 if (type === "blackandwhite") {
                     for (let i = 0; i < pixels32.length; i++) {
                         pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 0xffffffff;
                     }
                 }
+                const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
+                const hasAlphaSolid = pixels32.every((x) => ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0);
                 const tile = {
                     id: "",
                     height: tileHeight,

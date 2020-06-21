@@ -101,7 +101,6 @@ type TilemapTexture = {
 
 export class DrawingHard implements Drawing {
   private layers: DrawingHardLayer[] = [];
-  private colorsRGB = new Uint32Array(2);
   private drawingDone: DrawingDoneFn;
   private dirty = false;
   private dirtyTime = 0;

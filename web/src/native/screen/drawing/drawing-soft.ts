@@ -95,7 +95,6 @@ class DrawingSoftLayer {
 
 export class DrawingSoft implements Drawing {
   private layers: DrawingSoftLayer[] = [];
-  private colorsRGB = new Uint32Array(2);
   private drawingDone: DrawingDoneFn;
   private dirty = false;
   private dirtyTime = 0;

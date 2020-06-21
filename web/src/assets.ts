@@ -117,16 +117,17 @@ async function loadTilemap(
       ).data;
 
       const pixels32 = new Uint32Array(pixels.buffer);
-      const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
-      const hasAlphaSolid = pixels32.every((x) =>
-        ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0
-      );
 
       if (type === "blackandwhite") {
         for (let i = 0; i < pixels32.length; i++) {
           pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 0xffffffff;
         }
       }
+
+      const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
+      const hasAlphaSolid = pixels32.every((x) =>
+        ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0
+      );
 
       const tile: Tile = {
         id: "",

@@ -334,7 +334,6 @@ System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types
             DrawingSoft = class DrawingSoft {
                 constructor(width, height, canvases, drawingDone) {
                     this.layers = [];
-                    this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
                     this.dirtyTime = 0;
                     this.useCanvases = false;
@@ -646,7 +645,6 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
             DrawingHard = class DrawingHard {
                 constructor(width, height, canvases, buildCanvasFn, drawingDone) {
                     this.layers = [];
-                    this.colorsRGB = new Uint32Array(2);
                     this.dirty = false;
                     this.dirtyTime = 0;
                     this.tilesToTexture = new Map();
