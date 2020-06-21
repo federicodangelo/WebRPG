@@ -197,7 +197,7 @@ function initContext(
     mainUI,
     statsContainer,
     buttonsContainer,
-    itemsButtons,
+    itemsContainer,
     addButton,
     onFullScreenChanged,
   } = initUI(
@@ -270,11 +270,9 @@ function initContext(
   context.widgetsToRemove.push(map);
   context.widgetsToRemove.push(mainUI);
 
-  itemsButtons.forEach((button, tile) => {
-    button.onTapped = () => {
-      switchToAddTileMode(tile);
-    };
-  });
+  itemsContainer.onItemTapped = (t) => {
+    switchToAddTileMode(t);
+  };
 
   return context;
 }

@@ -1807,12 +1807,17 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                                         x: this.lastChildUnderMouse.width / 2,
                                         y: this.lastChildUnderMouse.height / 2,
                                     });
+                                    if (this.lastChildUnderMouse.parent === this) {
+                                        this.onChildTapped(this.lastChildUnderMouse);
+                                    }
                                     this.lastChildUnderMouse = null;
                                 }
                                 this.down = false;
                             }
                             break;
                     }
+                }
+                onChildTapped(children) {
                 }
             };
             exports_15("ScrollableContainerWidget", ScrollableContainerWidget);
@@ -2307,13 +2312,16 @@ System.register("engine/src/widgets/items-container", ["engine/src/widgets/scrol
         ],
         execute: function () {
             ItemsContainerWidget = class ItemsContainerWidget extends scrollable_ts_2.ScrollableContainerWidget {
-                constructor(spacing, horizontal, itemWidth, itemHeight, itemWidgetBuilder) {
+                constructor(spacing, horizontal, itemWidth, itemHeight, itemWidgetBuilder, onItemTapped = null) {
                     super();
                     this._items = [];
                     this._itemsWidgets = new Map();
+                    this._widgetsItems = new Map();
+                    this.onItemTapped = null;
                     this.itemWidgetBuilder = itemWidgetBuilder;
                     this.itemWidth = itemWidth;
                     this.itemHeight = itemHeight;
+                    this.onItemTapped = onItemTapped;
                     this.childrenLayout = {
                         type: horizontal ? "horizontal" : "vertical",
                         spacing,
@@ -2348,14 +2356,24 @@ System.register("engine/src/widgets/items-container", ["engine/src/widgets/scrol
                 updateItems() {
                     this._itemsWidgets.forEach((w) => w.parent = null);
                     this._itemsWidgets.clear();
+                    this._widgetsItems.clear();
                     for (let i = 0; i < this._items.length; i++) {
-                        const w = this.itemWidgetBuilder(this._items[i]);
+                        const item = this._items[i];
+                        const w = this.itemWidgetBuilder(item);
                         w.height = this.itemHeight;
                         w.width = this.itemWidth;
                         w.parent = this;
-                        this._itemsWidgets.set(this._items[i], w);
+                        this._itemsWidgets.set(item, w);
+                        this._widgetsItems.set(w, item);
                     }
                     this.invalidate();
+                }
+                onChildTapped(child) {
+                    if (this.onItemTapped === null)
+                        return;
+                    const item = this._widgetsItems.get(child);
+                    if (item)
+                        this.onItemTapped(item);
                 }
             };
             exports_23("ItemsContainerWidget", ItemsContainerWidget);
@@ -2366,19 +2384,6 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
     "use strict";
     var types_ts_8, button_ts_2, box_ts_1, tile_ts_2, button_text_ts_1, items_container_ts_1, ITEM_IMAGE_WIDTH, ITEM_IMAGE_HEIGHT, ITEM_IMAGE_BORDER, ITEM_WIDTH, ITEM_HEIGHT;
     var __moduleName = context_24 && context_24.id;
-    function buildButtonItemsContainer(itemsTiles, spacing, itemWidth, itemHeight, horizontal) {
-        const itemsContainer = new items_container_ts_1.ItemsContainerWidget(spacing, horizontal, itemWidth, itemHeight, (t) => {
-            const item = new button_ts_2.ButtonWidget(types_ts_8.FixedColor.Cyan, types_ts_8.FixedColor.Yellow);
-            const tile = new tile_ts_2.TileWidget(t)
-                .setLayout({ verticalSpacingPercent: 50, horizontalSpacingPercent: 50 });
-            tile.parent = item;
-            tile.solid = false;
-            return item;
-        });
-        itemsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
-        itemsContainer.items = itemsTiles;
-        return { itemsContainer, itemsButtons: itemsContainer.itemsWidgets };
-    }
     function initUI(engine, assets) {
         const font = assets.defaultFont;
         const mainUI = new box_ts_1.BoxContainerWidget(0);
@@ -2414,7 +2419,16 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
         };
         itemsContainerContainer.backColor = types_ts_8.FixedColor.None;
         const decoTiles = assets.getTilemap("terrain").tiles.filter((x) => x.id.includes("deco"));
-        const { itemsContainer, itemsButtons } = buildButtonItemsContainer(decoTiles, 8, ITEM_WIDTH, ITEM_HEIGHT, true);
+        const itemsContainer = new items_container_ts_1.ItemsContainerWidget(8, true, ITEM_WIDTH, ITEM_HEIGHT, (t) => {
+            const item = new button_ts_2.ButtonWidget(types_ts_8.FixedColor.Cyan, types_ts_8.FixedColor.Yellow);
+            const tile = new tile_ts_2.TileWidget(t)
+                .setLayout({ verticalSpacingPercent: 50, horizontalSpacingPercent: 50 });
+            tile.parent = item;
+            tile.solid = false;
+            return item;
+        });
+        itemsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
+        itemsContainer.items = decoTiles;
         const actionsContainerContainer = new box_ts_1.BoxContainerWidget(4);
         actionsContainerContainer.width = ITEM_WIDTH +
             actionsContainerContainer.border * 2;
@@ -2424,8 +2438,26 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
             horizontalSpacingPercent: 0,
         };
         actionsContainerContainer.backColor = types_ts_8.FixedColor.None;
-        const actionTiles = assets.getTilemap("terrain").tiles.filter((x) => x.id.includes("deco"));
-        const { itemsContainer: actionsContainer, itemsButtons: actionsContainerButtons, } = buildButtonItemsContainer(actionTiles, 8, ITEM_WIDTH, ITEM_HEIGHT, false);
+        const actionTiles = [
+            {
+                type: "walk",
+                tile: assets.getTile("terrain.dirt-deco1"),
+            },
+            {
+                type: "draw-tile",
+                tile: assets.getTile("terrain.dirt-deco1"),
+            },
+        ];
+        const actionsContainer = new items_container_ts_1.ItemsContainerWidget(8, false, ITEM_WIDTH, ITEM_HEIGHT, (t) => {
+            const item = new button_ts_2.ButtonWidget(types_ts_8.FixedColor.Cyan, types_ts_8.FixedColor.Yellow);
+            const tile = new tile_ts_2.TileWidget(t.tile)
+                .setLayout({ verticalSpacingPercent: 50, horizontalSpacingPercent: 50 });
+            tile.parent = item;
+            tile.solid = false;
+            return item;
+        });
+        actionsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
+        actionsContainer.items = actionTiles;
         itemsContainer.parent = itemsContainerContainer;
         actionsContainer.parent = actionsContainerContainer;
         statsContainer.parent = mainUI;
@@ -2475,7 +2507,8 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
             statsContainer,
             buttonsContainer,
             addButton,
-            itemsButtons,
+            itemsContainer,
+            actionsContainer,
             onFullScreenChanged,
         };
     }
@@ -2647,7 +2680,7 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
         map.setOffset(Math.max(Math.min(newOffsetX, 0), -(map.tilemapsBounds.width - map.width)), Math.max(Math.min(newOffsetY, 0), -(map.tilemapsBounds.height - map.height)));
     }
     function initContext(engine, assets) {
-        const { mainUI, statsContainer, buttonsContainer, itemsButtons, addButton, onFullScreenChanged, } = ui_ts_1.initUI(engine, assets);
+        const { mainUI, statsContainer, buttonsContainer, itemsContainer, addButton, onFullScreenChanged, } = ui_ts_1.initUI(engine, assets);
         const map = new tiles_container_ts_1.ScrollableTilesContainerWidget();
         map.layer = 0 /* Game */;
         map.layout = { heightPercent: 100, widthPercent: 100 };
@@ -2697,11 +2730,9 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
         engine.addWidget(mainUI);
         context.widgetsToRemove.push(map);
         context.widgetsToRemove.push(mainUI);
-        itemsButtons.forEach((button, tile) => {
-            button.onTapped = () => {
-                switchToAddTileMode(tile);
-            };
-        });
+        itemsContainer.onItemTapped = (t) => {
+            switchToAddTileMode(t);
+        };
         return context;
     }
     function updateContext(context) {

@@ -6,13 +6,12 @@ import {
   Assets,
   LayerId,
   Tile,
-  Widget,
 } from "engine/types.ts";
 import { ButtonWidget } from "engine/widgets/ui/button.ts";
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
 import { TileWidget } from "engine/widgets/game/tile.ts";
 import { TextButtonWidget } from "engine/widgets/ui/button-text.ts";
-import { ItemsContainerWidget } from "../../../../engine/src/widgets/items-container.ts";
+import { ItemsContainerWidget } from "engine/widgets/items-container.ts";
 
 const ITEM_IMAGE_WIDTH = 32;
 const ITEM_IMAGE_HEIGHT = 32;
@@ -20,36 +19,17 @@ const ITEM_IMAGE_BORDER = 8;
 const ITEM_WIDTH = ITEM_IMAGE_WIDTH + ITEM_IMAGE_BORDER * 2;
 const ITEM_HEIGHT = ITEM_IMAGE_HEIGHT + ITEM_IMAGE_BORDER * 2;
 
-function buildButtonItemsContainer(
-  itemsTiles: Tile[],
-  spacing: number,
-  itemWidth: number,
-  itemHeight: number,
-  horizontal: boolean,
-) {
-  const itemsContainer = new ItemsContainerWidget<Tile, ButtonWidget>(
-    spacing,
-    horizontal,
-    itemWidth,
-    itemHeight,
-    (t) => {
-      const item = new ButtonWidget(FixedColor.Cyan, FixedColor.Yellow);
-      const tile = new TileWidget(t)
-        .setLayout(
-          { verticalSpacingPercent: 50, horizontalSpacingPercent: 50 },
-        );
-      tile.parent = item;
-      tile.solid = false;
-      return item;
-    },
-  );
+type ActionWalk = {
+  type: "walk";
+  tile: Tile;
+};
 
-  itemsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
+type ActionDrawTile = {
+  type: "draw-tile";
+  tile: Tile;
+};
 
-  itemsContainer.items = itemsTiles;
-
-  return { itemsContainer, itemsButtons: itemsContainer.itemsWidgets };
-}
+type Action = ActionWalk | ActionDrawTile;
 
 export function initUI(engine: Engine, assets: Assets) {
   const font = assets.defaultFont;
@@ -97,13 +77,26 @@ export function initUI(engine: Engine, assets: Assets) {
     x.id.includes("deco")
   );
 
-  const { itemsContainer, itemsButtons } = buildButtonItemsContainer(
-    decoTiles,
+  const itemsContainer = new ItemsContainerWidget<Tile, ButtonWidget>(
     8,
+    true,
     ITEM_WIDTH,
     ITEM_HEIGHT,
-    true,
+    (t) => {
+      const item = new ButtonWidget(FixedColor.Cyan, FixedColor.Yellow);
+      const tile = new TileWidget(t)
+        .setLayout(
+          { verticalSpacingPercent: 50, horizontalSpacingPercent: 50 },
+        );
+      tile.parent = item;
+      tile.solid = false;
+      return item;
+    },
   );
+
+  itemsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
+
+  itemsContainer.items = decoTiles;
 
   const actionsContainerContainer = new BoxContainerWidget(4);
   actionsContainerContainer.width = ITEM_WIDTH +
@@ -115,20 +108,37 @@ export function initUI(engine: Engine, assets: Assets) {
   };
   actionsContainerContainer.backColor = FixedColor.None;
 
-  const actionTiles = assets.getTilemap("terrain").tiles.filter((x) =>
-    x.id.includes("deco")
-  );
+  const actionTiles: Action[] = [
+    {
+      type: "walk",
+      tile: assets.getTile("terrain.dirt-deco1"),
+    },
+    {
+      type: "draw-tile",
+      tile: assets.getTile("terrain.dirt-deco1"),
+    },
+  ];
 
-  const {
-    itemsContainer: actionsContainer,
-    itemsButtons: actionsContainerButtons,
-  } = buildButtonItemsContainer(
-    actionTiles,
+  const actionsContainer = new ItemsContainerWidget<Action, ButtonWidget>(
     8,
+    false,
     ITEM_WIDTH,
     ITEM_HEIGHT,
-    false,
+    (t) => {
+      const item = new ButtonWidget(FixedColor.Cyan, FixedColor.Yellow);
+      const tile = new TileWidget(t.tile)
+        .setLayout(
+          { verticalSpacingPercent: 50, horizontalSpacingPercent: 50 },
+        );
+      tile.parent = item;
+      tile.solid = false;
+      return item;
+    },
   );
+
+  actionsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
+
+  actionsContainer.items = actionTiles;
 
   itemsContainer.parent = itemsContainerContainer;
   actionsContainer.parent = actionsContainerContainer;
@@ -208,7 +218,8 @@ export function initUI(engine: Engine, assets: Assets) {
     statsContainer,
     buttonsContainer,
     addButton,
-    itemsButtons,
+    itemsContainer,
+    actionsContainer,
     onFullScreenChanged,
   };
 }

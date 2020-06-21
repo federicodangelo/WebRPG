@@ -248,11 +248,17 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
               x: this.lastChildUnderMouse.width / 2,
               y: this.lastChildUnderMouse.height / 2,
             });
+            if (this.lastChildUnderMouse.parent === this) {
+              this.onChildTapped(this.lastChildUnderMouse);
+            }
             this.lastChildUnderMouse = null;
           }
           this.down = false;
         }
         break;
     }
+  }
+
+  protected onChildTapped(children: Widget) {
   }
 }
