@@ -10,23 +10,43 @@ import {
 } from "../types.ts";
 import { BaseWidgetContainer } from "./widget-container.ts";
 
+export const enum MouseScrollType {
+  None,
+  Horizontal,
+  Vertical,
+}
+
 export class ScrollableContainerWidget extends BaseWidgetContainer {
   public backColor: Color = FixedColor.Black;
 
-  public mouseHorizontalScrollEnabled = false;
-  private _mouseHorizontalScrollLimits = { fromX: -9999999, toX: 9999999 };
-  public get mouseHorizontalScrollLimits() {
-    return this._mouseHorizontalScrollLimits;
+  public mouseScrollType: MouseScrollType = MouseScrollType.None;
+  private _mouseScrollLimits = { from: -9999999, to: 9999999 };
+  public get mouseScrollLimits() {
+    return this._mouseScrollLimits;
   }
-  public set mouseHorizontalScrollLimits(val: { fromX: number; toX: number }) {
-    this._mouseHorizontalScrollLimits = val;
-    this.setOffset(
-      Math.max(
-        Math.min(this.offsetX, this.mouseHorizontalScrollLimits.toX),
-        this.mouseHorizontalScrollLimits.fromX,
-      ),
-      this.offsetY,
-    );
+  public set mouseScrollLimits(val: { from: number; to: number }) {
+    this._mouseScrollLimits = val;
+
+    switch (this.mouseScrollType) {
+      case MouseScrollType.Horizontal:
+        this.setOffset(
+          Math.max(
+            Math.min(this.offsetX, this.mouseScrollLimits.to),
+            this.mouseScrollLimits.from,
+          ),
+          this.offsetY,
+        );
+        break;
+      case MouseScrollType.Vertical:
+        this.setOffset(
+          this.offsetX,
+          Math.max(
+            Math.min(this.offsetY, this.mouseScrollLimits.to),
+            this.mouseScrollLimits.from,
+          ),
+        );
+        break;
+    }
   }
 
   private _offsetX: number = 0;
@@ -125,9 +145,10 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
   private down = false;
   private downPos = new Point();
   private downOffset = new Point();
+  private scrollingWithMouse = false;
 
   public getAt(x: number, y: number): Widget | null {
-    if (!this.mouseHorizontalScrollEnabled) return super.getAt(x, y);
+    if (this.mouseScrollType === MouseScrollType.None) return super.getAt(x, y);
 
     if (!this.solid) return null;
     if (x < 0 || y < 0 || x > this.width || y > this.height) return null;
@@ -137,7 +158,7 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
   private lastChildUnderMouse: Widget | null = null;
 
   mouse(e: EngineMouseEvent) {
-    if (!this.mouseHorizontalScrollEnabled) {
+    if (this.mouseScrollType === MouseScrollType.None) {
       super.mouse(e);
       return;
     }
@@ -150,6 +171,7 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
     switch (e.type) {
       case "down":
         this.down = true;
+        this.scrollingWithMouse = false;
         this.downPos.set(e.x, e.y);
         this.downOffset.set(this.offsetX, this.offsetY);
         if (childUnderMouse !== null) {
@@ -164,22 +186,54 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
       case "move":
         if (this.down) {
           const deltaX = e.x - this.downPos.x;
-          if (Math.abs(deltaX) > 16 && this.lastChildUnderMouse !== null) {
-            this.lastChildUnderMouse.mouse({
-              type: "up-out",
-              x: this.lastChildUnderMouse.width / 2,
-              y: this.lastChildUnderMouse.height / 2,
-            });
-            this.lastChildUnderMouse = null;
+          const deltaY = e.y - this.downPos.y;
+          let newOffsetX = this._offsetX;
+          let newOffsetY = this._offsetY;
+
+          if (
+            !this.scrollingWithMouse &&
+            (this.mouseScrollType === MouseScrollType.Horizontal &&
+                Math.abs(deltaX) > 16 ||
+              this.mouseScrollType === MouseScrollType.Vertical &&
+                Math.abs(deltaY) > 16)
+          ) {
+            if (this.lastChildUnderMouse !== null) {
+              this.lastChildUnderMouse.mouse({
+                type: "up-out",
+                x: this.lastChildUnderMouse.width / 2,
+                y: this.lastChildUnderMouse.height / 2,
+              });
+              this.lastChildUnderMouse = null;
+            }
+            this.scrollingWithMouse = true;
           }
-          const newOffsetX = this.downOffset.x + deltaX;
-          this.setOffset(
-            Math.max(
-              Math.min(newOffsetX, this.mouseHorizontalScrollLimits.toX),
-              this.mouseHorizontalScrollLimits.fromX,
-            ),
-            this.downOffset.y,
-          );
+
+          if (this.scrollingWithMouse) {
+            switch (this.mouseScrollType) {
+              case MouseScrollType.Horizontal:
+                newOffsetX = Math.max(
+                  Math.min(
+                    this.downOffset.x + deltaX,
+                    this.mouseScrollLimits.to,
+                  ),
+                  this.mouseScrollLimits.from,
+                );
+                break;
+              case MouseScrollType.Vertical:
+                newOffsetY = Math.max(
+                  Math.min(
+                    this.downOffset.y + deltaY,
+                    this.mouseScrollLimits.to,
+                  ),
+                  this.mouseScrollLimits.from,
+                );
+                break;
+            }
+            this.setOffset(
+              newOffsetX,
+              newOffsetY,
+            );
+          }
         }
         break;
       case "up":

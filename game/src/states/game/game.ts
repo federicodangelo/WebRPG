@@ -21,6 +21,7 @@ import {
 } from "../../keyboard.ts";
 import { initUI } from "./ui.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
+import { getSettings } from "../../game-settings.ts";
 
 const NPCS_COUNT = 10;
 const ENABLE_P2 = true;
@@ -238,8 +239,12 @@ function initContext(
     );
   });
 
+  if (!getSettings().showFps) {
+    statsContainer.parent = null;
+  }
+
   const context = {
-    statsContainer,
+    statsContainer: getSettings().showFps ? statsContainer : undefined,
     buttonsContainer,
     avatars,
     map,
@@ -265,7 +270,7 @@ function initContext(
   context.widgetsToRemove.push(map);
   context.widgetsToRemove.push(mainUI);
 
-  itemsButtons.forEach((tile, button) => {
+  itemsButtons.forEach((button, tile) => {
     button.onTapped = () => {
       switchToAddTileMode(tile);
     };

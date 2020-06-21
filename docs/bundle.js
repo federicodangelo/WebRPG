@@ -1326,6 +1326,7 @@ System.register("game/src/types", [], function (exports_9, context_9) {
                 StateId["MainMenu"] = "MainMenu";
                 StateId["Game"] = "Game";
                 StateId["Benchmark"] = "Benchmark";
+                StateId["Settings"] = "Settings";
             })(StateId || (StateId = {}));
             exports_9("StateId", StateId);
         }
@@ -1641,21 +1642,29 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                 constructor() {
                     super(...arguments);
                     this.backColor = types_ts_5.FixedColor.Black;
-                    this.mouseHorizontalScrollEnabled = false;
-                    this._mouseHorizontalScrollLimits = { fromX: -9999999, toX: 9999999 };
+                    this.mouseScrollType = 0 /* None */;
+                    this._mouseScrollLimits = { from: -9999999, to: 9999999 };
                     this._offsetX = 0;
                     this._offsetY = 0;
                     this.down = false;
                     this.downPos = new types_ts_5.Point();
                     this.downOffset = new types_ts_5.Point();
+                    this.scrollingWithMouse = false;
                     this.lastChildUnderMouse = null;
                 }
-                get mouseHorizontalScrollLimits() {
-                    return this._mouseHorizontalScrollLimits;
+                get mouseScrollLimits() {
+                    return this._mouseScrollLimits;
                 }
-                set mouseHorizontalScrollLimits(val) {
-                    this._mouseHorizontalScrollLimits = val;
-                    this.setOffset(Math.max(Math.min(this.offsetX, this.mouseHorizontalScrollLimits.toX), this.mouseHorizontalScrollLimits.fromX), this.offsetY);
+                set mouseScrollLimits(val) {
+                    this._mouseScrollLimits = val;
+                    switch (this.mouseScrollType) {
+                        case 1 /* Horizontal */:
+                            this.setOffset(Math.max(Math.min(this.offsetX, this.mouseScrollLimits.to), this.mouseScrollLimits.from), this.offsetY);
+                            break;
+                        case 2 /* Vertical */:
+                            this.setOffset(this.offsetX, Math.max(Math.min(this.offsetY, this.mouseScrollLimits.to), this.mouseScrollLimits.from));
+                            break;
+                    }
                 }
                 get offsetX() {
                     return this._offsetX;
@@ -1720,7 +1729,7 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                     context.fillRect(0, 0, this.width, this.height, this.backColor);
                 }
                 getAt(x, y) {
-                    if (!this.mouseHorizontalScrollEnabled)
+                    if (this.mouseScrollType === 0 /* None */)
                         return super.getAt(x, y);
                     if (!this.solid)
                         return null;
@@ -1729,7 +1738,7 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                     return this.selfSolid ? this : null;
                 }
                 mouse(e) {
-                    if (!this.mouseHorizontalScrollEnabled) {
+                    if (this.mouseScrollType === 0 /* None */) {
                         super.mouse(e);
                         return;
                     }
@@ -1740,6 +1749,7 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                     switch (e.type) {
                         case "down":
                             this.down = true;
+                            this.scrollingWithMouse = false;
                             this.downPos.set(e.x, e.y);
                             this.downOffset.set(this.offsetX, this.offsetY);
                             if (childUnderMouse !== null) {
@@ -1754,16 +1764,35 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                         case "move":
                             if (this.down) {
                                 const deltaX = e.x - this.downPos.x;
-                                if (Math.abs(deltaX) > 16 && this.lastChildUnderMouse !== null) {
-                                    this.lastChildUnderMouse.mouse({
-                                        type: "up-out",
-                                        x: this.lastChildUnderMouse.width / 2,
-                                        y: this.lastChildUnderMouse.height / 2,
-                                    });
-                                    this.lastChildUnderMouse = null;
+                                const deltaY = e.y - this.downPos.y;
+                                let newOffsetX = this._offsetX;
+                                let newOffsetY = this._offsetY;
+                                if (!this.scrollingWithMouse &&
+                                    (this.mouseScrollType === 1 /* Horizontal */ &&
+                                        Math.abs(deltaX) > 16 ||
+                                        this.mouseScrollType === 2 /* Vertical */ &&
+                                            Math.abs(deltaY) > 16)) {
+                                    if (this.lastChildUnderMouse !== null) {
+                                        this.lastChildUnderMouse.mouse({
+                                            type: "up-out",
+                                            x: this.lastChildUnderMouse.width / 2,
+                                            y: this.lastChildUnderMouse.height / 2,
+                                        });
+                                        this.lastChildUnderMouse = null;
+                                    }
+                                    this.scrollingWithMouse = true;
                                 }
-                                const newOffsetX = this.downOffset.x + deltaX;
-                                this.setOffset(Math.max(Math.min(newOffsetX, this.mouseHorizontalScrollLimits.toX), this.mouseHorizontalScrollLimits.fromX), this.downOffset.y);
+                                if (this.scrollingWithMouse) {
+                                    switch (this.mouseScrollType) {
+                                        case 1 /* Horizontal */:
+                                            newOffsetX = Math.max(Math.min(this.downOffset.x + deltaX, this.mouseScrollLimits.to), this.mouseScrollLimits.from);
+                                            break;
+                                        case 2 /* Vertical */:
+                                            newOffsetY = Math.max(Math.min(this.downOffset.y + deltaY, this.mouseScrollLimits.to), this.mouseScrollLimits.from);
+                                            break;
+                                    }
+                                    this.setOffset(newOffsetX, newOffsetY);
+                                }
                             }
                             break;
                         case "up":
@@ -2266,10 +2295,90 @@ System.register("engine/src/widgets/ui/button-text", ["engine/src/widgets/ui/but
         }
     };
 });
-System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widgets/ui/button", "engine/src/widgets/ui/box", "engine/src/widgets/scrollable", "engine/src/widgets/game/tile", "engine/src/widgets/ui/button-text"], function (exports_23, context_23) {
+System.register("engine/src/widgets/items-container", ["engine/src/widgets/scrollable"], function (exports_23, context_23) {
     "use strict";
-    var types_ts_8, button_ts_2, box_ts_1, scrollable_ts_2, tile_ts_2, button_text_ts_1, ITEM_IMAGE_WIDTH, ITEM_IMAGE_HEIGHT, ITEM_IMAGE_BORDER, ITEM_WIDTH, ITEM_HEIGHT;
+    var scrollable_ts_2, ItemsContainerWidget;
     var __moduleName = context_23 && context_23.id;
+    return {
+        setters: [
+            function (scrollable_ts_2_1) {
+                scrollable_ts_2 = scrollable_ts_2_1;
+            }
+        ],
+        execute: function () {
+            ItemsContainerWidget = class ItemsContainerWidget extends scrollable_ts_2.ScrollableContainerWidget {
+                constructor(spacing, horizontal, itemWidth, itemHeight, itemWidgetBuilder) {
+                    super();
+                    this._items = [];
+                    this._itemsWidgets = new Map();
+                    this.itemWidgetBuilder = itemWidgetBuilder;
+                    this.itemWidth = itemWidth;
+                    this.itemHeight = itemHeight;
+                    this.childrenLayout = {
+                        type: horizontal ? "horizontal" : "vertical",
+                        spacing,
+                    };
+                    this.mouseScrollType = horizontal
+                        ? 1 /* Horizontal */
+                        : 2 /* Vertical */;
+                    const itemMainSize = horizontal ? itemWidth : itemHeight;
+                    this.layout = {
+                        widthPercent: 100,
+                        heightPercent: 100,
+                        customSizeFn: (w) => {
+                            const allItemsSize = this._items.length * (itemMainSize + spacing);
+                            this.mouseScrollLimits = {
+                                from: Math.min(itemMainSize / 2, -allItemsSize + (horizontal ? w.width : w.height) -
+                                    itemMainSize / 2) | 0,
+                                to: (itemMainSize / 2) | 0,
+                            };
+                        },
+                    };
+                }
+                set items(val) {
+                    this._items = [...val];
+                    this.updateItems();
+                }
+                get items() {
+                    return this._items;
+                }
+                get itemsWidgets() {
+                    return this._itemsWidgets;
+                }
+                updateItems() {
+                    this._itemsWidgets.forEach((w) => w.parent = null);
+                    this._itemsWidgets.clear();
+                    for (let i = 0; i < this._items.length; i++) {
+                        const w = this.itemWidgetBuilder(this._items[i]);
+                        w.height = this.itemHeight;
+                        w.width = this.itemWidth;
+                        w.parent = this;
+                        this._itemsWidgets.set(this._items[i], w);
+                    }
+                    this.invalidate();
+                }
+            };
+            exports_23("ItemsContainerWidget", ItemsContainerWidget);
+        }
+    };
+});
+System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widgets/ui/button", "engine/src/widgets/ui/box", "engine/src/widgets/game/tile", "engine/src/widgets/ui/button-text", "engine/src/widgets/items-container"], function (exports_24, context_24) {
+    "use strict";
+    var types_ts_8, button_ts_2, box_ts_1, tile_ts_2, button_text_ts_1, items_container_ts_1, ITEM_IMAGE_WIDTH, ITEM_IMAGE_HEIGHT, ITEM_IMAGE_BORDER, ITEM_WIDTH, ITEM_HEIGHT;
+    var __moduleName = context_24 && context_24.id;
+    function buildButtonItemsContainer(itemsTiles, spacing, itemWidth, itemHeight, horizontal) {
+        const itemsContainer = new items_container_ts_1.ItemsContainerWidget(spacing, horizontal, itemWidth, itemHeight, (t) => {
+            const item = new button_ts_2.ButtonWidget(types_ts_8.FixedColor.Cyan, types_ts_8.FixedColor.Yellow);
+            const tile = new tile_ts_2.TileWidget(t)
+                .setLayout({ verticalSpacingPercent: 50, horizontalSpacingPercent: 50 });
+            tile.parent = item;
+            tile.solid = false;
+            return item;
+        });
+        itemsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
+        itemsContainer.items = itemsTiles;
+        return { itemsContainer, itemsButtons: itemsContainer.itemsWidgets };
+    }
     function initUI(engine, assets) {
         const font = assets.defaultFont;
         const mainUI = new box_ts_1.BoxContainerWidget(0);
@@ -2305,41 +2414,24 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
         };
         itemsContainerContainer.backColor = types_ts_8.FixedColor.None;
         const decoTiles = assets.getTilemap("terrain").tiles.filter((x) => x.id.includes("deco"));
-        const itemsCount = decoTiles.length;
-        const itemsButtons = new Map();
-        const itemsContainer = new scrollable_ts_2.ScrollableContainerWidget();
-        const allItemsWidth = itemsCount * (ITEM_WIDTH + font.tileWidth);
-        itemsContainer.layout = {
-            widthPercent: 100,
-            heightPercent: 100,
-            customSizeFn: (w) => {
-                itemsContainer.mouseHorizontalScrollLimits = {
-                    fromX: Math.min(ITEM_WIDTH / 2, -allItemsWidth + w.width - ITEM_WIDTH / 2) | 0,
-                    toX: (ITEM_WIDTH / 2) | 0,
-                };
-            },
+        const { itemsContainer, itemsButtons } = buildButtonItemsContainer(decoTiles, 8, ITEM_WIDTH, ITEM_HEIGHT, true);
+        const actionsContainerContainer = new box_ts_1.BoxContainerWidget(4);
+        actionsContainerContainer.width = ITEM_WIDTH +
+            actionsContainerContainer.border * 2;
+        actionsContainerContainer.layout = {
+            heightPercent: 75,
+            verticalSpacingPercent: 50,
+            horizontalSpacingPercent: 0,
         };
+        actionsContainerContainer.backColor = types_ts_8.FixedColor.None;
+        const actionTiles = assets.getTilemap("terrain").tiles.filter((x) => x.id.includes("deco"));
+        const { itemsContainer: actionsContainer, itemsButtons: actionsContainerButtons, } = buildButtonItemsContainer(actionTiles, 8, ITEM_WIDTH, ITEM_HEIGHT, false);
         itemsContainer.parent = itemsContainerContainer;
-        itemsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
-        itemsContainer.childrenLayout = {
-            type: "horizontal",
-            spacing: font.tileWidth,
-        };
-        itemsContainer.mouseHorizontalScrollEnabled = true;
-        for (let i = 0; i < itemsCount; i++) {
-            const item = new button_ts_2.ButtonWidget(types_ts_8.FixedColor.Cyan, types_ts_8.FixedColor.Yellow);
-            const tile = new tile_ts_2.TileWidget(decoTiles[i])
-                .setLayout({ verticalSpacingPercent: 50, horizontalSpacingPercent: 50 });
-            tile.parent = item;
-            tile.solid = false;
-            item.height = ITEM_HEIGHT;
-            item.width = ITEM_WIDTH;
-            item.parent = itemsContainer;
-            itemsButtons.set(item, decoTiles[i]);
-        }
+        actionsContainer.parent = actionsContainerContainer;
         statsContainer.parent = mainUI;
         buttonsContainer.parent = mainUI;
         itemsContainerContainer.parent = mainUI;
+        actionsContainerContainer.parent = mainUI;
         itemsContainerContainer.borderColor = buttonsContainer.borderColor =
             statsContainer.borderColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
         statsContainer.backColor = types_ts_8.rgb(0 /* I0 */, 51 /* I20 */, 102 /* I40 */);
@@ -2387,7 +2479,7 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
             onFullScreenChanged,
         };
     }
-    exports_23("initUI", initUI);
+    exports_24("initUI", initUI);
     return {
         setters: [
             function (types_ts_8_1) {
@@ -2399,14 +2491,14 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
             function (box_ts_1_1) {
                 box_ts_1 = box_ts_1_1;
             },
-            function (scrollable_ts_2_1) {
-                scrollable_ts_2 = scrollable_ts_2_1;
-            },
             function (tile_ts_2_1) {
                 tile_ts_2 = tile_ts_2_1;
             },
             function (button_text_ts_1_1) {
                 button_text_ts_1 = button_text_ts_1_1;
+            },
+            function (items_container_ts_1_1) {
+                items_container_ts_1 = items_container_ts_1_1;
             }
         ],
         execute: function () {
@@ -2418,10 +2510,33 @@ System.register("game/src/states/game/ui", ["engine/src/types", "engine/src/widg
         }
     };
 });
-System.register("game/src/states/game/game", ["engine/src/types", "game/src/states/game/avatar", "game/src/states/game/map", "game/src/states/game/random", "game/src/states/game/npc", "game/src/types", "game/src/keyboard", "game/src/states/game/ui", "engine/src/widgets/game/tiles-container"], function (exports_24, context_24) {
+System.register("game/src/game-settings", [], function (exports_25, context_25) {
     "use strict";
-    var types_ts_9, avatar_ts_2, map_ts_1, random_ts_3, npc_ts_1, types_ts_10, keyboard_ts_1, ui_ts_1, tiles_container_ts_1, NPCS_COUNT, ENABLE_P2, mouseMode, mouseKeyCodes, mouseModeAddTile;
-    var __moduleName = context_24 && context_24.id;
+    var gameSettings;
+    var __moduleName = context_25 && context_25.id;
+    function getSettings() {
+        return { ...gameSettings };
+    }
+    exports_25("getSettings", getSettings);
+    function setSettings(settings) {
+        gameSettings = {
+            ...settings,
+        };
+    }
+    exports_25("setSettings", setSettings);
+    return {
+        setters: [],
+        execute: function () {
+            gameSettings = {
+                showFps: true,
+            };
+        }
+    };
+});
+System.register("game/src/states/game/game", ["engine/src/types", "game/src/states/game/avatar", "game/src/states/game/map", "game/src/states/game/random", "game/src/states/game/npc", "game/src/types", "game/src/keyboard", "game/src/states/game/ui", "engine/src/widgets/game/tiles-container", "game/src/game-settings"], function (exports_26, context_26) {
+    "use strict";
+    var types_ts_9, avatar_ts_2, map_ts_1, random_ts_3, npc_ts_1, types_ts_10, keyboard_ts_1, ui_ts_1, tiles_container_ts_1, game_settings_ts_1, NPCS_COUNT, ENABLE_P2, mouseMode, mouseKeyCodes, mouseModeAddTile;
+    var __moduleName = context_26 && context_26.id;
     function switchToAddTileMode(tile) {
         mouseMode = 2 /* AddTile */;
         mouseModeAddTile = tile;
@@ -2556,8 +2671,11 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
             c.x = random_ts_3.randomIntervalInt(map.tilemapsBounds.width / 2 - 100, map.tilemapsBounds.width / 2 + 100);
             c.y = random_ts_3.randomIntervalInt(map.tilemapsBounds.height / 2 - 100, map.tilemapsBounds.height / 2 + 100);
         });
+        if (!game_settings_ts_1.getSettings().showFps) {
+            statsContainer.parent = null;
+        }
         const context = {
-            statsContainer,
+            statsContainer: game_settings_ts_1.getSettings().showFps ? statsContainer : undefined,
             buttonsContainer,
             avatars,
             map,
@@ -2579,7 +2697,7 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
         engine.addWidget(mainUI);
         context.widgetsToRemove.push(map);
         context.widgetsToRemove.push(mainUI);
-        itemsButtons.forEach((tile, button) => {
+        itemsButtons.forEach((button, tile) => {
             button.onTapped = () => {
                 switchToAddTileMode(tile);
             };
@@ -2666,7 +2784,7 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
             },
         };
     }
-    exports_24("buildGameState", buildGameState);
+    exports_26("buildGameState", buildGameState);
     return {
         setters: [
             function (types_ts_9_1) {
@@ -2695,6 +2813,9 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
             },
             function (tiles_container_ts_1_1) {
                 tiles_container_ts_1 = tiles_container_ts_1_1;
+            },
+            function (game_settings_ts_1_1) {
+                game_settings_ts_1 = game_settings_ts_1_1;
             }
         ],
         execute: function () {
@@ -2706,10 +2827,10 @@ System.register("game/src/states/game/game", ["engine/src/types", "game/src/stat
         }
     };
 });
-System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/src/types", "game/src/keyboard", "engine/src/widgets/ui/box", "engine/src/widgets/ui/button-text"], function (exports_25, context_25) {
+System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/src/types", "game/src/keyboard", "engine/src/widgets/ui/box", "engine/src/widgets/ui/button-text"], function (exports_27, context_27) {
     "use strict";
     var types_ts_11, types_ts_12, keyboard_ts_2, box_ts_2, button_text_ts_2;
-    var __moduleName = context_25 && context_25.id;
+    var __moduleName = context_27 && context_27.id;
     function initState(engine, assets, native) {
         const font = assets.defaultFont;
         const mainUI = new box_ts_2.BoxContainerWidget(0);
@@ -2757,6 +2878,9 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
         addButton("Start Benchmark", () => {
             context.nextStateId = types_ts_12.StateId.Benchmark;
         });
+        addButton("Settings", () => {
+            context.nextStateId = types_ts_12.StateId.Settings;
+        });
         engine.addWidget(mainUI);
         engine.addWidget(emptyGame);
         context.widgetsToRemove.push(mainUI);
@@ -2797,7 +2921,7 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
             },
         };
     }
-    exports_25("buildMainMenuState", buildMainMenuState);
+    exports_27("buildMainMenuState", buildMainMenuState);
     return {
         setters: [
             function (types_ts_11_1) {
@@ -2820,10 +2944,10 @@ System.register("game/src/states/mainmenu/mainmenu", ["engine/src/types", "game/
         }
     };
 });
-System.register("game/src/states/benchmark/benchmark", ["engine/src/types", "game/src/types", "game/src/keyboard", "engine/src/widgets/ui/box", "engine/src/widgets/ui/button-text", "game/src/states/game/map", "engine/src/widgets/game/tiles-container", "game/src/states/game/avatar", "game/src/states/game/random"], function (exports_26, context_26) {
+System.register("game/src/states/benchmark/benchmark", ["engine/src/types", "game/src/types", "game/src/keyboard", "engine/src/widgets/ui/box", "engine/src/widgets/ui/button-text", "game/src/states/game/map", "engine/src/widgets/game/tiles-container", "game/src/states/game/avatar", "game/src/states/game/random"], function (exports_28, context_28) {
     "use strict";
     var types_ts_13, types_ts_14, keyboard_ts_3, box_ts_3, button_text_ts_3, map_ts_2, tiles_container_ts_2, avatar_ts_3, random_ts_4;
-    var __moduleName = context_26 && context_26.id;
+    var __moduleName = context_28 && context_28.id;
     function initState(engine, assets) {
         const font = assets.defaultFont;
         const mainUI = new box_ts_3.BoxContainerWidget(0);
@@ -2966,7 +3090,7 @@ System.register("game/src/states/benchmark/benchmark", ["engine/src/types", "gam
             },
         };
     }
-    exports_26("buildBenchmarkState", buildBenchmarkState);
+    exports_28("buildBenchmarkState", buildBenchmarkState);
     return {
         setters: [
             function (types_ts_13_1) {
@@ -3001,29 +3125,162 @@ System.register("game/src/states/benchmark/benchmark", ["engine/src/types", "gam
         }
     };
 });
-System.register("game/src/state-factory", ["game/src/types", "game/src/states/game/game", "game/src/states/mainmenu/mainmenu", "game/src/states/benchmark/benchmark"], function (exports_27, context_27) {
+System.register("game/src/states/settings/settings", ["engine/src/types", "game/src/types", "game/src/keyboard", "engine/src/widgets/ui/box", "engine/src/widgets/ui/button-text", "game/src/game-settings"], function (exports_29, context_29) {
     "use strict";
-    var types_ts_15, game_ts_1, mainmenu_ts_1, benchmark_ts_1;
-    var __moduleName = context_27 && context_27.id;
-    function buildStateFactory() {
+    var types_ts_15, types_ts_16, keyboard_ts_4, box_ts_4, button_text_ts_4, game_settings_ts_2;
+    var __moduleName = context_29 && context_29.id;
+    function initState(engine, assets, native) {
+        const font = assets.defaultFont;
+        const mainUI = new box_ts_4.BoxContainerWidget(0);
+        mainUI.layer = 1 /* UI */;
+        mainUI.selfSolid = false;
+        mainUI.layout = { widthPercent: 100, heightPercent: 100 };
+        mainUI.backColor = types_ts_15.FixedColor.Transparent;
+        const emptyGame = new box_ts_4.BoxContainerWidget(0);
+        emptyGame.layer = 0 /* Game */;
+        emptyGame.selfSolid = false;
+        emptyGame.layout = { widthPercent: 100, heightPercent: 100 };
+        emptyGame.backColor = types_ts_15.rgb(0, 100, 0);
+        const buttonsContainer = new box_ts_4.BoxContainerWidget(20);
+        buttonsContainer.width = 40 * font.tileWidth;
+        buttonsContainer.height = 8;
+        buttonsContainer.layout = {
+            verticalSpacingPercent: 50,
+            horizontalSpacingPercent: 50,
+        };
+        buttonsContainer.childrenLayout = {
+            type: "vertical",
+            spacing: 20,
+        };
+        buttonsContainer.borderColor = types_ts_15.rgb(0, 0, 100);
+        buttonsContainer.backColor = types_ts_15.rgb(0, 0, 100);
+        buttonsContainer.parent = mainUI;
+        const addButton = (text, cb) => {
+            const button = new button_text_ts_4.TextButtonWidget(font, text, types_ts_15.FixedColor.White, types_ts_15.FixedColor.Green, types_ts_15.FixedColor.Yellow, () => cb()).setLayout({ widthPercent: 100 });
+            button.parent = buttonsContainer;
+            buttonsContainer.height = buttonsContainer.border * 2 +
+                buttonsContainer.children.map((x) => x.height).reduce((acc, v) => acc + v, 0) +
+                Math.max(buttonsContainer.children.length - 1, 0) *
+                    (buttonsContainer.childrenLayout?.spacing || 0);
+            return button;
+        };
+        const addToggle = (text, toggled, cb) => {
+            const getButtonText = () => {
+                return toggled ? `[X] ${text}` : `[ ] ${text}`;
+            };
+            const button = new button_text_ts_4.TextButtonWidget(font, getButtonText(), types_ts_15.FixedColor.White, types_ts_15.FixedColor.Green, types_ts_15.FixedColor.Yellow, () => {
+                toggled = !toggled;
+                button.text = getButtonText();
+                cb(toggled);
+            }).setLayout({ widthPercent: 100 });
+            button.parent = buttonsContainer;
+            buttonsContainer.height = buttonsContainer.border * 2 +
+                buttonsContainer.children.map((x) => x.height).reduce((acc, v) => acc + v, 0) +
+                Math.max(buttonsContainer.children.length - 1, 0) *
+                    (buttonsContainer.childrenLayout?.spacing || 0);
+            return button;
+        };
+        const context = {
+            keysDown: new Map(),
+            specialKeysDown: new Map(),
+            nextStateId: null,
+            widgetsToRemove: [],
+        };
+        addToggle("Show FPS", game_settings_ts_2.getSettings().showFps, (b) => game_settings_ts_2.setSettings({ ...game_settings_ts_2.getSettings(), showFps: b }));
+        addButton("Return", () => {
+            context.nextStateId = types_ts_16.StateId.MainMenu;
+        });
+        engine.addWidget(mainUI);
+        engine.addWidget(emptyGame);
+        context.widgetsToRemove.push(mainUI);
+        context.widgetsToRemove.push(emptyGame);
+        return context;
+    }
+    function updateState(context) {
+        return context.nextStateId;
+    }
+    function destroyState(engine, context) {
+        context.widgetsToRemove.forEach((w) => engine.removeWidget(w));
+    }
+    function buildSettingsState() {
+        let context = null;
+        const init = (p) => {
+            context = initState(p.engine, p.assets, p.native);
+            return {};
+        };
+        const update = () => {
+            if (context)
+                return updateState(context);
+            return null;
+        };
+        const destroy = (p) => {
+            if (context) {
+                destroyState(p.engine, context);
+                context = null;
+            }
+        };
         return {
-            buildState: (id) => {
-                switch (id) {
-                    case types_ts_15.StateId.Game:
-                        return game_ts_1.buildGameState();
-                    case types_ts_15.StateId.MainMenu:
-                        return mainmenu_ts_1.buildMainMenuState();
-                    case types_ts_15.StateId.Benchmark:
-                        return benchmark_ts_1.buildBenchmarkState();
-                }
+            id: types_ts_16.StateId.Settings,
+            init,
+            update,
+            destroy,
+            onKeyEvent: (e) => {
+                if (context)
+                    keyboard_ts_4.onKeyEvent(context, e);
             },
         };
     }
-    exports_27("buildStateFactory", buildStateFactory);
+    exports_29("buildSettingsState", buildSettingsState);
     return {
         setters: [
             function (types_ts_15_1) {
                 types_ts_15 = types_ts_15_1;
+            },
+            function (types_ts_16_1) {
+                types_ts_16 = types_ts_16_1;
+            },
+            function (keyboard_ts_4_1) {
+                keyboard_ts_4 = keyboard_ts_4_1;
+            },
+            function (box_ts_4_1) {
+                box_ts_4 = box_ts_4_1;
+            },
+            function (button_text_ts_4_1) {
+                button_text_ts_4 = button_text_ts_4_1;
+            },
+            function (game_settings_ts_2_1) {
+                game_settings_ts_2 = game_settings_ts_2_1;
+            }
+        ],
+        execute: function () {
+        }
+    };
+});
+System.register("game/src/state-factory", ["game/src/types", "game/src/states/game/game", "game/src/states/mainmenu/mainmenu", "game/src/states/benchmark/benchmark", "game/src/states/settings/settings"], function (exports_30, context_30) {
+    "use strict";
+    var types_ts_17, game_ts_1, mainmenu_ts_1, benchmark_ts_1, settings_ts_1;
+    var __moduleName = context_30 && context_30.id;
+    function buildStateFactory() {
+        return {
+            buildState: (id) => {
+                switch (id) {
+                    case types_ts_17.StateId.Game:
+                        return game_ts_1.buildGameState();
+                    case types_ts_17.StateId.MainMenu:
+                        return mainmenu_ts_1.buildMainMenuState();
+                    case types_ts_17.StateId.Benchmark:
+                        return benchmark_ts_1.buildBenchmarkState();
+                    case types_ts_17.StateId.Settings:
+                        return settings_ts_1.buildSettingsState();
+                }
+            },
+        };
+    }
+    exports_30("buildStateFactory", buildStateFactory);
+    return {
+        setters: [
+            function (types_ts_17_1) {
+                types_ts_17 = types_ts_17_1;
             },
             function (game_ts_1_1) {
                 game_ts_1 = game_ts_1_1;
@@ -3033,29 +3290,32 @@ System.register("game/src/state-factory", ["game/src/types", "game/src/states/ga
             },
             function (benchmark_ts_1_1) {
                 benchmark_ts_1 = benchmark_ts_1_1;
+            },
+            function (settings_ts_1_1) {
+                settings_ts_1 = settings_ts_1_1;
             }
         ],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/screen/drawing/types", [], function (exports_28, context_28) {
+System.register("web/src/native/screen/drawing/types", [], function (exports_31, context_31) {
     "use strict";
-    var __moduleName = context_28 && context_28.id;
+    var __moduleName = context_31 && context_31.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types"], function (exports_29, context_29) {
+System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types"], function (exports_32, context_32) {
     "use strict";
-    var types_ts_16, DrawingSoftLayer, DrawingSoft;
-    var __moduleName = context_29 && context_29.id;
+    var types_ts_18, DrawingSoftLayer, DrawingSoft;
+    var __moduleName = context_32 && context_32.id;
     return {
         setters: [
-            function (types_ts_16_1) {
-                types_ts_16 = types_ts_16_1;
+            function (types_ts_18_1) {
+                types_ts_18 = types_ts_18_1;
             }
         ],
         execute: function () {
@@ -3102,7 +3362,7 @@ System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types
                     const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
                     const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
                     const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
-                    return new types_ts_16.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
+                    return new types_ts_18.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
                 }
             };
             DrawingSoft = class DrawingSoft {
@@ -3112,7 +3372,7 @@ System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types
                     this.dirtyTime = 0;
                     this.useCanvases = false;
                     this.drawingDone = drawingDone;
-                    for (let i = 0; i < types_ts_16.LAYERS_COUNT; i++) {
+                    for (let i = 0; i < types_ts_18.LAYERS_COUNT; i++) {
                         this.layers.push(new DrawingSoftLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
@@ -3357,23 +3617,23 @@ System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types
                 update() { }
                 preloadTilemap(tilemap) { }
             };
-            exports_29("DrawingSoft", DrawingSoft);
+            exports_32("DrawingSoft", DrawingSoft);
         }
     };
 });
-System.register("web/src/native/screen/drawing/worker/types", [], function (exports_30, context_30) {
+System.register("web/src/native/screen/drawing/worker/types", [], function (exports_33, context_33) {
     "use strict";
-    var __moduleName = context_30 && context_30.id;
+    var __moduleName = context_33 && context_33.id;
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/screen/drawing/drawing-worker", [], function (exports_31, context_31) {
+System.register("web/src/native/screen/drawing/drawing-worker", [], function (exports_34, context_34) {
     "use strict";
     var ALLOW_OFFSCREEN_CANVASES, DrawingWorker;
-    var __moduleName = context_31 && context_31.id;
+    var __moduleName = context_34 && context_34.id;
     function canTransferControlToOffscreen(test) {
         return typeof test["transferControlToOffscreen"] === "function";
     }
@@ -3551,18 +3811,18 @@ System.register("web/src/native/screen/drawing/drawing-worker", [], function (ex
                     this.commit();
                 }
             };
-            exports_31("DrawingWorker", DrawingWorker);
+            exports_34("DrawingWorker", DrawingWorker);
         }
     };
 });
-System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types"], function (exports_32, context_32) {
+System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types"], function (exports_35, context_35) {
     "use strict";
-    var types_ts_17, DrawingHardLayer, DrawingHard;
-    var __moduleName = context_32 && context_32.id;
+    var types_ts_19, DrawingHardLayer, DrawingHard;
+    var __moduleName = context_35 && context_35.id;
     return {
         setters: [
-            function (types_ts_17_1) {
-                types_ts_17 = types_ts_17_1;
+            function (types_ts_19_1) {
+                types_ts_19 = types_ts_19_1;
             }
         ],
         execute: function () {
@@ -3607,7 +3867,7 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
                     const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
                     const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
                     const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
-                    return new types_ts_17.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
+                    return new types_ts_19.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
                 }
             };
             DrawingHard = class DrawingHard {
@@ -3618,7 +3878,7 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
                     this.tilesToTexture = new Map();
                     this.buildCanvasFn = buildCanvasFn;
                     this.drawingDone = drawingDone;
-                    for (let i = 0; i < types_ts_17.LAYERS_COUNT; i++) {
+                    for (let i = 0; i < types_ts_19.LAYERS_COUNT; i++) {
                         const ctx = canvases[i].getContext("2d", i === 0 ? { alpha: false } : {});
                         this.layers.push(new DrawingHardLayer(width, height, canvases[i], ctx));
                     }
@@ -3665,7 +3925,7 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
                 fillRect(color, x, y, width, height) {
                     this.setDirty(x, y, width, height);
                     const context = this.targetLayer.ctx;
-                    if (color !== types_ts_17.FixedColor.Transparent) {
+                    if (color !== types_ts_19.FixedColor.Transparent) {
                         const r = color & 0xFF;
                         const g = (color >> 8) & 0xFF;
                         const b = (color >> 16) & 0xFF;
@@ -3727,7 +3987,7 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
                     for (let y = 0; y < height && tileIndex < tiles.length; y += tileHeight) {
                         for (let x = 0; x < width && tileIndex < tiles.length; x += tileWidth) {
                             const tile = tiles[tileIndex];
-                            const tileBounds = new types_ts_17.Rect(x, y, tileWidth, tileHeight);
+                            const tileBounds = new types_ts_19.Rect(x, y, tileWidth, tileHeight);
                             const tp32 = tile.pixels32;
                             for (let dy = 0; dy < tileHeight; dy++) {
                                 let t = (y + dy) * width + x;
@@ -3748,16 +4008,16 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
                     tiles.forEach((t) => this.tilesToTexture.set(t, texture));
                 }
             };
-            exports_32("DrawingHard", DrawingHard);
+            exports_35("DrawingHard", DrawingHard);
         }
     };
 });
-System.register("web/src/native/screen/native-screen", ["engine/src/types", "web/src/native/screen/drawing/drawing-soft", "web/src/native/screen/drawing/drawing-worker", "web/src/native/screen/drawing/drawing-hard"], function (exports_33, context_33) {
+System.register("web/src/native/screen/native-screen", ["engine/src/types", "web/src/native/screen/drawing/drawing-soft", "web/src/native/screen/drawing/drawing-worker", "web/src/native/screen/drawing/drawing-hard"], function (exports_36, context_36) {
     "use strict";
-    var types_ts_18, drawing_soft_ts_1, drawing_worker_ts_1, drawing_hard_ts_1, USE_WORKER, USE_HARD_DRAWING;
-    var __moduleName = context_33 && context_33.id;
+    var types_ts_20, drawing_soft_ts_1, drawing_worker_ts_1, drawing_hard_ts_1, USE_WORKER, USE_HARD_DRAWING;
+    var __moduleName = context_36 && context_36.id;
     function getCanvasSize() {
-        return new types_ts_18.Size(window.innerWidth, window.innerHeight);
+        return new types_ts_20.Size(window.innerWidth, window.innerHeight);
     }
     function createFullScreenCanvas(zIndex) {
         const canvas = document.createElement("canvas");
@@ -3776,7 +4036,7 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
     }
     function getWebNativeScreen(onStats) {
         const canvases = initCanvases();
-        const screenSize = new types_ts_18.Size(256, 256);
+        const screenSize = new types_ts_20.Size(256, 256);
         const screenSizeChangedListeners = [];
         const fullScreenListeners = [];
         const dispatchFullScreenEvent = (fullscreen) => {
@@ -3846,11 +4106,11 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
             endDraw: () => drawing.commit(),
         };
     }
-    exports_33("getWebNativeScreen", getWebNativeScreen);
+    exports_36("getWebNativeScreen", getWebNativeScreen);
     return {
         setters: [
-            function (types_ts_18_1) {
-                types_ts_18 = types_ts_18_1;
+            function (types_ts_20_1) {
+                types_ts_20 = types_ts_20_1;
             },
             function (drawing_soft_ts_1_1) {
                 drawing_soft_ts_1 = drawing_soft_ts_1_1;
@@ -3868,9 +4128,9 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
         }
     };
 });
-System.register("web/src/native/input/native-input", [], function (exports_34, context_34) {
+System.register("web/src/native/input/native-input", [], function (exports_37, context_37) {
     "use strict";
-    var __moduleName = context_34 && context_34.id;
+    var __moduleName = context_37 && context_37.id;
     function getWebNativeInput() {
         const keyListeners = [];
         const mouseListeners = [];
@@ -3948,16 +4208,16 @@ System.register("web/src/native/input/native-input", [], function (exports_34, c
             onMouseEvent: (listener) => mouseListeners.push(listener),
         };
     }
-    exports_34("getWebNativeInput", getWebNativeInput);
+    exports_37("getWebNativeInput", getWebNativeInput);
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/focus/native-focus", [], function (exports_35, context_35) {
+System.register("web/src/native/focus/native-focus", [], function (exports_38, context_38) {
     "use strict";
-    var __moduleName = context_35 && context_35.id;
+    var __moduleName = context_38 && context_38.id;
     function getWebNativeFocus() {
         const focusListeners = [];
         const dispatchFocusEvent = (focus) => {
@@ -3972,17 +4232,17 @@ System.register("web/src/native/focus/native-focus", [], function (exports_35, c
             onFocusChanged: (listener) => focusListeners.push(listener),
         };
     }
-    exports_35("getWebNativeFocus", getWebNativeFocus);
+    exports_38("getWebNativeFocus", getWebNativeFocus);
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/native", ["web/src/native/screen/native-screen", "web/src/native/input/native-input", "web/src/native/focus/native-focus"], function (exports_36, context_36) {
+System.register("web/src/native/native", ["web/src/native/screen/native-screen", "web/src/native/input/native-input", "web/src/native/focus/native-focus"], function (exports_39, context_39) {
     "use strict";
     var native_screen_ts_1, native_input_ts_1, native_focus_ts_1;
-    var __moduleName = context_36 && context_36.id;
+    var __moduleName = context_39 && context_39.id;
     function getWebNativeContext(onStats) {
         return {
             screen: native_screen_ts_1.getWebNativeScreen(onStats),
@@ -3992,7 +4252,7 @@ System.register("web/src/native/native", ["web/src/native/screen/native-screen",
             destroy: () => { },
         };
     }
-    exports_36("getWebNativeContext", getWebNativeContext);
+    exports_39("getWebNativeContext", getWebNativeContext);
     return {
         setters: [
             function (native_screen_ts_1_1) {
@@ -4009,10 +4269,10 @@ System.register("web/src/native/native", ["web/src/native/screen/native-screen",
         }
     };
 });
-System.register("web/src/assets", ["engine/src/types"], function (exports_37, context_37) {
+System.register("web/src/assets", ["engine/src/types"], function (exports_40, context_40) {
     "use strict";
-    var types_ts_19;
-    var __moduleName = context_37 && context_37.id;
+    var types_ts_21;
+    var __moduleName = context_40 && context_40.id;
     async function loadImage(src) {
         return new Promise((resolve, reject) => {
             const image = new Image();
@@ -4046,7 +4306,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_37, co
             getTile: (id) => tilesById.get(id),
             getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
             getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
-            getTileXYByIndex: (index) => new types_ts_19.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
+            getTileXYByIndex: (index) => new types_ts_21.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
         };
         const setTileId = (index, id) => {
             tiles[index].id = id;
@@ -4214,7 +4474,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_37, co
         addAnimation(avatarId + "-right-hurt", 20, 0, 5, false);
     }
     function loadAnimation(id, json, tilemaps) {
-        const delayInUpdates = json.fps > 0 ? Math.ceil(types_ts_19.UPDATE_FPS / json.fps) : 0;
+        const delayInUpdates = json.fps > 0 ? Math.ceil(types_ts_21.UPDATE_FPS / json.fps) : 0;
         const tiles = [];
         if (json.frames) {
             tiles.push(...json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]));
@@ -4278,21 +4538,21 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_37, co
         };
         return assets;
     }
-    exports_37("initAssets", initAssets);
+    exports_40("initAssets", initAssets);
     return {
         setters: [
-            function (types_ts_19_1) {
-                types_ts_19 = types_ts_19_1;
+            function (types_ts_21_1) {
+                types_ts_21 = types_ts_21_1;
             }
         ],
         execute: function () {
         }
     };
 });
-System.register("web/src/stats", [], function (exports_38, context_38) {
+System.register("web/src/stats", [], function (exports_41, context_41) {
     "use strict";
     var Stat, EngineStats;
-    var __moduleName = context_38 && context_38.id;
+    var __moduleName = context_41 && context_41.id;
     return {
         setters: [],
         execute: function () {
@@ -4332,14 +4592,14 @@ System.register("web/src/stats", [], function (exports_38, context_38) {
                     this.update.reset();
                 }
             };
-            exports_38("EngineStats", EngineStats);
+            exports_41("EngineStats", EngineStats);
         }
     };
 });
-System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/state-factory", "web/src/native/native", "web/src/assets", "game/src/types", "web/src/stats"], function (exports_39, context_39) {
+System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/state-factory", "web/src/native/native", "web/src/assets", "game/src/types", "web/src/stats"], function (exports_42, context_42) {
     "use strict";
-    var types_ts_20, engine_ts_1, label_ts_1, state_factory_ts_1, native_ts_1, assets_ts_1, types_ts_21, stats_ts_1, MAX_PENDING_FRAMES, engine, native, assets, stateParams, statsLabel, currentState, focused, stateFactory, updateStatsFrames, updateStatsTime, engineStats, ignoreNextUpdate, lastUpdateTime;
-    var __moduleName = context_39 && context_39.id;
+    var types_ts_22, engine_ts_1, label_ts_1, state_factory_ts_1, native_ts_1, assets_ts_1, types_ts_23, stats_ts_1, MAX_PENDING_FRAMES, engine, native, assets, stateParams, statsLabel, currentState, focused, stateFactory, updateStatsFrames, updateStatsTime, engineStats, ignoreNextUpdate, lastUpdateTime;
+    var __moduleName = context_42 && context_42.id;
     function updateStats() {
         const now = performance.now();
         updateStatsFrames++;
@@ -4380,7 +4640,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         const initResult = newState.init(stateParams);
         console.log(`State ${newState.id} Initialized`);
         if (initResult.statsContainer) {
-            statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_20.FixedColor.White);
+            statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_22.FixedColor.White);
             statsLabel.parent = initResult.statsContainer;
         }
         currentState = newState;
@@ -4469,7 +4729,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             return;
         }
         const delta = now - lastUpdateTime;
-        const targetDeltaUpdate = 1000 / types_ts_20.UPDATE_FPS;
+        const targetDeltaUpdate = 1000 / types_ts_22.UPDATE_FPS;
         if (delta > targetDeltaUpdate - 0.1) {
             lastUpdateTime = Math.max(lastUpdateTime + targetDeltaUpdate, now - 1000);
             updateReal();
@@ -4484,7 +4744,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             document.body.removeChild(loader);
     }
     async function run() {
-        const engine = await init(types_ts_21.StateId.MainMenu);
+        const engine = await init(types_ts_23.StateId.MainMenu);
         updateReal();
         drawReal();
         while (!native.screen.readyForNextFrame(0)) {
@@ -4502,8 +4762,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     }
     return {
         setters: [
-            function (types_ts_20_1) {
-                types_ts_20 = types_ts_20_1;
+            function (types_ts_22_1) {
+                types_ts_22 = types_ts_22_1;
             },
             function (engine_ts_1_1) {
                 engine_ts_1 = engine_ts_1_1;
@@ -4520,8 +4780,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             function (assets_ts_1_1) {
                 assets_ts_1 = assets_ts_1_1;
             },
-            function (types_ts_21_1) {
-                types_ts_21 = types_ts_21_1;
+            function (types_ts_23_1) {
+                types_ts_23 = types_ts_23_1;
             },
             function (stats_ts_1_1) {
                 stats_ts_1 = stats_ts_1_1;

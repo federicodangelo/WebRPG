@@ -19,6 +19,7 @@ import {
 import { NativeContext } from "engine/native-types.ts";
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
 import { TextButtonWidget } from "engine/widgets/ui/button-text.ts";
+import { getSettings, setSettings } from "../../game-settings.ts";
 
 type StateContext = {
   keysDown: Map<string, boolean>;
@@ -80,6 +81,40 @@ function initState(engine: Engine, assets: Assets, native: NativeContext) {
     return button;
   };
 
+  const addToggle = (
+    text: string,
+    toggled: boolean,
+    cb: (toggled: boolean) => void,
+  ) => {
+    const getButtonText = () => {
+      return toggled ? `[X] ${text}` : `[ ] ${text}`;
+    };
+
+    const button = new TextButtonWidget(
+      font,
+      getButtonText(),
+      FixedColor.White,
+      FixedColor.Green,
+      FixedColor.Yellow,
+      () => {
+        toggled = !toggled;
+        button.text = getButtonText();
+        cb(toggled);
+      },
+    ).setLayout({ widthPercent: 100 });
+
+    button.parent = buttonsContainer;
+    buttonsContainer.height = buttonsContainer.border * 2 +
+      buttonsContainer.children.map((x) => x.height).reduce(
+        (acc, v) => acc + v,
+        0,
+      ) +
+      Math.max(buttonsContainer.children.length - 1, 0) *
+        (buttonsContainer.childrenLayout?.spacing || 0);
+
+    return button;
+  };
+
   const context: StateContext = {
     keysDown: new Map<string, boolean>(),
     specialKeysDown: new Map<KeyCode, boolean>(),
@@ -87,16 +122,14 @@ function initState(engine: Engine, assets: Assets, native: NativeContext) {
     widgetsToRemove: [],
   };
 
-  addButton("Start Game", () => {
-    context.nextStateId = StateId.Game;
-  });
+  addToggle(
+    "Show FPS",
+    getSettings().showFps,
+    (b) => setSettings({ ...getSettings(), showFps: b }),
+  );
 
-  addButton("Start Benchmark", () => {
-    context.nextStateId = StateId.Benchmark;
-  });
-
-  addButton("Settings", () => {
-    context.nextStateId = StateId.Settings;
+  addButton("Return", () => {
+    context.nextStateId = StateId.MainMenu;
   });
 
   engine.addWidget(mainUI);
@@ -115,7 +148,7 @@ function destroyState(engine: Engine, context: StateContext) {
   context.widgetsToRemove.forEach((w) => engine.removeWidget(w));
 }
 
-export function buildMainMenuState(): State {
+export function buildSettingsState(): State {
   let context: StateContext | null = null;
 
   const init = (p: StateParams): InitResult => {
@@ -136,7 +169,7 @@ export function buildMainMenuState(): State {
   };
 
   return {
-    id: StateId.MainMenu,
+    id: StateId.Settings,
     init,
     update,
     destroy,

@@ -11,6 +11,7 @@ export enum StateId {
   MainMenu = "MainMenu",
   Game = "Game",
   Benchmark = "Benchmark",
+  Settings = "Settings",
 }
 
 export type InitResult = {

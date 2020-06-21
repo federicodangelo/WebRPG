@@ -6,19 +6,50 @@ import {
   Assets,
   LayerId,
   Tile,
+  Widget,
 } from "engine/types.ts";
 import { ButtonWidget } from "engine/widgets/ui/button.ts";
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
-import { NativeContext } from "engine/native-types.ts";
-import { ScrollableContainerWidget } from "engine/widgets/scrollable.ts";
 import { TileWidget } from "engine/widgets/game/tile.ts";
 import { TextButtonWidget } from "engine/widgets/ui/button-text.ts";
+import { ItemsContainerWidget } from "../../../../engine/src/widgets/items-container.ts";
 
 const ITEM_IMAGE_WIDTH = 32;
 const ITEM_IMAGE_HEIGHT = 32;
 const ITEM_IMAGE_BORDER = 8;
 const ITEM_WIDTH = ITEM_IMAGE_WIDTH + ITEM_IMAGE_BORDER * 2;
 const ITEM_HEIGHT = ITEM_IMAGE_HEIGHT + ITEM_IMAGE_BORDER * 2;
+
+function buildButtonItemsContainer(
+  itemsTiles: Tile[],
+  spacing: number,
+  itemWidth: number,
+  itemHeight: number,
+  horizontal: boolean,
+) {
+  const itemsContainer = new ItemsContainerWidget<Tile, ButtonWidget>(
+    spacing,
+    horizontal,
+    itemWidth,
+    itemHeight,
+    (t) => {
+      const item = new ButtonWidget(FixedColor.Cyan, FixedColor.Yellow);
+      const tile = new TileWidget(t)
+        .setLayout(
+          { verticalSpacingPercent: 50, horizontalSpacingPercent: 50 },
+        );
+      tile.parent = item;
+      tile.solid = false;
+      return item;
+    },
+  );
+
+  itemsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
+
+  itemsContainer.items = itemsTiles;
+
+  return { itemsContainer, itemsButtons: itemsContainer.itemsWidgets };
+}
 
 export function initUI(engine: Engine, assets: Assets) {
   const font = assets.defaultFont;
@@ -66,47 +97,45 @@ export function initUI(engine: Engine, assets: Assets) {
     x.id.includes("deco")
   );
 
-  const itemsCount = decoTiles.length;
-  const itemsButtons = new Map<ButtonWidget, Tile>();
+  const { itemsContainer, itemsButtons } = buildButtonItemsContainer(
+    decoTiles,
+    8,
+    ITEM_WIDTH,
+    ITEM_HEIGHT,
+    true,
+  );
 
-  const itemsContainer = new ScrollableContainerWidget();
-  const allItemsWidth = itemsCount * (ITEM_WIDTH + font.tileWidth);
-  itemsContainer.layout = {
-    widthPercent: 100,
-    heightPercent: 100,
-    customSizeFn: (w) => {
-      itemsContainer.mouseHorizontalScrollLimits = {
-        fromX: Math.min(
-          ITEM_WIDTH / 2,
-          -allItemsWidth + w.width - ITEM_WIDTH / 2,
-        ) | 0,
-        toX: (ITEM_WIDTH / 2) | 0,
-      };
-    },
+  const actionsContainerContainer = new BoxContainerWidget(4);
+  actionsContainerContainer.width = ITEM_WIDTH +
+    actionsContainerContainer.border * 2;
+  actionsContainerContainer.layout = {
+    heightPercent: 75,
+    verticalSpacingPercent: 50,
+    horizontalSpacingPercent: 0,
   };
+  actionsContainerContainer.backColor = FixedColor.None;
+
+  const actionTiles = assets.getTilemap("terrain").tiles.filter((x) =>
+    x.id.includes("deco")
+  );
+
+  const {
+    itemsContainer: actionsContainer,
+    itemsButtons: actionsContainerButtons,
+  } = buildButtonItemsContainer(
+    actionTiles,
+    8,
+    ITEM_WIDTH,
+    ITEM_HEIGHT,
+    false,
+  );
+
   itemsContainer.parent = itemsContainerContainer;
-  itemsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
-  itemsContainer.childrenLayout = {
-    type: "horizontal",
-    spacing: font.tileWidth,
-  };
-  itemsContainer.mouseHorizontalScrollEnabled = true;
-
-  for (let i = 0; i < itemsCount; i++) {
-    const item = new ButtonWidget(FixedColor.Cyan, FixedColor.Yellow);
-    const tile = new TileWidget(decoTiles[i])
-      .setLayout({ verticalSpacingPercent: 50, horizontalSpacingPercent: 50 });
-    tile.parent = item;
-    tile.solid = false;
-    item.height = ITEM_HEIGHT;
-    item.width = ITEM_WIDTH;
-    item.parent = itemsContainer;
-    itemsButtons.set(item, decoTiles[i]);
-  }
-
+  actionsContainer.parent = actionsContainerContainer;
   statsContainer.parent = mainUI;
   buttonsContainer.parent = mainUI;
   itemsContainerContainer.parent = mainUI;
+  actionsContainerContainer.parent = mainUI;
 
   itemsContainerContainer.borderColor = buttonsContainer.borderColor =
     statsContainer.borderColor = rgb(
