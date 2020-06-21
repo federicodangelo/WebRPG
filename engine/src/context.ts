@@ -73,7 +73,6 @@ export class EngineContextImpl implements EngineContext {
   private x: number = 0;
   private y: number = 0;
   private foreColor = FixedColor.White;
-  private backColor = FixedColor.Black;
 
   private transformsStack: Point[] = [];
   private clipStack: Rect[] = [];
@@ -159,15 +158,13 @@ export class EngineContextImpl implements EngineContext {
     return this;
   }
 
-  public textColor(foreColor: Color, backColor: Color) {
+  public textColor(foreColor: Color) {
     this.foreColor = foreColor;
-    this.backColor = backColor;
     return this;
   }
 
   public resetTextColor() {
     this.foreColor = FixedColor.White;
-    this.backColor = FixedColor.Black;
     return this;
   }
 
@@ -199,10 +196,9 @@ export class EngineContextImpl implements EngineContext {
       const ctx = Math.min(clip.x1 - screenX, width);
       const cty = Math.min(clip.y1 - screenY, height);
 
-      this.nativeContext.tintTile(
+      this.nativeContext.setTile(
         fontTile,
-        this.foreColor,
-        this.backColor,
+        //this.foreColor,
         screenX,
         screenY,
         cfx,
@@ -266,22 +262,41 @@ export class EngineContextImpl implements EngineContext {
       return this;
     }
 
-    this.moveCursorTo(x, y);
-    this.specialChar(font, SpecialChar.CornerTopLeft);
-    this.specialCharTimes(font, SpecialChar.Horizontal, width / fontWidth - 2);
-    this.moveCursorTo(x + width - fontWidth, y);
-    this.specialChar(font, SpecialChar.CornerTopRight);
-    for (let i = 0; i < height - 2 * fontHeight; i += fontHeight) {
-      this.moveCursorTo(x, y + fontHeight + i);
-      this.specialChar(font, SpecialChar.Vertical);
-      this.moveCursorTo(x + width - fontWidth, y + fontHeight + i);
-      this.specialChar(font, SpecialChar.Vertical);
-    }
-    this.moveCursorTo(x, y + height - fontHeight);
-    this.specialChar(font, SpecialChar.CornerBottomLeft);
-    this.specialCharTimes(font, SpecialChar.Horizontal, width / fontWidth - 2);
-    this.moveCursorTo(x + width - fontWidth, y + height - fontHeight);
-    this.specialChar(font, SpecialChar.CornerBottomRight);
+    const lineSize = 1;
+    const ox = (fontWidth / 2) | 0;
+    const oy = (fontHeight / 2) | 0;
+
+    this.fillRect(
+      x + ox,
+      y + oy,
+      width - ox * 2,
+      lineSize,
+      this.foreColor,
+    );
+
+    this.fillRect(
+      x + ox,
+      y + height - fontHeight + oy,
+      width - ox * 2,
+      lineSize,
+      this.foreColor,
+    );
+
+    this.fillRect(
+      x + ox,
+      y + oy,
+      lineSize,
+      height - oy * 2,
+      this.foreColor,
+    );
+
+    this.fillRect(
+      x + width - fontWidth + ox,
+      y + oy,
+      lineSize,
+      height - oy * 2,
+      this.foreColor,
+    );
 
     return this;
   }
@@ -323,10 +338,9 @@ export class EngineContextImpl implements EngineContext {
         const ctx = Math.min(clip.x1 - screenX, fontWidth);
         const cty = Math.min(clip.y1 - screenY, fontHeight);
 
-        this.nativeContext.tintTile(
+        this.nativeContext.setTile(
           fontTile,
-          this.foreColor,
-          this.backColor,
+          //this.foreColor,
           screenX,
           screenY,
           cfx,

@@ -1,4 +1,5 @@
-import { DrawingReal } from "../drawing-real.ts";
+import { DrawingSoft } from "../drawing-soft.ts";
+import { DrawingHard } from "../drawing-hard.ts";
 import {
   DrawingRequest,
   DrawingResponse,
@@ -10,8 +11,11 @@ import {
   DrawingDoneResult,
   DrawingDoneDirtyParams,
   Drawing,
+  DrawingTilemap,
 } from "../types.ts";
 import { AlphaType } from "engine/types.ts";
+
+const USE_HARD_DRAWING = true;
 
 function sendResponse(response: DrawingResponse) {
   if (response.type === "result") {
@@ -54,6 +58,8 @@ function addTile(tid: TileId, tile: DrawingTile) {
 function handleCommands(commands: Int32Array, commandsLen: number) {
   let index = 0;
   if (drawing === null) return;
+  let tilesToAddToTilemap = 0;
+  let tilemap: DrawingTilemap | null = null;
   while (index < commandsLen) {
     const cmd: DrawingCommandType = commands[index++];
     const argsLen = commands[index++];
@@ -67,19 +73,6 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
           commands[index + 4],
           commands[index + 5],
           commands[index + 6],
-        );
-        break;
-      case DrawingCommandType.TintTile:
-        drawing.tintTile(
-          getTile(commands[index + 0]),
-          commands[index + 1],
-          commands[index + 2],
-          commands[index + 3],
-          commands[index + 4],
-          commands[index + 5],
-          commands[index + 6],
-          commands[index + 7],
-          commands[index + 8],
         );
         break;
       case DrawingCommandType.FillRect:
@@ -121,14 +114,28 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
         const pixels32 = new Uint32Array(pixels32Len);
         const pixels = new Uint8ClampedArray(pixels32.buffer);
         pixels32.set(commands.slice(index + 5, index + 5 + pixels32Len));
-        addTile(id, {
+        const tile = {
           alphaType,
           width,
           height,
           pixels,
           pixels32,
-        });
+        };
+        addTile(id, tile);
+        if (tilesToAddToTilemap > 0 && tilemap !== null) {
+          tilemap.tiles.push(tile);
+          tilesToAddToTilemap--;
+          if (tilesToAddToTilemap === 0) {
+            drawing?.preloadTilemap(tilemap);
+            tilemap = null;
+          }
+        }
         break;
+      }
+
+      case DrawingCommandType.AddTilemap: {
+        tilesToAddToTilemap = commands[index + 0];
+        tilemap = { tiles: [] };
       }
     }
     index += argsLen;
@@ -145,17 +152,30 @@ function handleRequest(request: DrawingRequest) {
       break;
     case "init":
       {
-        drawing = new DrawingReal(
-          request.width,
-          request.height,
-          request.canvases,
-          (result: DrawingDoneResult) => {
-            sendResponse({
-              type: "result",
-              result,
-            });
-          },
-        );
+        drawing = USE_HARD_DRAWING && request.canvases.length > 0
+          ? new DrawingHard(
+            request.width,
+            request.height,
+            request.canvases,
+            (w, h) => new OffscreenCanvas(w, h),
+            (result: DrawingDoneResult) => {
+              sendResponse({
+                type: "result",
+                result,
+              });
+            },
+          )
+          : new DrawingSoft(
+            request.width,
+            request.height,
+            request.canvases,
+            (result: DrawingDoneResult) => {
+              sendResponse({
+                type: "result",
+                result,
+              });
+            },
+          );
       }
       break;
   }

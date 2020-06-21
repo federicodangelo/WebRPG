@@ -141,15 +141,7 @@ System.register("engine/src/types", [], function (exports_2, context_2) {
                 FixedColor.Blue = rgb(0, 55, 218);
                 FixedColor.Magenta = rgb(136, 23, 152);
                 FixedColor.Cyan = rgb(58, 150, 221);
-                FixedColor.White = rgb(204, 204, 204);
-                FixedColor.BrightBlack = rgb(118, 118, 118);
-                FixedColor.BrightRed = rgb(231, 72, 86);
-                FixedColor.BrightGreen = rgb(22, 198, 12);
-                FixedColor.BrightYellow = rgb(249, 241, 165);
-                FixedColor.BrightBlue = rgb(59, 120, 255);
-                FixedColor.BrightMagenta = rgb(180, 0, 158);
-                FixedColor.BrightCyan = rgb(97, 214, 214);
-                FixedColor.BrightWhite = rgb(242, 242, 242);
+                FixedColor.White = rgb(255, 255, 255);
                 return FixedColor;
             })();
             exports_2("FixedColor", FixedColor);
@@ -340,7 +332,6 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_3,
                     this.x = 0;
                     this.y = 0;
                     this.foreColor = types_ts_1.FixedColor.White;
-                    this.backColor = types_ts_1.FixedColor.Black;
                     this.transformsStack = [];
                     this.clipStack = [];
                     this.nativeContext = nativeContext;
@@ -401,14 +392,12 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_3,
                     this.y = y;
                     return this;
                 }
-                textColor(foreColor, backColor) {
+                textColor(foreColor) {
                     this.foreColor = foreColor;
-                    this.backColor = backColor;
                     return this;
                 }
                 resetTextColor() {
                     this.foreColor = types_ts_1.FixedColor.White;
-                    this.backColor = types_ts_1.FixedColor.Black;
                     return this;
                 }
                 text(font, str) {
@@ -432,7 +421,9 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_3,
                         const cfy = Math.max(clip.y - screenY, 0);
                         const ctx = Math.min(clip.x1 - screenX, width);
                         const cty = Math.min(clip.y1 - screenY, height);
-                        this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
+                        this.nativeContext.setTile(fontTile, 
+                        //this.foreColor,
+                        screenX, screenY, cfx, cfy, ctx, cty);
                     }
                     this.x += width;
                     return this;
@@ -472,22 +463,13 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_3,
                         y1 < y + height - fontHeight) {
                         return this;
                     }
-                    this.moveCursorTo(x, y);
-                    this.specialChar(font, 10 /* CornerTopLeft */);
-                    this.specialCharTimes(font, 9 /* Horizontal */, width / fontWidth - 2);
-                    this.moveCursorTo(x + width - fontWidth, y);
-                    this.specialChar(font, 11 /* CornerTopRight */);
-                    for (let i = 0; i < height - 2 * fontHeight; i += fontHeight) {
-                        this.moveCursorTo(x, y + fontHeight + i);
-                        this.specialChar(font, 8 /* Vertical */);
-                        this.moveCursorTo(x + width - fontWidth, y + fontHeight + i);
-                        this.specialChar(font, 8 /* Vertical */);
-                    }
-                    this.moveCursorTo(x, y + height - fontHeight);
-                    this.specialChar(font, 12 /* CornerBottomLeft */);
-                    this.specialCharTimes(font, 9 /* Horizontal */, width / fontWidth - 2);
-                    this.moveCursorTo(x + width - fontWidth, y + height - fontHeight);
-                    this.specialChar(font, 13 /* CornerBottomRight */);
+                    const lineSize = 1;
+                    const ox = (fontWidth / 2) | 0;
+                    const oy = (fontHeight / 2) | 0;
+                    this.fillRect(x + ox, y + oy, width - ox * 2, lineSize, this.foreColor);
+                    this.fillRect(x + ox, y + height - fontHeight + oy, width - ox * 2, lineSize, this.foreColor);
+                    this.fillRect(x + ox, y + oy, lineSize, height - oy * 2, this.foreColor);
+                    this.fillRect(x + width - fontWidth + ox, y + oy, lineSize, height - oy * 2, this.foreColor);
                     return this;
                 }
                 fillChar(font, x, y, width, height, char) {
@@ -513,7 +495,9 @@ System.register("engine/src/context", ["engine/src/types"], function (exports_3,
                             const cfy = Math.max(clip.y - screenY, 0);
                             const ctx = Math.min(clip.x1 - screenX, fontWidth);
                             const cty = Math.min(clip.y1 - screenY, fontHeight);
-                            this.nativeContext.tintTile(fontTile, this.foreColor, this.backColor, screenX, screenY, cfx, cfy, ctx, cty);
+                            this.nativeContext.setTile(fontTile, 
+                            //this.foreColor,
+                            screenX, screenY, cfx, cfy, ctx, cty);
                         }
                     }
                     return this;
@@ -1095,7 +1079,7 @@ System.register("engine/src/widgets/ui/label", ["engine/src/widgets/widget"], fu
         ],
         execute: function () {
             LabelWidget = class LabelWidget extends widget_ts_1.BaseWidget {
-                constructor(font, text, foreColor, backColor) {
+                constructor(font, text, foreColor) {
                     super();
                     this._text = "";
                     this._lines = [];
@@ -1103,7 +1087,6 @@ System.register("engine/src/widgets/ui/label", ["engine/src/widgets/widget"], fu
                     this.height = font.tileHeight;
                     this.text = text;
                     this.foreColor = foreColor;
-                    this.backColor = backColor;
                     this.solid = false;
                 }
                 set text(val) {
@@ -1119,7 +1102,7 @@ System.register("engine/src/widgets/ui/label", ["engine/src/widgets/widget"], fu
                     return this._text;
                 }
                 drawSelf(context) {
-                    context.textColor(this.foreColor, this.backColor);
+                    context.textColor(this.foreColor);
                     for (let i = 0; i < this._lines.length; i++) {
                         context.moveCursorTo(0, i * this.font.tileHeight).text(this.font, this._lines[i]);
                     }
@@ -1703,7 +1686,7 @@ System.register("engine/src/widgets/scrollable", ["engine/src/types", "engine/sr
                         if (dx === 0 && dy === 0)
                             return;
                         const bbox = this.getBoundingBox();
-                        if (Math.abs(dx) > bbox.width || Math.abs(dy) < bbox.height) {
+                        if (Math.abs(dx) > bbox.width || Math.abs(dy) > bbox.height) {
                             //Scroll delta too big, nothing to reuse from the screen.. just invalidate..
                             this._offsetX = offsetX;
                             this._offsetY = offsetY;
@@ -2265,9 +2248,9 @@ System.register("engine/src/widgets/ui/button-text", ["engine/src/widgets/ui/but
                 }
                 drawSelf(context) {
                     const backColor = this.down ? this.pressedColor : this.backColor;
-                    context.textColor(this.foreColor, backColor);
+                    context.fillRect(0, 0, this.width, this.height, backColor);
+                    context.textColor(this.foreColor);
                     context.textBorder(this.font, 0, 0, this.width, this.height);
-                    context.fillRect(this.font.tileWidth, this.font.tileHeight, this.width - this.font.tileWidth * 2, this.height - this.font.tileHeight * 2, backColor);
                     for (let i = 0; i < this._lines.length; i++) {
                         const line = this._lines[i];
                         context.moveCursorTo(this.font.tileWidth +
@@ -3065,9 +3048,9 @@ System.register("web/src/native/screen/drawing/types", [], function (exports_28,
         }
     };
 });
-System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types"], function (exports_29, context_29) {
+System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types"], function (exports_29, context_29) {
     "use strict";
-    var types_ts_16, DrawingRealLayer, DrawingReal;
+    var types_ts_16, DrawingSoftLayer, DrawingSoft;
     var __moduleName = context_29 && context_29.id;
     return {
         setters: [
@@ -3076,7 +3059,7 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
             }
         ],
         execute: function () {
-            DrawingRealLayer = class DrawingRealLayer {
+            DrawingSoftLayer = class DrawingSoftLayer {
                 constructor(width, height) {
                     this.dirty = false;
                     this.dirtyPixels = 0;
@@ -3122,7 +3105,7 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                     return new types_ts_16.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
                 }
             };
-            DrawingReal = class DrawingReal {
+            DrawingSoft = class DrawingSoft {
                 constructor(width, height, canvases, drawingDone) {
                     this.layers = [];
                     this.colorsRGB = new Uint32Array(2);
@@ -3131,7 +3114,7 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                     this.useCanvases = false;
                     this.drawingDone = drawingDone;
                     for (let i = 0; i < types_ts_16.LAYERS_COUNT; i++) {
-                        this.layers.push(new DrawingRealLayer(width, height));
+                        this.layers.push(new DrawingSoftLayer(width, height));
                     }
                     this.targetLayer = this.layers[0];
                     this.canvases = canvases;
@@ -3161,84 +3144,6 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                         this.dirtyTime = performance.now();
                     }
                     this.targetLayer.setDirty(x, y, width, height);
-                }
-                tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.setDirty(x, y, t.width, t.height);
-                    const colorsRGB = this.colorsRGB;
-                    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
-                    const screenWidth = this.targetLayer.pixelsWidth;
-                    colorsRGB[1] = foreColor;
-                    colorsRGB[0] = backColor;
-                    const tilePixels = t.pixels32;
-                    const tileWidth = t.width;
-                    const tileHeight = t.height;
-                    const backTransparent = backColor >> 24 == 0;
-                    let p = 0;
-                    let f = 0;
-                    if (cfx <= 0 && cfy <= 0 && ctx >= tileWidth && cty >= tileHeight) {
-                        if (backTransparent) {
-                            for (let py = 0; py < tileHeight; py++) {
-                                p = (y + py) * screenWidth + x;
-                                f = py * tileWidth;
-                                for (let px = 0; px < tileWidth; px++) {
-                                    const cp = tilePixels[f++];
-                                    if (cp == 1) {
-                                        imageDataPixels32[p++] = colorsRGB[cp];
-                                    }
-                                    else {
-                                        p++;
-                                    }
-                                }
-                            }
-                        }
-                        else {
-                            for (let py = 0; py < tileHeight; py++) {
-                                p = (y + py) * screenWidth + x;
-                                f = py * tileWidth;
-                                for (let px = 0; px < tileWidth; px++) {
-                                    imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-                                }
-                            }
-                        }
-                    }
-                    else {
-                        if (backTransparent) {
-                            for (let py = 0; py < tileHeight; py++) {
-                                p = (y + py) * screenWidth + x;
-                                f = py * tileWidth;
-                                for (let px = 0; px < tileWidth; px++) {
-                                    if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                                        const cp = tilePixels[f++];
-                                        if (cp == 1) {
-                                            imageDataPixels32[p++] = colorsRGB[cp];
-                                        }
-                                        else {
-                                            p++;
-                                        }
-                                    }
-                                    else {
-                                        p++;
-                                        f++;
-                                    }
-                                }
-                            }
-                        }
-                        else {
-                            for (let py = 0; py < tileHeight; py++) {
-                                p = (y + py) * screenWidth + x;
-                                f = py * tileWidth;
-                                for (let px = 0; px < tileWidth; px++) {
-                                    if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-                                        imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-                                    }
-                                    else {
-                                        p++;
-                                        f++;
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
                 setTile(t, x, y, cfx, cfy, ctx, cty) {
                     this.setDirty(x, y, t.width, t.height);
@@ -3451,9 +3356,9 @@ System.register("web/src/native/screen/drawing/drawing-real", ["engine/src/types
                     return true;
                 }
                 update() { }
-                preloadTiles(tiles) { }
+                preloadTilemap(tilemap) { }
             };
-            exports_29("DrawingReal", DrawingReal);
+            exports_29("DrawingSoft", DrawingSoft);
         }
     };
 });
@@ -3541,7 +3446,7 @@ System.register("web/src/native/screen/drawing/drawing-worker", [], function (ex
                         return tileId;
                     const id = this.nextTileId++;
                     this.tileMappings.set(tile, id);
-                    this.enqueueOptimizedCommand(6 /* AddTile */, id, tile.width, tile.height, tile.alphaType, tile.pixels32.length, ...tile.pixels32);
+                    this.enqueueOptimizedCommand(5 /* AddTile */, id, tile.width, tile.height, tile.alphaType, tile.pixels32.length, ...tile.pixels32);
                     return id;
                 }
                 isReady() {
@@ -3567,7 +3472,7 @@ System.register("web/src/native/screen/drawing/drawing-worker", [], function (ex
                     this.pixelsHeight = height;
                     if (this.ready)
                         this.resetQueues();
-                    this.enqueueOptimizedCommand(4 /* SetSize */, width, height);
+                    this.enqueueOptimizedCommand(3 /* SetSize */, width, height);
                     if (!this.useOffscreenCanvases) {
                         for (let i = 0; i < this.canvases.length; i++) {
                             this.canvases[i].width = width;
@@ -3576,19 +3481,16 @@ System.register("web/src/native/screen/drawing/drawing-worker", [], function (ex
                     }
                 }
                 setTargetLayer(layer) {
-                    this.enqueueOptimizedCommand(5 /* SetTargetLayer */, layer);
-                }
-                tintTile(t, foreColor, backColor, x, y, cfx, cfy, ctx, cty) {
-                    this.enqueueOptimizedCommand(1 /* TintTile */, this.getTileId(t), foreColor, backColor, x, y, cfx, cfy, ctx, cty);
+                    this.enqueueOptimizedCommand(4 /* SetTargetLayer */, layer);
                 }
                 setTile(t, x, y, cfx, cfy, ctx, cty) {
                     this.enqueueOptimizedCommand(0 /* SetTile */, this.getTileId(t), x, y, cfx, cfy, ctx, cty);
                 }
                 fillRect(color, x, y, width, height) {
-                    this.enqueueOptimizedCommand(2 /* FillRect */, color, x, y, width, height);
+                    this.enqueueOptimizedCommand(1 /* FillRect */, color, x, y, width, height);
                 }
                 scrollRect(x, y, width, height, dx, dy) {
-                    this.enqueueOptimizedCommand(3 /* ScrollRect */, x, y, width, height, dx, dy);
+                    this.enqueueOptimizedCommand(2 /* ScrollRect */, x, y, width, height, dx, dy);
                 }
                 commit() {
                     if (!this.ready)
@@ -3642,9 +3544,10 @@ System.register("web/src/native/screen/drawing/drawing-worker", [], function (ex
                     };
                     this.worker.postMessage(init, this.offscreenCanvases);
                 }
-                preloadTiles(tiles) {
-                    for (let i = 0; i < tiles.length; i++) {
-                        this.getTileId(tiles[i]);
+                preloadTilemap(tilemap) {
+                    this.enqueueOptimizedCommand(6 /* AddTilemap */, tilemap.tiles.length);
+                    for (let i = 0; i < tilemap.tiles.length; i++) {
+                        this.getTileId(tilemap.tiles[i]);
                     }
                     this.commit();
                 }
@@ -3653,12 +3556,210 @@ System.register("web/src/native/screen/drawing/drawing-worker", [], function (ex
         }
     };
 });
-System.register("web/src/native/screen/native-screen", ["engine/src/types", "web/src/native/screen/drawing/drawing-real", "web/src/native/screen/drawing/drawing-worker"], function (exports_32, context_32) {
+System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types"], function (exports_32, context_32) {
     "use strict";
-    var types_ts_17, drawing_real_ts_1, drawing_worker_ts_1, USE_WORKER;
+    var types_ts_17, DrawingHardLayer, DrawingHard;
     var __moduleName = context_32 && context_32.id;
+    return {
+        setters: [
+            function (types_ts_17_1) {
+                types_ts_17 = types_ts_17_1;
+            }
+        ],
+        execute: function () {
+            DrawingHardLayer = class DrawingHardLayer {
+                constructor(width, height, canvas, ctx) {
+                    this.dirty = false;
+                    this.dirtyPixels = 0;
+                    this.dirtyLeft = 0;
+                    this.dirtyRight = 0;
+                    this.dirtyTop = 0;
+                    this.dirtyBottom = 0;
+                    this.pixelsWidth = width;
+                    this.pixelsHeight = height;
+                    this.canvas = canvas;
+                    this.ctx = ctx;
+                }
+                setSize(width, height) {
+                    this.pixelsWidth = width;
+                    this.pixelsHeight = height;
+                    this.canvas.width = width;
+                    this.canvas.height = height;
+                }
+                setDirty(x, y, width, height) {
+                    if (!this.dirty) {
+                        this.dirty = true;
+                        this.dirtyPixels = 0;
+                        this.dirtyLeft = x;
+                        this.dirtyTop = y;
+                        this.dirtyRight = x + width;
+                        this.dirtyBottom = y + height;
+                    }
+                    else {
+                        this.dirtyLeft = Math.min(this.dirtyLeft, x);
+                        this.dirtyTop = Math.min(this.dirtyTop, y);
+                        this.dirtyRight = Math.max(this.dirtyRight, x + width);
+                        this.dirtyBottom = Math.max(this.dirtyBottom, y + height);
+                    }
+                    this.dirtyPixels += width * height;
+                }
+                getDirtyRect() {
+                    const dirtyLeft = Math.max(Math.min(this.dirtyLeft, this.pixelsWidth), 0);
+                    const dirtyRight = Math.max(Math.min(this.dirtyRight, this.pixelsWidth), 0);
+                    const dirtyTop = Math.max(Math.min(this.dirtyTop, this.pixelsHeight), 0);
+                    const dirtyBottom = Math.max(Math.min(this.dirtyBottom, this.pixelsHeight), 0);
+                    return new types_ts_17.Rect(dirtyLeft, dirtyTop, dirtyRight - dirtyLeft, dirtyBottom - dirtyTop);
+                }
+            };
+            DrawingHard = class DrawingHard {
+                constructor(width, height, canvases, buildCanvasFn, drawingDone) {
+                    this.layers = [];
+                    this.colorsRGB = new Uint32Array(2);
+                    this.dirty = false;
+                    this.dirtyTime = 0;
+                    this.tilesToTexture = new Map();
+                    this.buildCanvasFn = buildCanvasFn;
+                    this.drawingDone = drawingDone;
+                    for (let i = 0; i < types_ts_17.LAYERS_COUNT; i++) {
+                        const ctx = canvases[i].getContext("2d", i === 0 ? { alpha: false } : {});
+                        this.layers.push(new DrawingHardLayer(width, height, canvases[i], ctx));
+                    }
+                    this.targetLayer = this.layers[0];
+                }
+                setSize(width, height) {
+                    for (let i = 0; i < this.layers.length; i++) {
+                        this.layers[i].setSize(width, height);
+                    }
+                }
+                setTargetLayer(layer) {
+                    this.targetLayer = this.layers[layer];
+                }
+                setDirty(x, y, width, height) {
+                    if (!this.dirty) {
+                        this.dirty = true;
+                        this.dirtyTime = performance.now();
+                    }
+                    this.targetLayer.setDirty(x, y, width, height);
+                }
+                setTile(t, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(x, y, t.width, t.height);
+                    const tileWidth = t.width;
+                    const tileHeight = t.height;
+                    const context = this.targetLayer.ctx;
+                    const tt = this.tilesToTexture.get(t);
+                    if (!tt)
+                        return;
+                    const texture = tt.canvas;
+                    const tileBounds = tt.tilesBounds.get(t);
+                    if (!tileBounds)
+                        return;
+                    if (cfx <= 0 && cfy <= 0 && ctx >= t.width && cty >= t.height) {
+                        context.drawImage(texture, tileBounds.x, tileBounds.y, tileBounds.width, tileBounds.height, x, y, tileWidth, tileHeight);
+                    }
+                    else {
+                        cfx = Math.max(cfx, 0);
+                        cfy = Math.max(cfy, 0);
+                        cty = Math.min(cty, tileHeight);
+                        ctx = Math.min(ctx, tileWidth);
+                        context.drawImage(texture, tileBounds.x + cfx, tileBounds.y + cfy, ctx - cfx, cty - cfy, x + cfx, y + cfy, ctx - cfx, cty - cfy);
+                    }
+                }
+                fillRect(color, x, y, width, height) {
+                    this.setDirty(x, y, width, height);
+                    const context = this.targetLayer.ctx;
+                    if (color !== types_ts_17.FixedColor.Transparent) {
+                        const r = color & 0xFF;
+                        const g = (color >> 8) & 0xFF;
+                        const b = (color >> 16) & 0xFF;
+                        const a = (color >> 24) & 0xFF;
+                        context.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+                        context.fillRect(x, y, width, height);
+                    }
+                    else {
+                        context.clearRect(x, y, width, height);
+                    }
+                }
+                scrollRect(x, y, width, height, dx, dy) {
+                    this.setDirty(x, y, width, height);
+                    const context = this.targetLayer.ctx;
+                    context.drawImage(context.canvas, x - dx, y - dy, width, height, x, y, width, height);
+                }
+                commit() {
+                    const dirtyParams = [];
+                    let drawnPixels = 0;
+                    for (let i = 0; i < this.layers.length; i++) {
+                        const layer = this.layers[i];
+                        if (layer.dirty) {
+                            drawnPixels += layer.dirtyPixels;
+                        }
+                    }
+                    this.drawingDone({
+                        dirtyParams,
+                        stats: {
+                            drawnPixels,
+                            time: this.dirty ? performance.now() - this.dirtyTime : 0,
+                        },
+                    });
+                    this.dirty = false;
+                    for (let i = 0; i < this.layers.length; i++)
+                        this.layers[i].dirty = false;
+                }
+                willDispatch() {
+                    return this.dirty;
+                }
+                isReadyForNextFrame() {
+                    return true;
+                }
+                update() { }
+                preloadTilemap(tilemap) {
+                    if (tilemap.tiles.length === 0)
+                        return;
+                    const tiles = tilemap.tiles;
+                    const tileWidth = tiles[0].width;
+                    const tileHeight = tiles[0].height;
+                    const sizeInTiles = Math.ceil(Math.sqrt(tiles.length));
+                    const width = sizeInTiles * tileWidth;
+                    const height = sizeInTiles * tileHeight;
+                    const canvas = this.buildCanvasFn(width, height);
+                    const ctx = canvas.getContext("2d");
+                    const texturePixels = new ArrayBuffer(width * height * 4);
+                    const texturePixels32 = new Uint32Array(texturePixels);
+                    const tilesBounds = new Map();
+                    let tileIndex = 0;
+                    for (let y = 0; y < height && tileIndex < tiles.length; y += tileHeight) {
+                        for (let x = 0; x < width && tileIndex < tiles.length; x += tileWidth) {
+                            const tile = tiles[tileIndex];
+                            const tileBounds = new types_ts_17.Rect(x, y, tileWidth, tileHeight);
+                            const tp32 = tile.pixels32;
+                            for (let dy = 0; dy < tileHeight; dy++) {
+                                let t = (y + dy) * width + x;
+                                let p = dy * tileWidth;
+                                for (let dx = 0; dx < tileWidth; dx++) {
+                                    texturePixels32[t++] = tp32[p++];
+                                }
+                            }
+                            tilesBounds.set(tile, tileBounds);
+                            tileIndex++;
+                        }
+                    }
+                    ctx.putImageData(new ImageData(new Uint8ClampedArray(texturePixels), width, height), 0, 0);
+                    const texture = {
+                        canvas,
+                        tilesBounds,
+                    };
+                    tiles.forEach((t) => this.tilesToTexture.set(t, texture));
+                }
+            };
+            exports_32("DrawingHard", DrawingHard);
+        }
+    };
+});
+System.register("web/src/native/screen/native-screen", ["engine/src/types", "web/src/native/screen/drawing/drawing-soft", "web/src/native/screen/drawing/drawing-worker", "web/src/native/screen/drawing/drawing-hard"], function (exports_33, context_33) {
+    "use strict";
+    var types_ts_18, drawing_soft_ts_1, drawing_worker_ts_1, drawing_hard_ts_1, USE_WORKER, USE_HARD_DRAWING;
+    var __moduleName = context_33 && context_33.id;
     function getCanvasSize() {
-        return new types_ts_17.Size(window.innerWidth, window.innerHeight);
+        return new types_ts_18.Size(window.innerWidth, window.innerHeight);
     }
     function createFullScreenCanvas(zIndex) {
         const canvas = document.createElement("canvas");
@@ -3677,7 +3778,7 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
     }
     function getWebNativeScreen(onStats) {
         const canvases = initCanvases();
-        const screenSize = new types_ts_17.Size(256, 256);
+        const screenSize = new types_ts_18.Size(256, 256);
         const screenSizeChangedListeners = [];
         const fullScreenListeners = [];
         const dispatchFullScreenEvent = (fullscreen) => {
@@ -3700,7 +3801,14 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
         screenSize.copyFrom(getCanvasSize());
         const drawing = USE_WORKER
             ? new drawing_worker_ts_1.DrawingWorker(screenSize.width, screenSize.height, canvases, drawingDone)
-            : new drawing_real_ts_1.DrawingReal(screenSize.width, screenSize.height, canvases, drawingDone);
+            : USE_HARD_DRAWING
+                ? new drawing_hard_ts_1.DrawingHard(screenSize.width, screenSize.height, canvases, (w, h) => {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = w;
+                    canvas.height = h;
+                    return canvas;
+                }, drawingDone)
+                : new drawing_soft_ts_1.DrawingSoft(screenSize.width, screenSize.height, canvases, drawingDone);
         return {
             getScreenSize: () => screenSize,
             onScreenSizeChanged: (listener) => {
@@ -3729,11 +3837,10 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
                     globalThis.pauseStats();
                 }
             },
-            preloadTiles: drawing.preloadTiles.bind(drawing),
+            preloadTilemap: drawing.preloadTilemap.bind(drawing),
             readyForNextFrame: drawing.isReadyForNextFrame.bind(drawing),
             processPendingFrames: drawing.update.bind(drawing),
             setTargetLayer: drawing.setTargetLayer.bind(drawing),
-            tintTile: drawing.tintTile.bind(drawing),
             setTile: drawing.setTile.bind(drawing),
             fillRect: drawing.fillRect.bind(drawing),
             scrollRect: drawing.scrollRect.bind(drawing),
@@ -3741,27 +3848,31 @@ System.register("web/src/native/screen/native-screen", ["engine/src/types", "web
             endDraw: () => drawing.commit(),
         };
     }
-    exports_32("getWebNativeScreen", getWebNativeScreen);
+    exports_33("getWebNativeScreen", getWebNativeScreen);
     return {
         setters: [
-            function (types_ts_17_1) {
-                types_ts_17 = types_ts_17_1;
+            function (types_ts_18_1) {
+                types_ts_18 = types_ts_18_1;
             },
-            function (drawing_real_ts_1_1) {
-                drawing_real_ts_1 = drawing_real_ts_1_1;
+            function (drawing_soft_ts_1_1) {
+                drawing_soft_ts_1 = drawing_soft_ts_1_1;
             },
             function (drawing_worker_ts_1_1) {
                 drawing_worker_ts_1 = drawing_worker_ts_1_1;
+            },
+            function (drawing_hard_ts_1_1) {
+                drawing_hard_ts_1 = drawing_hard_ts_1_1;
             }
         ],
         execute: function () {
             USE_WORKER = true;
+            USE_HARD_DRAWING = true;
         }
     };
 });
-System.register("web/src/native/input/native-input", [], function (exports_33, context_33) {
+System.register("web/src/native/input/native-input", [], function (exports_34, context_34) {
     "use strict";
-    var __moduleName = context_33 && context_33.id;
+    var __moduleName = context_34 && context_34.id;
     function getWebNativeInput() {
         const keyListeners = [];
         const mouseListeners = [];
@@ -3839,16 +3950,16 @@ System.register("web/src/native/input/native-input", [], function (exports_33, c
             onMouseEvent: (listener) => mouseListeners.push(listener),
         };
     }
-    exports_33("getWebNativeInput", getWebNativeInput);
+    exports_34("getWebNativeInput", getWebNativeInput);
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/focus/native-focus", [], function (exports_34, context_34) {
+System.register("web/src/native/focus/native-focus", [], function (exports_35, context_35) {
     "use strict";
-    var __moduleName = context_34 && context_34.id;
+    var __moduleName = context_35 && context_35.id;
     function getWebNativeFocus() {
         const focusListeners = [];
         const dispatchFocusEvent = (focus) => {
@@ -3863,17 +3974,17 @@ System.register("web/src/native/focus/native-focus", [], function (exports_34, c
             onFocusChanged: (listener) => focusListeners.push(listener),
         };
     }
-    exports_34("getWebNativeFocus", getWebNativeFocus);
+    exports_35("getWebNativeFocus", getWebNativeFocus);
     return {
         setters: [],
         execute: function () {
         }
     };
 });
-System.register("web/src/native/native", ["web/src/native/screen/native-screen", "web/src/native/input/native-input", "web/src/native/focus/native-focus"], function (exports_35, context_35) {
+System.register("web/src/native/native", ["web/src/native/screen/native-screen", "web/src/native/input/native-input", "web/src/native/focus/native-focus"], function (exports_36, context_36) {
     "use strict";
     var native_screen_ts_1, native_input_ts_1, native_focus_ts_1;
-    var __moduleName = context_35 && context_35.id;
+    var __moduleName = context_36 && context_36.id;
     function getWebNativeContext(onStats) {
         return {
             screen: native_screen_ts_1.getWebNativeScreen(onStats),
@@ -3883,7 +3994,7 @@ System.register("web/src/native/native", ["web/src/native/screen/native-screen",
             destroy: () => { },
         };
     }
-    exports_35("getWebNativeContext", getWebNativeContext);
+    exports_36("getWebNativeContext", getWebNativeContext);
     return {
         setters: [
             function (native_screen_ts_1_1) {
@@ -3900,10 +4011,10 @@ System.register("web/src/native/native", ["web/src/native/screen/native-screen",
         }
     };
 });
-System.register("web/src/assets", ["engine/src/types"], function (exports_36, context_36) {
+System.register("web/src/assets", ["engine/src/types"], function (exports_37, context_37) {
     "use strict";
-    var types_ts_18;
-    var __moduleName = context_36 && context_36.id;
+    var types_ts_19;
+    var __moduleName = context_37 && context_37.id;
     async function loadImage(src) {
         return new Promise((resolve, reject) => {
             const image = new Image();
@@ -3937,7 +4048,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_36, co
             getTile: (id) => tilesById.get(id),
             getTileByXY: (x, y) => tiles[y * imageWidthInTiles + x],
             getTileIndexByXY: (x, y) => y * imageWidthInTiles + x,
-            getTileXYByIndex: (index) => new types_ts_18.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
+            getTileXYByIndex: (index) => new types_ts_19.Point(index % imageWidthInTiles, Math.trunc(index / imageWidthInTiles)),
         };
         const setTileId = (index, id) => {
             tiles[index].id = id;
@@ -3952,7 +4063,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_36, co
                 const hasAlphaSolid = pixels32.every((x) => ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0);
                 if (type === "blackandwhite") {
                     for (let i = 0; i < pixels32.length; i++) {
-                        pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 1;
+                        pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 0xffffffff;
                     }
                 }
                 const tile = {
@@ -4105,7 +4216,7 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_36, co
         addAnimation(avatarId + "-right-hurt", 20, 0, 5, false);
     }
     function loadAnimation(id, json, tilemaps) {
-        const delayInUpdates = json.fps > 0 ? Math.ceil(types_ts_18.UPDATE_FPS / json.fps) : 0;
+        const delayInUpdates = json.fps > 0 ? Math.ceil(types_ts_19.UPDATE_FPS / json.fps) : 0;
         const tiles = [];
         if (json.frames) {
             tiles.push(...json.frames.map((f) => tilemaps.get(json.tilemap).tiles[f]));
@@ -4169,21 +4280,21 @@ System.register("web/src/assets", ["engine/src/types"], function (exports_36, co
         };
         return assets;
     }
-    exports_36("initAssets", initAssets);
+    exports_37("initAssets", initAssets);
     return {
         setters: [
-            function (types_ts_18_1) {
-                types_ts_18 = types_ts_18_1;
+            function (types_ts_19_1) {
+                types_ts_19 = types_ts_19_1;
             }
         ],
         execute: function () {
         }
     };
 });
-System.register("web/src/stats", [], function (exports_37, context_37) {
+System.register("web/src/stats", [], function (exports_38, context_38) {
     "use strict";
     var Stat, EngineStats;
-    var __moduleName = context_37 && context_37.id;
+    var __moduleName = context_38 && context_38.id;
     return {
         setters: [],
         execute: function () {
@@ -4223,14 +4334,14 @@ System.register("web/src/stats", [], function (exports_37, context_37) {
                     this.update.reset();
                 }
             };
-            exports_37("EngineStats", EngineStats);
+            exports_38("EngineStats", EngineStats);
         }
     };
 });
-System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/state-factory", "web/src/native/native", "web/src/assets", "game/src/types", "web/src/stats"], function (exports_38, context_38) {
+System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engine/src/widgets/ui/label", "game/src/state-factory", "web/src/native/native", "web/src/assets", "game/src/types", "web/src/stats"], function (exports_39, context_39) {
     "use strict";
-    var types_ts_19, engine_ts_1, label_ts_1, state_factory_ts_1, native_ts_1, assets_ts_1, types_ts_20, stats_ts_1, MAX_PENDING_FRAMES, engine, native, assets, stateParams, statsLabel, currentState, focused, stateFactory, updateStatsFrames, updateStatsTime, engineStats, ignoreNextUpdate, lastUpdateTime;
-    var __moduleName = context_38 && context_38.id;
+    var types_ts_20, engine_ts_1, label_ts_1, state_factory_ts_1, native_ts_1, assets_ts_1, types_ts_21, stats_ts_1, MAX_PENDING_FRAMES, engine, native, assets, stateParams, statsLabel, currentState, focused, stateFactory, updateStatsFrames, updateStatsTime, engineStats, ignoreNextUpdate, lastUpdateTime;
+    var __moduleName = context_39 && context_39.id;
     function updateStats() {
         const now = performance.now();
         updateStatsFrames++;
@@ -4271,7 +4382,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         const initResult = newState.init(stateParams);
         console.log(`State ${newState.id} Initialized`);
         if (initResult.statsContainer) {
-            statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_19.FixedColor.White, initResult.statsContainer.backColor);
+            statsLabel = new label_ts_1.LabelWidget(assets.defaultFont, "", types_ts_20.FixedColor.White);
             statsLabel.parent = initResult.statsContainer;
         }
         currentState = newState;
@@ -4317,9 +4428,13 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
         initState(stateFactory.buildState(mainStateId));
         //Wait engine ready
         await waitNoPendingFrames();
-        //Preload tiles
+        //Preload tilemaps and fonts
         for (const tilemap of assets.tilemaps.values()) {
-            native.screen.preloadTiles(tilemap.tiles);
+            native.screen.preloadTilemap(tilemap);
+            await waitNoPendingFrames();
+        }
+        for (const font of assets.fonts.values()) {
+            native.screen.preloadTilemap(font);
             await waitNoPendingFrames();
         }
         return engine;
@@ -4356,7 +4471,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             return;
         }
         const delta = now - lastUpdateTime;
-        const targetDeltaUpdate = 1000 / types_ts_19.UPDATE_FPS;
+        const targetDeltaUpdate = 1000 / types_ts_20.UPDATE_FPS;
         if (delta > targetDeltaUpdate - 0.1) {
             lastUpdateTime = Math.max(lastUpdateTime + targetDeltaUpdate, now - 1000);
             updateReal();
@@ -4371,7 +4486,7 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             document.body.removeChild(loader);
     }
     async function run() {
-        const engine = await init(types_ts_20.StateId.MainMenu);
+        const engine = await init(types_ts_21.StateId.MainMenu);
         updateReal();
         drawReal();
         while (!native.screen.readyForNextFrame(0)) {
@@ -4389,8 +4504,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
     }
     return {
         setters: [
-            function (types_ts_19_1) {
-                types_ts_19 = types_ts_19_1;
+            function (types_ts_20_1) {
+                types_ts_20 = types_ts_20_1;
             },
             function (engine_ts_1_1) {
                 engine_ts_1 = engine_ts_1_1;
@@ -4407,8 +4522,8 @@ System.register("web/src/main", ["engine/src/types", "engine/src/engine", "engin
             function (assets_ts_1_1) {
                 assets_ts_1 = assets_ts_1_1;
             },
-            function (types_ts_20_1) {
-                types_ts_20 = types_ts_20_1;
+            function (types_ts_21_1) {
+                types_ts_21 = types_ts_21_1;
             },
             function (stats_ts_1_1) {
                 stats_ts_1 = stats_ts_1_1;

@@ -4,6 +4,7 @@ import {
   Tile,
   EngineKeyEvent,
   EngineMouseEvent,
+  TilemapData,
 } from "./types.ts";
 import { LayerId } from "./types.ts";
 
@@ -20,23 +21,11 @@ export interface NativeContextScreen {
   toggleStats(): void;
   readyForNextFrame(maxPendingFrames: number): boolean;
   processPendingFrames(): void;
-  preloadTiles(tiles: Tile[]): void;
+  preloadTilemap(tile: TilemapData): void;
 
   beginDraw(): void;
 
   setTargetLayer(layer: LayerId): void;
-
-  tintTile(
-    t: Tile,
-    foreColor: Color,
-    backColor: Color,
-    x: number,
-    y: number,
-    cfx: number,
-    cfy: number,
-    ctx: number,
-    cty: number,
-  ): void;
 
   setTile(
     t: Tile,

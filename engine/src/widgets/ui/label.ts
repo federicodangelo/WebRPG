@@ -4,7 +4,6 @@ import { Color, DrawContext, Font } from "../../types.ts";
 export class LabelWidget extends BaseWidget {
   public font: Font;
   public foreColor: Color;
-  public backColor: Color;
 
   private _text: string = "";
   private _lines: string[] = [];
@@ -26,18 +25,17 @@ export class LabelWidget extends BaseWidget {
     return this._text;
   }
 
-  constructor(font: Font, text: string, foreColor: Color, backColor: Color) {
+  constructor(font: Font, text: string, foreColor: Color) {
     super();
     this.font = font;
     this.height = font.tileHeight;
     this.text = text;
     this.foreColor = foreColor;
-    this.backColor = backColor;
     this.solid = false;
   }
 
   protected drawSelf(context: DrawContext) {
-    context.textColor(this.foreColor, this.backColor);
+    context.textColor(this.foreColor);
 
     for (let i = 0; i < this._lines.length; i++) {
       context.moveCursorTo(0, i * this.font.tileHeight).text(

@@ -68,7 +68,7 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
 
       const bbox = this.getBoundingBox();
 
-      if (Math.abs(dx) > bbox.width || Math.abs(dy) < bbox.height) {
+      if (Math.abs(dx) > bbox.width || Math.abs(dy) > bbox.height) {
         //Scroll delta too big, nothing to reuse from the screen.. just invalidate..
         this._offsetX = offsetX;
         this._offsetY = offsetY;

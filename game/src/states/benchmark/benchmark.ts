@@ -17,7 +17,7 @@ import {
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
 import { TextButtonWidget } from "engine/widgets/ui/button-text.ts";
 import initMap1 from "../game/map.ts";
-import { ScrollableTilesContainerWidget } from "../../../../engine/src/widgets/game/tiles-container.ts";
+import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
 import { Avatar } from "../game/avatar.ts";
 import { randomIntervalInt, setRandomSeed } from "../game/random.ts";
 

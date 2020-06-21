@@ -124,7 +124,7 @@ async function loadTilemap(
 
       if (type === "blackandwhite") {
         for (let i = 0; i < pixels32.length; i++) {
-          pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 1;
+          pixels32[i] = (pixels32[i] & 0xffffff) === 0 ? 0 : 0xffffffff;
         }
       }
 

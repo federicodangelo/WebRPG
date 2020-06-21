@@ -42,15 +42,16 @@ export class TextButtonWidget extends ButtonWidget {
   protected drawSelf(context: DrawContext) {
     const backColor = this.down ? this.pressedColor : this.backColor;
 
-    context.textColor(this.foreColor, backColor);
-    context.textBorder(this.font, 0, 0, this.width, this.height);
     context.fillRect(
-      this.font.tileWidth,
-      this.font.tileHeight,
-      this.width - this.font.tileWidth * 2,
-      this.height - this.font.tileHeight * 2,
+      0,
+      0,
+      this.width,
+      this.height,
       backColor,
     );
+
+    context.textColor(this.foreColor);
+    context.textBorder(this.font, 0, 0, this.width, this.height);
 
     for (let i = 0; i < this._lines.length; i++) {
       const line = this._lines[i];

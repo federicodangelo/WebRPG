@@ -38,28 +38,20 @@ export type DrawingTile = {
   alphaType: AlphaType;
 };
 
+export type DrawingTilemap = {
+  tiles: DrawingTile[];
+};
+
 export type Drawing = {
   update(): void;
 
   isReadyForNextFrame(maxPendingFrames: number): boolean;
 
-  preloadTiles(t: DrawingTile[]): void;
+  preloadTilemap(tilemap: DrawingTilemap): void;
 
   setSize(width: number, height: number): void;
 
   setTargetLayer(layer: LayerId): void;
-
-  tintTile(
-    t: DrawingTile,
-    foreColor: Color,
-    backColor: Color,
-    x: number,
-    y: number,
-    cfx: number,
-    cfy: number,
-    ctx: number,
-    cty: number,
-  ): void;
 
   setTile(
     t: DrawingTile,

@@ -1,10 +1,12 @@
 import { NativeContextScreen, NativeDrawStats } from "engine/native-types.ts";
 import { Size } from "engine/types.ts";
-import { DrawingReal } from "./drawing/drawing-real.ts";
+import { DrawingSoft } from "./drawing/drawing-soft.ts";
 import { Drawing, DrawingDoneResult } from "./drawing/types.ts";
 import { DrawingWorker } from "./drawing/drawing-worker.ts";
+import { DrawingHard } from "./drawing/drawing-hard.ts";
 
 const USE_WORKER = true;
+const USE_HARD_DRAWING = true;
 
 function getCanvasSize() {
   return new Size(window.innerWidth, window.innerHeight);
@@ -72,7 +74,20 @@ export function getWebNativeScreen(
       canvases,
       drawingDone,
     )
-    : new DrawingReal(
+    : USE_HARD_DRAWING
+    ? new DrawingHard(
+      screenSize.width,
+      screenSize.height,
+      canvases,
+      (w, h) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        return canvas;
+      },
+      drawingDone,
+    )
+    : new DrawingSoft(
       screenSize.width,
       screenSize.height,
       canvases,
@@ -105,11 +120,10 @@ export function getWebNativeScreen(
         (globalThis as any).pauseStats();
       }
     },
-    preloadTiles: drawing.preloadTiles.bind(drawing),
+    preloadTilemap: drawing.preloadTilemap.bind(drawing),
     readyForNextFrame: drawing.isReadyForNextFrame.bind(drawing),
     processPendingFrames: drawing.update.bind(drawing),
     setTargetLayer: drawing.setTargetLayer.bind(drawing),
-    tintTile: drawing.tintTile.bind(drawing),
     setTile: drawing.setTile.bind(drawing),
     fillRect: drawing.fillRect.bind(drawing),
     scrollRect: drawing.scrollRect.bind(drawing),

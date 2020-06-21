@@ -4,12 +4,12 @@ export type TileId = number;
 
 export const enum DrawingCommandType {
   SetTile,
-  TintTile,
   FillRect,
   ScrollRect,
   SetSize,
   SetTargetLayer,
   AddTile,
+  AddTilemap,
 }
 
 export type DrawingRequestInit = {

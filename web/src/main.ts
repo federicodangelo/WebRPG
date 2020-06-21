@@ -79,7 +79,6 @@ function initState(newState: State) {
       assets.defaultFont,
       "",
       FixedColor.White,
-      initResult.statsContainer.backColor,
     );
 
     statsLabel.parent = initResult.statsContainer;
@@ -139,9 +138,13 @@ async function init(mainStateId: StateId) {
   //Wait engine ready
   await waitNoPendingFrames();
 
-  //Preload tiles
+  //Preload tilemaps and fonts
   for (const tilemap of assets.tilemaps.values()) {
-    native.screen.preloadTiles(tilemap.tiles);
+    native.screen.preloadTilemap(tilemap);
+    await waitNoPendingFrames();
+  }
+  for (const font of assets.fonts.values()) {
+    native.screen.preloadTilemap(font);
     await waitNoPendingFrames();
   }
 

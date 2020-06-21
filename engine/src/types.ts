@@ -50,16 +50,7 @@ export class FixedColor {
   static Blue = rgb(0, 55, 218);
   static Magenta = rgb(136, 23, 152);
   static Cyan = rgb(58, 150, 221);
-  static White = rgb(204, 204, 204);
-
-  static BrightBlack = rgb(118, 118, 118);
-  static BrightRed = rgb(231, 72, 86);
-  static BrightGreen = rgb(22, 198, 12);
-  static BrightYellow = rgb(249, 241, 165);
-  static BrightBlue = rgb(59, 120, 255);
-  static BrightMagenta = rgb(180, 0, 158);
-  static BrightCyan = rgb(97, 214, 214);
-  static BrightWhite = rgb(242, 242, 242);
+  static White = rgb(255, 255, 255);
 }
 
 export const enum Intensity {
@@ -377,7 +368,7 @@ export interface DrawContext {
   //Text API
   moveCursorTo(x: number, y: number): EngineContext;
 
-  textColor(foreColor: Color, backColor: Color): EngineContext;
+  textColor(foreColor: Color): EngineContext;
   resetTextColor(): EngineContext;
 
   text(font: Font, str: string): EngineContext;

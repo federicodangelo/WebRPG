@@ -12,9 +12,10 @@ import {
   DrawingDoneDirtyParams,
   AnyCanvasContextType,
   AnyCanvasType,
+  DrawingTilemap,
 } from "./types.ts";
 
-class DrawingRealLayer {
+class DrawingSoftLayer {
   public pixels: ArrayBuffer;
   public pixelsWidth: number;
   public pixelsHeight: number;
@@ -92,13 +93,13 @@ class DrawingRealLayer {
   }
 }
 
-export class DrawingReal implements Drawing {
-  private layers: DrawingRealLayer[] = [];
+export class DrawingSoft implements Drawing {
+  private layers: DrawingSoftLayer[] = [];
   private colorsRGB = new Uint32Array(2);
   private drawingDone: DrawingDoneFn;
   private dirty = false;
   private dirtyTime = 0;
-  private targetLayer: DrawingRealLayer;
+  private targetLayer: DrawingSoftLayer;
   private canvases: AnyCanvasType[];
   private canvasesCtx: AnyCanvasContextType[];
   private useCanvases = false;
@@ -112,7 +113,7 @@ export class DrawingReal implements Drawing {
     this.drawingDone = drawingDone;
 
     for (let i = 0; i < LAYERS_COUNT; i++) {
-      this.layers.push(new DrawingRealLayer(width, height));
+      this.layers.push(new DrawingSoftLayer(width, height));
     }
 
     this.targetLayer = this.layers[0];
@@ -154,94 +155,6 @@ export class DrawingReal implements Drawing {
       this.dirtyTime = performance.now();
     }
     this.targetLayer.setDirty(x, y, width, height);
-  }
-
-  public tintTile(
-    t: DrawingTile,
-    foreColor: Color,
-    backColor: Color,
-    x: number,
-    y: number,
-    cfx: number,
-    cfy: number,
-    ctx: number,
-    cty: number,
-  ) {
-    this.setDirty(x, y, t.width, t.height);
-
-    const colorsRGB = this.colorsRGB;
-    const imageDataPixels32 = this.targetLayer.imageDataPixels32;
-    const screenWidth = this.targetLayer.pixelsWidth;
-
-    colorsRGB[1] = foreColor;
-    colorsRGB[0] = backColor;
-
-    const tilePixels = t.pixels32;
-    const tileWidth = t.width;
-    const tileHeight = t.height;
-
-    const backTransparent = backColor >> 24 == 0;
-
-    let p = 0;
-    let f = 0;
-
-    if (cfx <= 0 && cfy <= 0 && ctx >= tileWidth && cty >= tileHeight) {
-      if (backTransparent) {
-        for (let py = 0; py < tileHeight; py++) {
-          p = (y + py) * screenWidth + x;
-          f = py * tileWidth;
-          for (let px = 0; px < tileWidth; px++) {
-            const cp = tilePixels[f++];
-            if (cp == 1) {
-              imageDataPixels32[p++] = colorsRGB[cp];
-            } else {
-              p++;
-            }
-          }
-        }
-      } else {
-        for (let py = 0; py < tileHeight; py++) {
-          p = (y + py) * screenWidth + x;
-          f = py * tileWidth;
-          for (let px = 0; px < tileWidth; px++) {
-            imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-          }
-        }
-      }
-    } else {
-      if (backTransparent) {
-        for (let py = 0; py < tileHeight; py++) {
-          p = (y + py) * screenWidth + x;
-          f = py * tileWidth;
-          for (let px = 0; px < tileWidth; px++) {
-            if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-              const cp = tilePixels[f++];
-              if (cp == 1) {
-                imageDataPixels32[p++] = colorsRGB[cp];
-              } else {
-                p++;
-              }
-            } else {
-              p++;
-              f++;
-            }
-          }
-        }
-      } else {
-        for (let py = 0; py < tileHeight; py++) {
-          p = (y + py) * screenWidth + x;
-          f = py * tileWidth;
-          for (let px = 0; px < tileWidth; px++) {
-            if (px >= cfx && px < ctx && py >= cfy && py < cty) {
-              imageDataPixels32[p++] = colorsRGB[tilePixels[f++]];
-            } else {
-              p++;
-              f++;
-            }
-          }
-        }
-      }
-    }
   }
 
   public setTile(
@@ -513,5 +426,5 @@ export class DrawingReal implements Drawing {
 
   public update() {}
 
-  public preloadTiles(tiles: DrawingTile[]) {}
+  public preloadTilemap(tilemap: DrawingTilemap) {}
 }

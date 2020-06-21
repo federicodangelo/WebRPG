@@ -9,6 +9,7 @@ import {
   DrawingDoneResult,
   AnyCanvasType,
   AnyCanvasContextType,
+  DrawingTilemap,
 } from "./types.ts";
 import {
   DrawingResponse,
@@ -180,31 +181,6 @@ export class DrawingWorker implements Drawing {
     this.enqueueOptimizedCommand(DrawingCommandType.SetTargetLayer, layer);
   }
 
-  public tintTile(
-    t: DrawingTile,
-    foreColor: Color,
-    backColor: Color,
-    x: number,
-    y: number,
-    cfx: number,
-    cfy: number,
-    ctx: number,
-    cty: number,
-  ) {
-    this.enqueueOptimizedCommand(
-      DrawingCommandType.TintTile,
-      this.getTileId(t),
-      foreColor,
-      backColor,
-      x,
-      y,
-      cfx,
-      cfy,
-      ctx,
-      cty,
-    );
-  }
-
   public setTile(
     t: DrawingTile,
     x: number,
@@ -331,9 +307,13 @@ export class DrawingWorker implements Drawing {
     this.worker.postMessage(init, this.offscreenCanvases);
   }
 
-  public preloadTiles(tiles: DrawingTile[]) {
-    for (let i = 0; i < tiles.length; i++) {
-      this.getTileId(tiles[i]);
+  public preloadTilemap(tilemap: DrawingTilemap) {
+    this.enqueueOptimizedCommand(
+      DrawingCommandType.AddTilemap,
+      tilemap.tiles.length,
+    );
+    for (let i = 0; i < tilemap.tiles.length; i++) {
+      this.getTileId(tilemap.tiles[i]);
     }
     this.commit();
   }
