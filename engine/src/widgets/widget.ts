@@ -24,6 +24,7 @@ export abstract class BaseWidget implements Widget {
   private _engine: Engine | null = null;
   private _boundingBox: Rect = new Rect();
   private _solid: boolean = true;
+  private _visible: boolean = true;
 
   public layout: WidgetLayout | null = null;
 
@@ -55,6 +56,17 @@ export abstract class BaseWidget implements Widget {
   public set solid(val: boolean) {
     if (val !== this._solid) {
       this._solid = val;
+    }
+  }
+
+  public get visible() {
+    return this._visible;
+  }
+
+  public set visible(val: boolean) {
+    if (val !== this._visible) {
+      this._visible = val;
+      this.invalidate();
     }
   }
 
@@ -225,6 +237,7 @@ export abstract class BaseWidget implements Widget {
 
   public draw(context: EngineContext): void {
     if (
+      !this.visible ||
       !context.isVisible(this.visibleX, this.visibleY, this.width, this.height)
     ) {
       return;
@@ -265,7 +278,7 @@ export abstract class BaseWidget implements Widget {
   public mouse(e: EngineMouseEvent) {}
 
   public getAt(x: number, y: number): Widget | null {
-    if (!this.solid) return null;
+    if (!this.solid || !this.visible) return null;
     if (x < 0 || y < 0 || x > this.width || y > this.height) return null;
     return this;
   }

@@ -198,7 +198,6 @@ function initContext(
     statsContainer,
     buttonsContainer,
     itemsContainer,
-    addButton,
     onFullScreenChanged,
   } = initUI(
     engine,
@@ -239,12 +238,10 @@ function initContext(
     );
   });
 
-  if (!getSettings().showFps) {
-    statsContainer.parent = null;
-  }
+  statsContainer.visible = getSettings().showFps;
 
   const context = {
-    statsContainer: getSettings().showFps ? statsContainer : undefined,
+    statsContainer,
     buttonsContainer,
     avatars,
     map,
@@ -260,7 +257,7 @@ function initContext(
     onFullScreenChanged,
   };
 
-  addButton("Quit", () => {
+  buttonsContainer.addButton("Quit", () => {
     context.nextStateId = StateId.MainMenu;
   });
 
@@ -280,6 +277,8 @@ function initContext(
 type StateContext = ReturnType<typeof initContext>;
 
 function updateContext(context: StateContext): boolean {
+  context.statsContainer.visible = getSettings().showFps;
+
   const { p1, p2, avatars, map } = context;
 
   if (isKeyDown(context, "a") || isSpecialKeyDown(context, KeyCode.ArrowLeft)) {

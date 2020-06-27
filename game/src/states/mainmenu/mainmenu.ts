@@ -19,6 +19,7 @@ import {
 import { NativeContext } from "engine/native-types.ts";
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
 import { TextButtonWidget } from "engine/widgets/ui/button-text.ts";
+import { ButtonsContainerWidget } from "../utils/buttons-container.ts";
 
 type StateContext = {
   keysDown: Map<string, boolean>;
@@ -42,43 +43,23 @@ function initState(engine: Engine, assets: Assets, native: NativeContext) {
   emptyGame.layout = { widthPercent: 100, heightPercent: 100 };
   emptyGame.backColor = rgb(0, 100, 0);
 
-  const buttonsContainer = new BoxContainerWidget(20);
-  buttonsContainer.width = 40 * font.tileWidth;
-  buttonsContainer.height = 8;
+  const buttonsContainer = new ButtonsContainerWidget(
+    font,
+    36,
+    20,
+    20,
+    FixedColor.White,
+    FixedColor.Green,
+    FixedColor.Yellow,
+  );
   buttonsContainer.layout = {
     verticalSpacingPercent: 50,
     horizontalSpacingPercent: 50,
-  };
-  buttonsContainer.childrenLayout = {
-    type: "vertical",
-    spacing: 20,
   };
   buttonsContainer.borderColor = rgb(0, 0, 100);
   buttonsContainer.backColor = rgb(0, 0, 100);
 
   buttonsContainer.parent = mainUI;
-
-  const addButton = (text: string, cb: () => void) => {
-    const button = new TextButtonWidget(
-      font,
-      text,
-      FixedColor.White,
-      FixedColor.Green,
-      FixedColor.Yellow,
-      () => cb(),
-    ).setLayout({ widthPercent: 100 });
-
-    button.parent = buttonsContainer;
-    buttonsContainer.height = buttonsContainer.border * 2 +
-      buttonsContainer.children.map((x) => x.height).reduce(
-        (acc, v) => acc + v,
-        0,
-      ) +
-      Math.max(buttonsContainer.children.length - 1, 0) *
-        (buttonsContainer.childrenLayout?.spacing || 0);
-
-    return button;
-  };
 
   const context: StateContext = {
     keysDown: new Map<string, boolean>(),
@@ -87,15 +68,15 @@ function initState(engine: Engine, assets: Assets, native: NativeContext) {
     widgetsToRemove: [],
   };
 
-  addButton("Start Game", () => {
+  buttonsContainer.addButton("Start Game", () => {
     context.nextStateId = StateId.Game;
   });
 
-  addButton("Start Benchmark", () => {
+  buttonsContainer.addButton("Start Benchmark", () => {
     context.nextStateId = StateId.Benchmark;
   });
 
-  addButton("Settings", () => {
+  buttonsContainer.addButton("Settings", () => {
     context.nextStateId = StateId.Settings;
   });
 

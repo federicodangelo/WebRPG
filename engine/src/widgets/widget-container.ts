@@ -109,7 +109,7 @@ export abstract class BaseWidgetContainer extends BaseWidget
   }
 
   public getAt(x: number, y: number): Widget | null {
-    if (!this.solid) return null;
+    if (!this.solid || !this.visible) return null;
     if (x < 0 || y < 0 || x > this.width || y > this.height) return null;
     for (let i = this._children.length - 1; i >= 0; i--) {
       const child = this._children[i];
@@ -124,6 +124,7 @@ export abstract class BaseWidgetContainer extends BaseWidget
 
   public draw(context: EngineContext): void {
     if (
+      !this.visible ||
       !context.isVisible(this.visibleX, this.visibleY, this.width, this.height)
     ) {
       return;

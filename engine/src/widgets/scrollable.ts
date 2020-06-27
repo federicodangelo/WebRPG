@@ -150,7 +150,7 @@ export class ScrollableContainerWidget extends BaseWidgetContainer {
   public getAt(x: number, y: number): Widget | null {
     if (this.mouseScrollType === MouseScrollType.None) return super.getAt(x, y);
 
-    if (!this.solid) return null;
+    if (!this.solid || !this.visible) return null;
     if (x < 0 || y < 0 || x > this.width || y > this.height) return null;
     return this.selfSolid ? this : null;
   }

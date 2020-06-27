@@ -10,8 +10,9 @@ import {
 import { ButtonWidget } from "engine/widgets/ui/button.ts";
 import { BoxContainerWidget } from "engine/widgets/ui/box.ts";
 import { TileWidget } from "engine/widgets/game/tile.ts";
-import { TextButtonWidget } from "engine/widgets/ui/button-text.ts";
 import { ItemsContainerWidget } from "engine/widgets/items-container.ts";
+import { ButtonsContainerWidget } from "../utils/buttons-container.ts";
+import { getSettings, setSettings } from "../../game-settings.ts";
 
 const ITEM_IMAGE_WIDTH = 32;
 const ITEM_IMAGE_HEIGHT = 32;
@@ -49,10 +50,14 @@ export function initUI(engine: Engine, assets: Assets) {
     horizontalSpacingPercent: 100,
   };
 
-  const buttonsContainer = new BoxContainerWidget(4);
-  buttonsContainer.width = 8 * font.tileWidth;
-  buttonsContainer.height = 8;
-  buttonsContainer.layout = {
+  const menuButtonsContainer = new ButtonsContainerWidget(font, 4);
+  menuButtonsContainer.layout = {
+    verticalSpacingPercent: 100,
+    horizontalSpacingPercent: 100,
+  };
+
+  const showMenuButtonsContainer = new ButtonsContainerWidget(font, 4);
+  showMenuButtonsContainer.layout = {
     verticalSpacingPercent: 100,
     horizontalSpacingPercent: 100,
   };
@@ -67,7 +72,7 @@ export function initUI(engine: Engine, assets: Assets) {
     customSizeFn: (w, parentWidth) => {
       w.width = Math.min(
         w.width,
-        parentWidth - (buttonsContainer.width * 2 + 8),
+        parentWidth - (menuButtonsContainer.width * 2 + 8),
       );
     },
   };
@@ -143,19 +148,29 @@ export function initUI(engine: Engine, assets: Assets) {
   itemsContainer.parent = itemsContainerContainer;
   actionsContainer.parent = actionsContainerContainer;
   statsContainer.parent = mainUI;
-  buttonsContainer.parent = mainUI;
+  menuButtonsContainer.parent = mainUI;
+  showMenuButtonsContainer.parent = mainUI;
   itemsContainerContainer.parent = mainUI;
   actionsContainerContainer.parent = mainUI;
 
-  itemsContainerContainer.borderColor = buttonsContainer.borderColor =
-    statsContainer.borderColor = rgb(
+  itemsContainerContainer.borderColor = menuButtonsContainer.borderColor =
+    showMenuButtonsContainer.borderColor = statsContainer.borderColor = rgb(
       Intensity.I0,
       Intensity.I20,
       Intensity.I40,
     );
 
   statsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
-  buttonsContainer.backColor = rgb(Intensity.I0, Intensity.I20, Intensity.I40);
+  menuButtonsContainer.backColor = rgb(
+    Intensity.I0,
+    Intensity.I20,
+    Intensity.I40,
+  );
+  showMenuButtonsContainer.backColor = rgb(
+    Intensity.I0,
+    Intensity.I20,
+    Intensity.I40,
+  );
   itemsContainerContainer.backColor = rgb(
     Intensity.I0,
     Intensity.I20,
@@ -167,38 +182,28 @@ export function initUI(engine: Engine, assets: Assets) {
     spacing: 0,
   };
 
-  buttonsContainer.childrenLayout = {
-    type: "vertical",
-    spacing: font.tileHeight,
-  };
+  menuButtonsContainer.addButton("Menu", () => {
+    showMenuButtonsContainer.visible = true;
+    menuButtonsContainer.visible = false;
+  });
 
-  const addButton = (text: string, cb: () => void) => {
-    const button = new TextButtonWidget(
-      font,
-      text,
-      FixedColor.White,
-      FixedColor.Green,
-      FixedColor.Yellow,
-      () => cb(),
-    ).setLayout({ widthPercent: 100 });
+  showMenuButtonsContainer.addButton("Menu", () => {
+    showMenuButtonsContainer.visible = false;
+    menuButtonsContainer.visible = true;
+  });
 
-    button.parent = buttonsContainer;
-    buttonsContainer.height = buttonsContainer.border * 2 +
-      buttonsContainer.children.map((x) => x.height).reduce(
-        (acc, v) => acc + v,
-        0,
-      ) +
-      Math.max(buttonsContainer.children.length - 1, 0) *
-        (buttonsContainer.childrenLayout?.spacing || 0);
+  menuButtonsContainer.visible = false;
 
-    return button;
-  };
+  menuButtonsContainer.addButton("Stat", () => engine.toggleStats());
 
-  addButton("Stat", () => engine.toggleStats());
+  menuButtonsContainer.addButton(
+    "FPS",
+    () => setSettings({ ...getSettings(), showFps: !getSettings().showFps }),
+  );
 
   let isFullcreen = false;
 
-  const fullScreenButton = addButton("Full", () => {
+  const fullScreenButton = menuButtonsContainer.addButton("Full", () => {
     if (isFullcreen) {
       engine.setFullscreen(false);
     } else {
@@ -216,8 +221,7 @@ export function initUI(engine: Engine, assets: Assets) {
   return {
     mainUI,
     statsContainer,
-    buttonsContainer,
-    addButton,
+    buttonsContainer: menuButtonsContainer,
     itemsContainer,
     actionsContainer,
     onFullScreenChanged,

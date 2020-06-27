@@ -30,6 +30,13 @@
       "strictPropertyInitialization": true,
       "suppressExcessPropertyErrors": false,
       "suppressImplicitAnyIndexErrors": false,
-      "useDefineForClassFields": false
+      "useDefineForClassFields": false,
+      "plugins": [
+        {
+          "name": "typescript-deno-plugin",
+          "enable": true,
+          "importmap": "importmap.json"
+        }
+      ]      
     }
   }

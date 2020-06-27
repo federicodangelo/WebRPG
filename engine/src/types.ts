@@ -130,6 +130,7 @@ export interface Widget {
   pivotY: number;
   readonly visibleY: number;
   readonly visibleX: number;
+  visible: boolean;
   solid: boolean;
   sortingLayer: number;
   layer: LayerId;

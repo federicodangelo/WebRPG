@@ -3,7 +3,7 @@ export type GameSettings = {
 };
 
 let gameSettings: GameSettings = {
-  showFps: true,
+  showFps: false,
 };
 
 export function getSettings() {
