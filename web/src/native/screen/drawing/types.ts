@@ -42,12 +42,25 @@ export type DrawingTilemap = {
   tiles: DrawingTile[];
 };
 
+export type DrawingSprite = {
+  width: number;
+  height: number;
+  pixels: Uint8ClampedArray;
+  pixels32: Uint32Array;
+  alphaType: AlphaType;
+};
+
+export type DrawingSpritesheet = {
+  sprites: DrawingSprite[];
+};
+
 export type Drawing = {
   update(): void;
 
   isReadyForNextFrame(maxPendingFrames: number): boolean;
 
   preloadTilemap(tilemap: DrawingTilemap): void;
+  preloadSpritesheet(spritesheet: DrawingSpritesheet): void;
 
   setSize(width: number, height: number): void;
 
@@ -55,6 +68,16 @@ export type Drawing = {
 
   setTile(
     t: DrawingTile,
+    x: number,
+    y: number,
+    cfx: number,
+    cfy: number,
+    ctx: number,
+    cty: number,
+  ): void;
+
+  setSprite(
+    s: DrawingSprite,
     x: number,
     y: number,
     cfx: number,

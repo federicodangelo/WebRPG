@@ -485,6 +485,9 @@ System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types
                             break;
                     }
                 }
+                setSprite(t, x, y, cfx, cfy, ctx, cty) {
+                    this.setTile(t, x, y, cfx, cfy, ctx, cty);
+                }
                 fillRect(color, x, y, width, height) {
                     this.setDirty(x, y, width, height);
                     const imageDataPixels32 = this.targetLayer.imageDataPixels32;
@@ -582,6 +585,7 @@ System.register("web/src/native/screen/drawing/drawing-soft", ["engine/src/types
                 }
                 update() { }
                 preloadTilemap(tilemap) { }
+                preloadSpritesheet(spritesheet) { }
             };
             exports_4("DrawingSoft", DrawingSoft);
         }
@@ -648,6 +652,7 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
                     this.dirty = false;
                     this.dirtyTime = 0;
                     this.tilesToTexture = new Map();
+                    this.spritesToTexture = new Map();
                     this.buildCanvasFn = buildCanvasFn;
                     this.drawingDone = drawingDone;
                     for (let i = 0; i < types_ts_2.LAYERS_COUNT; i++) {
@@ -692,6 +697,29 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
                         cty = Math.min(cty, tileHeight);
                         ctx = Math.min(ctx, tileWidth);
                         context.drawImage(texture, tileBounds.x + cfx, tileBounds.y + cfy, ctx - cfx, cty - cfy, x + cfx, y + cfy, ctx - cfx, cty - cfy);
+                    }
+                }
+                setSprite(s, x, y, cfx, cfy, ctx, cty) {
+                    this.setDirty(x, y, s.width, s.height);
+                    const spriteWidth = s.width;
+                    const spriteHeight = s.height;
+                    const context = this.targetLayer.ctx;
+                    const st = this.spritesToTexture.get(s);
+                    if (!st)
+                        return;
+                    const texture = st.canvas;
+                    const spriteBounds = st.spritesBounds.get(s);
+                    if (!spriteBounds)
+                        return;
+                    if (cfx <= 0 && cfy <= 0 && ctx >= s.width && cty >= s.height) {
+                        context.drawImage(texture, spriteBounds.x, spriteBounds.y, spriteBounds.width, spriteBounds.height, x, y, spriteWidth, spriteHeight);
+                    }
+                    else {
+                        cfx = Math.max(cfx, 0);
+                        cfy = Math.max(cfy, 0);
+                        cty = Math.min(cty, spriteHeight);
+                        ctx = Math.min(ctx, spriteWidth);
+                        context.drawImage(texture, spriteBounds.x + cfx, spriteBounds.y + cfy, ctx - cfx, cty - cfy, x + cfx, y + cfy, ctx - cfx, cty - cfy);
                     }
                 }
                 fillRect(color, x, y, width, height) {
@@ -779,6 +807,42 @@ System.register("web/src/native/screen/drawing/drawing-hard", ["engine/src/types
                     };
                     tiles.forEach((t) => this.tilesToTexture.set(t, texture));
                 }
+                preloadSpritesheet(spritesheet) {
+                    if (spritesheet.sprites.length === 0)
+                        return;
+                    const sprites = spritesheet.sprites;
+                    const totalWidth = sprites.map((s) => s.width).reduce((acc, v) => acc + v);
+                    const maxHeight = sprites.map((s) => s.height).reduce((acc, v) => Math.max(acc, v));
+                    const canvas = this.buildCanvasFn(totalWidth, maxHeight);
+                    const ctx = canvas.getContext("2d");
+                    const texturePixels = new ArrayBuffer(totalWidth * maxHeight * 4);
+                    const texturePixels32 = new Uint32Array(texturePixels);
+                    const spritesBounds = new Map();
+                    let x = 0;
+                    const y = 0;
+                    for (let i = 0; i < sprites.length; i++) {
+                        const sprite = sprites[i];
+                        const tp32 = sprite.pixels32;
+                        const spriteWidth = sprite.width;
+                        const spriteHeight = sprite.height;
+                        for (let dy = 0; dy < spriteHeight; dy++) {
+                            let t = (y + dy) * totalWidth + x;
+                            let p = dy * spriteWidth;
+                            for (let dx = 0; dx < spriteWidth; dx++) {
+                                texturePixels32[t++] = tp32[p++];
+                            }
+                        }
+                        const spriteBounds = new types_ts_2.Rect(x, y, spriteWidth, spriteHeight);
+                        spritesBounds.set(sprite, spriteBounds);
+                        x += sprite.width;
+                    }
+                    ctx.putImageData(new ImageData(new Uint8ClampedArray(texturePixels), totalWidth, maxHeight), 0, 0);
+                    const texture = {
+                        canvas,
+                        spritesBounds,
+                    };
+                    sprites.forEach((t) => this.spritesToTexture.set(t, texture));
+                }
             };
             exports_5("DrawingHard", DrawingHard);
         }
@@ -795,7 +859,7 @@ System.register("web/src/native/screen/drawing/worker/types", [], function (expo
 });
 System.register("web/src/native/screen/drawing/worker/worker", ["web/src/native/screen/drawing/drawing-soft", "web/src/native/screen/drawing/drawing-hard"], function (exports_7, context_7) {
     "use strict";
-    var drawing_soft_ts_1, drawing_hard_ts_1, USE_HARD_DRAWING, drawing, tilesMapping;
+    var drawing_soft_ts_1, drawing_hard_ts_1, USE_HARD_DRAWING, drawing, tilesMapping, spritesMapping;
     var __moduleName = context_7 && context_7.id;
     function sendResponse(response) {
         if (response.type === "result") {
@@ -825,12 +889,24 @@ System.register("web/src/native/screen/drawing/worker/worker", ["web/src/native/
     function addTile(tid, tile) {
         tilesMapping.set(tid, tile);
     }
+    function getSprite(sid) {
+        const sprite = spritesMapping.get(sid);
+        if (sprite === undefined) {
+            throw new Error("Unknown sprite id received " + sid);
+        }
+        return sprite;
+    }
+    function addSprite(sid, sprite) {
+        spritesMapping.set(sid, sprite);
+    }
     function handleCommands(commands, commandsLen) {
         let index = 0;
         if (drawing === null)
             return;
         let tilesToAddToTilemap = 0;
         let tilemap = null;
+        let spritesToAddToSpritesheet = 0;
+        let spritesheet = null;
         while (index < commandsLen) {
             const cmd = commands[index++];
             const argsLen = commands[index++];
@@ -838,19 +914,22 @@ System.register("web/src/native/screen/drawing/worker/worker", ["web/src/native/
                 case 0 /* SetTile */:
                     drawing.setTile(getTile(commands[index + 0]), commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6]);
                     break;
-                case 1 /* FillRect */:
+                case 1 /* SetSprite */:
+                    drawing.setSprite(getSprite(commands[index + 0]), commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5], commands[index + 6]);
+                    break;
+                case 2 /* FillRect */:
                     drawing.fillRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4]);
                     break;
-                case 2 /* ScrollRect */:
+                case 3 /* ScrollRect */:
                     drawing.scrollRect(commands[index + 0], commands[index + 1], commands[index + 2], commands[index + 3], commands[index + 4], commands[index + 5]);
                     break;
-                case 3 /* SetSize */:
+                case 4 /* SetSize */:
                     drawing.setSize(commands[index + 0], commands[index + 1]);
                     break;
-                case 4 /* SetTargetLayer */:
+                case 5 /* SetTargetLayer */:
                     drawing.setTargetLayer(commands[index + 0]);
                     break;
-                case 5 /* AddTile */: {
+                case 6 /* AddTile */: {
                     const id = commands[index + 0];
                     const width = commands[index + 1];
                     const height = commands[index + 2];
@@ -877,9 +956,40 @@ System.register("web/src/native/screen/drawing/worker/worker", ["web/src/native/
                     }
                     break;
                 }
-                case 6 /* AddTilemap */: {
+                case 7 /* AddTilemap */: {
                     tilesToAddToTilemap = commands[index + 0];
                     tilemap = { tiles: [] };
+                }
+                case 8 /* AddSprite */: {
+                    const id = commands[index + 0];
+                    const width = commands[index + 1];
+                    const height = commands[index + 2];
+                    const alphaType = commands[index + 3];
+                    const pixels32Len = commands[index + 4];
+                    const pixels32 = new Uint32Array(pixels32Len);
+                    const pixels = new Uint8ClampedArray(pixels32.buffer);
+                    pixels32.set(commands.slice(index + 5, index + 5 + pixels32Len));
+                    const sprite = {
+                        alphaType,
+                        width,
+                        height,
+                        pixels,
+                        pixels32,
+                    };
+                    addSprite(id, sprite);
+                    if (spritesToAddToSpritesheet > 0 && spritesheet !== null) {
+                        spritesheet.sprites.push(sprite);
+                        spritesToAddToSpritesheet--;
+                        if (spritesToAddToSpritesheet === 0) {
+                            drawing?.preloadSpritesheet(spritesheet);
+                            spritesheet = null;
+                        }
+                    }
+                    break;
+                }
+                case 9 /* AddSpritesheet */: {
+                    spritesToAddToSpritesheet = commands[index + 0];
+                    spritesheet = { sprites: [] };
                 }
             }
             index += argsLen;
@@ -922,6 +1032,7 @@ System.register("web/src/native/screen/drawing/worker/worker", ["web/src/native/
             USE_HARD_DRAWING = true;
             drawing = null;
             tilesMapping = new Map();
+            spritesMapping = new Map();
             self.onmessage = (e) => {
                 const command = e.data;
                 handleRequest(command);

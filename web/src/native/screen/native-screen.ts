@@ -121,10 +121,12 @@ export function getWebNativeScreen(
       }
     },
     preloadTilemap: drawing.preloadTilemap.bind(drawing),
+    preloadSpritesheet: drawing.preloadSpritesheet.bind(drawing),
     readyForNextFrame: drawing.isReadyForNextFrame.bind(drawing),
     processPendingFrames: drawing.update.bind(drawing),
     setTargetLayer: drawing.setTargetLayer.bind(drawing),
     setTile: drawing.setTile.bind(drawing),
+    setSprite: drawing.setSprite.bind(drawing),
     fillRect: drawing.fillRect.bind(drawing),
     scrollRect: drawing.scrollRect.bind(drawing),
     beginDraw: () => {},

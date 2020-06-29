@@ -1,15 +1,22 @@
 import { DrawingDoneResult } from "../types.ts";
 
 export type TileId = number;
+export type SpriteId = number;
 
 export const enum DrawingCommandType {
   SetTile,
+  SetSprite,
+
   FillRect,
   ScrollRect,
   SetSize,
   SetTargetLayer,
+
   AddTile,
   AddTilemap,
+
+  AddSprite,
+  AddSpritesheet,
 }
 
 export type DrawingRequestInit = {

@@ -344,6 +344,28 @@ export type Animation = {
   loops: boolean;
 };
 
+export type SpritesheetData = {
+  id: string;
+  sprites: Sprite[];
+  spritesById: Map<string, Sprite>;
+};
+
+export type Spritesheet = SpritesheetData & {
+  getSprite(id: string): Sprite;
+};
+
+export type Sprite = {
+  id: string;
+  spritesheet: SpritesheetData;
+  width: number;
+  height: number;
+  pixels: Uint8ClampedArray;
+  pixels32: Uint32Array;
+  alphaType: AlphaType;
+  pivotX: number;
+  pivotY: number;
+};
+
 export type Font = Tilemap;
 
 export type Fonts = Map<string, Font>;
@@ -352,15 +374,19 @@ export type Animations = Map<string, Animation>;
 
 export type Tilemaps = Map<string, Tilemap>;
 
+export type Spritesheets = Map<string, Spritesheet>;
+
 export type Assets = {
   fonts: Fonts;
   tilemaps: Tilemaps;
   animations: Animations;
+  spritesheets: Spritesheets;
   defaultFont: Font;
   getTile(tilemapDotId: string): Tile;
   getTilemap(id: string): Tilemap;
   getFont(id: string): Font;
   getAnimation(id: string): Animation;
+  getSpritesheet(id: string): Spritesheet;
 };
 
 export interface DrawContext {
@@ -406,6 +432,9 @@ export interface DrawContext {
   ): EngineContext;
 
   tile(x: number, y: number, t: Tile): EngineContext;
+
+  //Sprite API
+  sprite(x: number, y: number, s: Sprite): EngineContext;
 
   //Misc API
   fillRect(

@@ -10,6 +10,8 @@ import {
   Animations,
   Point,
   UPDATE_FPS,
+  Spritesheet,
+  Sprite,
 } from "engine/types.ts";
 
 type TileJson = {
@@ -42,6 +44,17 @@ type AnimationJson = {
   loops?: boolean;
 };
 
+type SpriteJson = {
+  topLeft?: string;
+  size?: string;
+  pivot?: string;
+};
+
+type SpritesheetJson = {
+  filename: string;
+  sprites: Record<string, SpriteJson>;
+};
+
 type AssetsJson = {
   defaultFont: string;
   fonts: Record<string, TilemapJson>;
@@ -49,6 +62,7 @@ type AssetsJson = {
   animations: Record<string, AnimationJson>;
   terrains: TerrainsJson;
   avatars: Record<string, AvatarJson>;
+  spritesheets: Record<string, SpritesheetJson>;
 };
 
 async function loadImage(src: string) {
@@ -158,6 +172,87 @@ async function loadTilemap(
   }
 
   return tilemap;
+}
+
+async function loadSpritesheet(
+  id: string,
+  json: SpritesheetJson,
+): Promise<Spritesheet> {
+  const image = await loadImage(json.filename);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+  ctx.drawImage(image, 0, 0);
+
+  const sprites: Sprite[] = [];
+  const spritesById = new Map<string, Sprite>();
+
+  const spritesheet: Spritesheet = {
+    id,
+    sprites,
+    spritesById,
+    getSprite: (id) => spritesById.get(id) as Sprite,
+  };
+
+  for (const spriteId in json.sprites) {
+    const spriteJson = json.sprites[spriteId];
+
+    const width = spriteJson.size
+      ? parseInt(spriteJson.size?.split("x")[0])
+      : 0;
+    const height = spriteJson.size
+      ? parseInt(spriteJson.size?.split("x")[1])
+      : 0;
+
+    const x = spriteJson.topLeft
+      ? parseInt(spriteJson.topLeft?.split(",")[0])
+      : 0;
+    const y = spriteJson.topLeft
+      ? parseInt(spriteJson.topLeft?.split(",")[1])
+      : 0;
+
+    const pivotX = spriteJson.pivot
+      ? parseInt(spriteJson.pivot?.split(",")[0])
+      : 0;
+    const pivotY = spriteJson.pivot
+      ? parseInt(spriteJson.pivot?.split(",")[1])
+      : 0;
+
+    const pixels = ctx.getImageData(
+      x,
+      y,
+      width,
+      height,
+    ).data;
+
+    const pixels32 = new Uint32Array(pixels.buffer);
+
+    const hasAlpha = pixels32.some((x) => ((x >> 24) & 0xff) != 255);
+    const hasAlphaSolid = pixels32.every((x) =>
+      ((x >> 24) & 0xff) == 255 || ((x >> 24) & 0xff) == 0
+    );
+
+    const sprite: Sprite = {
+      id: spriteId,
+      width,
+      height,
+      pivotX,
+      pivotY,
+      pixels,
+      pixels32,
+      spritesheet,
+      alphaType: hasAlpha
+        ? hasAlphaSolid ? AlphaType.Solid : AlphaType.Alpha
+        : AlphaType.None,
+    };
+
+    sprites.push(sprite);
+    spritesById.set(spriteId, sprite);
+  }
+
+  return spritesheet;
 }
 
 function loadTerrain(
@@ -358,6 +453,7 @@ export async function initAssets(): Promise<Assets> {
   const fonts = new Map<string, Font>();
   const animations = new Map<string, Animation>();
   const tilemaps = new Map<string, Tilemap>();
+  const spritesheets = new Map<string, Spritesheet>();
 
   const assetsJsonTxt = await (await fetch("res/assets.json")).text();
   const assetsJson = JSON.parse(assetsJsonTxt) as AssetsJson;
@@ -411,10 +507,19 @@ export async function initAssets(): Promise<Assets> {
     loadAvatar(avatarId, avatarJson, tilemap, animations);
   }
 
+  for (const spritesheetId in assetsJson.spritesheets) {
+    const spritesheetJson = assetsJson.spritesheets[spritesheetId];
+
+    const spritesheet = await loadSpritesheet(spritesheetId, spritesheetJson);
+
+    spritesheets.set(spritesheetId, spritesheet);
+  }
+
   const assets: Assets = {
     fonts,
     animations,
     tilemaps,
+    spritesheets,
     defaultFont: fonts.get(assetsJson.defaultFont) as Font,
     getAnimation: (id) => animations.get(id) as Animation,
     getFont: (id) => fonts.get(id) as Font,
@@ -423,6 +528,7 @@ export async function initAssets(): Promise<Assets> {
       (tilemaps.get(tilemapDotTile.split(".")[0]) as Tilemap).getTile(
         tilemapDotTile.split(".")[1],
       ),
+    getSpritesheet: (id) => spritesheets.get(id) as Spritesheet,
   };
 
   return assets;

@@ -1,4 +1,4 @@
-import { Assets, Rect } from "engine/types.ts";
+import { Assets, Rect, Sprite } from "engine/types.ts";
 import { TileWidget } from "engine/widgets/game/tile.ts";
 import { ScrollableTilesContainerWidget } from "engine/widgets/game/tiles-container.ts";
 import { TilemapWidget } from "engine/widgets/game/tilemap.ts";
@@ -8,6 +8,7 @@ import {
   randomNumber,
   setRandomSeed,
 } from "./random.ts";
+import { SpriteWidget } from "engine/widgets/game/sprite.ts";
 
 const MAP_SIZE = 512;
 
@@ -15,6 +16,7 @@ const DECOS_COUNT = 1024;
 const ALT_TERRAINS_COUNT = 256;
 const ALT_TERRAINS_MIN_SIZE = 8;
 const ALT_TERRAINS_MAX_SIZE = 16;
+const TREES_COUNT = 2048;
 
 const mainTerrain = "grass";
 
@@ -75,6 +77,14 @@ export default function initMap(
     t.sortingLayer = -1;
     t.x = x * t.tile.width;
     t.y = y * t.tile.height;
+    t.parent = tilesContainer;
+  };
+
+  const addSprite = (x: number, y: number, sprite: Sprite) => {
+    const t = new SpriteWidget(sprite);
+    t.sortingLayer = 0;
+    t.x = x;
+    t.y = y;
     t.parent = tilesContainer;
   };
 
@@ -189,6 +199,15 @@ export default function initMap(
     }
 
     addTile(x, y, "terrain." + randomDecoTile(getTerrainId(x, y)));
+  }
+
+  const trees = assets.getSpritesheet("trees").sprites;
+
+  for (let i = 0; i < TREES_COUNT; i++) {
+    const x = randomIntervalInt(0, tilesContainer.tilemapsBounds.width);
+    const y = randomIntervalInt(0, tilesContainer.tilemapsBounds.height);
+
+    addSprite(x, y, randomFromArray(trees));
   }
 
   return {

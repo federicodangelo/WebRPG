@@ -45,5 +45,22 @@
         "specialTransitions": { "snow": { "index": 405 } }
       }
     }
+  },
+  "spritesheets": {
+    "trees": {
+      "filename": "plants.png",
+      "sprites": {
+        "tree1": {
+          "topLeft": "97,132",
+          "size": "92x148",
+          "pivot": "46,131"
+        },
+        "tree2": {
+          "topLeft": "190,133",
+          "size": "100x149",
+          "pivot": "50,130"
+        }
+      }
+    }
   }
 }

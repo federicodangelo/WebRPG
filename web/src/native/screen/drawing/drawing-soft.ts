@@ -13,6 +13,8 @@ import {
   AnyCanvasContextType,
   AnyCanvasType,
   DrawingTilemap,
+  DrawingSprite,
+  DrawingSpritesheet,
 } from "./types.ts";
 
 class DrawingSoftLayer {
@@ -281,6 +283,18 @@ export class DrawingSoft implements Drawing {
     }
   }
 
+  public setSprite(
+    t: DrawingSprite,
+    x: number,
+    y: number,
+    cfx: number,
+    cfy: number,
+    ctx: number,
+    cty: number,
+  ) {
+    this.setTile(t, x, y, cfx, cfy, ctx, cty);
+  }
+
   public fillRect(
     color: Color,
     x: number,
@@ -426,4 +440,6 @@ export class DrawingSoft implements Drawing {
   public update() {}
 
   public preloadTilemap(tilemap: DrawingTilemap) {}
+
+  public preloadSpritesheet(spritesheet: DrawingSpritesheet) {}
 }

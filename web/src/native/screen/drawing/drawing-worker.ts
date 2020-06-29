@@ -10,10 +10,13 @@ import {
   AnyCanvasType,
   AnyCanvasContextType,
   DrawingTilemap,
+  DrawingSpritesheet,
+  DrawingSprite,
 } from "./types.ts";
 import {
   DrawingResponse,
   TileId,
+  SpriteId,
   DrawingRequestBatch,
   DrawingCommandType,
   DrawingRequestInit,
@@ -39,7 +42,8 @@ export class DrawingWorker implements Drawing {
   private drawQueueLen = 0;
 
   private tileMappings = new Map<DrawingTile, TileId>();
-  private nextTileId = 0;
+  private spriteMappings = new Map<DrawingSprite, SpriteId>();
+  private nextUniqueId = 0;
   private pendingDoneResults: DrawingDoneResult[] = [];
 
   private canvases: AnyCanvasType[];
@@ -127,7 +131,7 @@ export class DrawingWorker implements Drawing {
     const tileId = this.tileMappings.get(tile);
     if (tileId !== undefined) return tileId;
 
-    const id = this.nextTileId++;
+    const id = this.nextUniqueId++;
     this.tileMappings.set(tile, id);
 
     this.enqueueOptimizedCommand(
@@ -138,6 +142,26 @@ export class DrawingWorker implements Drawing {
       tile.alphaType,
       tile.pixels32.length,
       ...tile.pixels32,
+    );
+
+    return id;
+  }
+
+  private getSpriteId(sprite: DrawingSprite): SpriteId {
+    const spriteId = this.spriteMappings.get(sprite);
+    if (spriteId !== undefined) return spriteId;
+
+    const id = this.nextUniqueId++;
+    this.spriteMappings.set(sprite, id);
+
+    this.enqueueOptimizedCommand(
+      DrawingCommandType.AddSprite,
+      id,
+      sprite.width,
+      sprite.height,
+      sprite.alphaType,
+      sprite.pixels32.length,
+      ...sprite.pixels32,
     );
 
     return id;
@@ -193,6 +217,27 @@ export class DrawingWorker implements Drawing {
     this.enqueueOptimizedCommand(
       DrawingCommandType.SetTile,
       this.getTileId(t),
+      x,
+      y,
+      cfx,
+      cfy,
+      ctx,
+      cty,
+    );
+  }
+
+  public setSprite(
+    t: DrawingSprite,
+    x: number,
+    y: number,
+    cfx: number,
+    cfy: number,
+    ctx: number,
+    cty: number,
+  ) {
+    this.enqueueOptimizedCommand(
+      DrawingCommandType.SetSprite,
+      this.getSpriteId(t),
       x,
       y,
       cfx,
@@ -314,6 +359,17 @@ export class DrawingWorker implements Drawing {
     );
     for (let i = 0; i < tilemap.tiles.length; i++) {
       this.getTileId(tilemap.tiles[i]);
+    }
+    this.commit();
+  }
+
+  public preloadSpritesheet(spritesheet: DrawingSpritesheet) {
+    this.enqueueOptimizedCommand(
+      DrawingCommandType.AddSpritesheet,
+      spritesheet.sprites.length,
+    );
+    for (let i = 0; i < spritesheet.sprites.length; i++) {
+      this.getSpriteId(spritesheet.sprites[i]);
     }
     this.commit();
   }

@@ -5,6 +5,7 @@ import {
   DrawingResponse,
   TileId,
   DrawingCommandType,
+  SpriteId,
 } from "./types.ts";
 import {
   DrawingTile,
@@ -12,6 +13,8 @@ import {
   DrawingDoneDirtyParams,
   Drawing,
   DrawingTilemap,
+  DrawingSpritesheet,
+  DrawingSprite,
 } from "../types.ts";
 import { AlphaType } from "engine/types.ts";
 
@@ -55,11 +58,27 @@ function addTile(tid: TileId, tile: DrawingTile) {
   tilesMapping.set(tid, tile);
 }
 
+const spritesMapping = new Map<number, DrawingSprite>();
+
+function getSprite(sid: SpriteId): DrawingSprite {
+  const sprite = spritesMapping.get(sid);
+  if (sprite === undefined) {
+    throw new Error("Unknown sprite id received " + sid);
+  }
+  return sprite;
+}
+
+function addSprite(sid: SpriteId, sprite: DrawingSprite) {
+  spritesMapping.set(sid, sprite);
+}
+
 function handleCommands(commands: Int32Array, commandsLen: number) {
   let index = 0;
   if (drawing === null) return;
   let tilesToAddToTilemap = 0;
   let tilemap: DrawingTilemap | null = null;
+  let spritesToAddToSpritesheet = 0;
+  let spritesheet: DrawingSpritesheet | null = null;
   while (index < commandsLen) {
     const cmd: DrawingCommandType = commands[index++];
     const argsLen = commands[index++];
@@ -67,6 +86,17 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
       case DrawingCommandType.SetTile:
         drawing.setTile(
           getTile(commands[index + 0]),
+          commands[index + 1],
+          commands[index + 2],
+          commands[index + 3],
+          commands[index + 4],
+          commands[index + 5],
+          commands[index + 6],
+        );
+        break;
+      case DrawingCommandType.SetSprite:
+        drawing.setSprite(
+          getSprite(commands[index + 0]),
           commands[index + 1],
           commands[index + 2],
           commands[index + 3],
@@ -132,10 +162,40 @@ function handleCommands(commands: Int32Array, commandsLen: number) {
         }
         break;
       }
-
       case DrawingCommandType.AddTilemap: {
         tilesToAddToTilemap = commands[index + 0];
         tilemap = { tiles: [] };
+      }
+      case DrawingCommandType.AddSprite: {
+        const id = commands[index + 0];
+        const width = commands[index + 1];
+        const height = commands[index + 2];
+        const alphaType: AlphaType = commands[index + 3];
+        const pixels32Len = commands[index + 4];
+        const pixels32 = new Uint32Array(pixels32Len);
+        const pixels = new Uint8ClampedArray(pixels32.buffer);
+        pixels32.set(commands.slice(index + 5, index + 5 + pixels32Len));
+        const sprite = {
+          alphaType,
+          width,
+          height,
+          pixels,
+          pixels32,
+        };
+        addSprite(id, sprite);
+        if (spritesToAddToSpritesheet > 0 && spritesheet !== null) {
+          spritesheet.sprites.push(sprite);
+          spritesToAddToSpritesheet--;
+          if (spritesToAddToSpritesheet === 0) {
+            drawing?.preloadSpritesheet(spritesheet);
+            spritesheet = null;
+          }
+        }
+        break;
+      }
+      case DrawingCommandType.AddSpritesheet: {
+        spritesToAddToSpritesheet = commands[index + 0];
+        spritesheet = { sprites: [] };
       }
     }
     index += argsLen;

@@ -7,7 +7,7 @@ import { TilemapWidget } from "./tilemap.ts";
 import { ScrollableContainerWidget } from "../scrollable.ts";
 
 function compareChildren(c1: Widget, c2: Widget) {
-  if (c1.sortingLayer === c2.sortingLayer) return c1.visibleY - c2.visibleY;
+  if (c1.sortingLayer === c2.sortingLayer) return c1.y - c2.y;
   return c1.sortingLayer - c2.sortingLayer;
 }
 

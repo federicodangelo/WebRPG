@@ -5,6 +5,8 @@ import {
   EngineKeyEvent,
   EngineMouseEvent,
   TilemapData,
+  Sprite,
+  SpritesheetData,
 } from "./types.ts";
 import { LayerId } from "./types.ts";
 
@@ -21,7 +23,8 @@ export interface NativeContextScreen {
   toggleStats(): void;
   readyForNextFrame(maxPendingFrames: number): boolean;
   processPendingFrames(): void;
-  preloadTilemap(tile: TilemapData): void;
+  preloadTilemap(tilemap: TilemapData): void;
+  preloadSpritesheet(spritesheet: SpritesheetData): void;
 
   beginDraw(): void;
 
@@ -29,6 +32,16 @@ export interface NativeContextScreen {
 
   setTile(
     t: Tile,
+    x: number,
+    y: number,
+    cfx: number,
+    cfy: number,
+    ctx: number,
+    cty: number,
+  ): void;
+
+  setSprite(
+    s: Sprite,
     x: number,
     y: number,
     cfx: number,

@@ -9,6 +9,7 @@ import {
   Tilemap,
   Font,
   LayerId,
+  Sprite,
 } from "./types.ts";
 import { NativeContextScreen, NativeDrawStats } from "./native-types.ts";
 
@@ -455,6 +456,36 @@ export class EngineContextImpl implements EngineContext {
     return this;
   }
 
+  public sprite(x: number, y: number, s: Sprite): EngineContext {
+    const screenX = x + this.tx;
+    const screenY = y + this.ty;
+    const clip = this.clip;
+    const width = s.width;
+    const height = s.height;
+
+    if (
+      screenX + width > clip.x &&
+      screenX < clip.x1 &&
+      screenY + height > clip.y &&
+      screenY < clip.y1
+    ) {
+      const cfx = Math.max(clip.x - screenX, 0);
+      const cfy = Math.max(clip.y - screenY, 0);
+      const ctx = Math.min(clip.x1 - screenX, width);
+      const cty = Math.min(clip.y1 - screenY, height);
+
+      this.nativeContext.setSprite(
+        s,
+        screenX,
+        screenY,
+        cfx,
+        cfy,
+        ctx,
+        cty,
+      );
+    }
+    return this;
+  }
   public fillRect(
     x: number,
     y: number,

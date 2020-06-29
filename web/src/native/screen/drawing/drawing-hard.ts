@@ -13,6 +13,8 @@ import {
   AnyCanvasContextType,
   AnyCanvasType,
   DrawingTilemap,
+  DrawingSprite,
+  DrawingSpritesheet,
 } from "./types.ts";
 
 class DrawingHardLayer {
@@ -99,6 +101,11 @@ type TilemapTexture = {
   tilesBounds: Map<DrawingTile, Rect>;
 };
 
+type SpritesheetTexture = {
+  canvas: AnyCanvasType;
+  spritesBounds: Map<DrawingSprite, Rect>;
+};
+
 export class DrawingHard implements Drawing {
   private layers: DrawingHardLayer[] = [];
   private drawingDone: DrawingDoneFn;
@@ -106,6 +113,7 @@ export class DrawingHard implements Drawing {
   private dirtyTime = 0;
   private targetLayer: DrawingHardLayer;
   private tilesToTexture = new Map<DrawingTile, TilemapTexture>();
+  private spritesToTexture = new Map<DrawingSprite, SpritesheetTexture>();
   private buildCanvasFn: (w: number, h: number) => AnyCanvasType;
 
   public constructor(
@@ -199,6 +207,62 @@ export class DrawingHard implements Drawing {
         texture,
         tileBounds.x + cfx,
         tileBounds.y + cfy,
+        ctx - cfx,
+        cty - cfy,
+        x + cfx,
+        y + cfy,
+        ctx - cfx,
+        cty - cfy,
+      );
+    }
+  }
+
+  public setSprite(
+    s: DrawingSprite,
+    x: number,
+    y: number,
+    cfx: number,
+    cfy: number,
+    ctx: number,
+    cty: number,
+  ) {
+    this.setDirty(x, y, s.width, s.height);
+
+    const spriteWidth = s.width;
+    const spriteHeight = s.height;
+
+    const context = this.targetLayer.ctx;
+    const st = this.spritesToTexture.get(s);
+
+    if (!st) return;
+
+    const texture = st.canvas;
+    const spriteBounds = st.spritesBounds.get(s);
+
+    if (!spriteBounds) return;
+
+    if (cfx <= 0 && cfy <= 0 && ctx >= s.width && cty >= s.height) {
+      context.drawImage(
+        texture,
+        spriteBounds.x,
+        spriteBounds.y,
+        spriteBounds.width,
+        spriteBounds.height,
+        x,
+        y,
+        spriteWidth,
+        spriteHeight,
+      );
+    } else {
+      cfx = Math.max(cfx, 0);
+      cfy = Math.max(cfy, 0);
+      cty = Math.min(cty, spriteHeight);
+      ctx = Math.min(ctx, spriteWidth);
+
+      context.drawImage(
+        texture,
+        spriteBounds.x + cfx,
+        spriteBounds.y + cfy,
         ctx - cfx,
         cty - cfy,
         x + cfx,
@@ -349,5 +413,71 @@ export class DrawingHard implements Drawing {
     };
 
     tiles.forEach((t) => this.tilesToTexture.set(t, texture));
+  }
+
+  public preloadSpritesheet(spritesheet: DrawingSpritesheet) {
+    if (spritesheet.sprites.length === 0) return;
+
+    const sprites = spritesheet.sprites;
+
+    const totalWidth = sprites.map((s) => s.width).reduce((acc, v) => acc + v);
+    const maxHeight = sprites.map((s) => s.height).reduce((acc, v) =>
+      Math.max(acc, v)
+    );
+
+    const canvas = this.buildCanvasFn(totalWidth, maxHeight);
+    const ctx = canvas.getContext("2d") as AnyCanvasContextType;
+
+    const texturePixels = new ArrayBuffer(totalWidth * maxHeight * 4);
+    const texturePixels32 = new Uint32Array(texturePixels);
+
+    const spritesBounds = new Map<DrawingSprite, Rect>();
+
+    let x = 0;
+    const y = 0;
+
+    for (let i = 0; i < sprites.length; i++) {
+      const sprite = sprites[i];
+
+      const tp32 = sprite.pixels32;
+      const spriteWidth = sprite.width;
+      const spriteHeight = sprite.height;
+
+      for (let dy = 0; dy < spriteHeight; dy++) {
+        let t = (y + dy) * totalWidth + x;
+        let p = dy * spriteWidth;
+        for (let dx = 0; dx < spriteWidth; dx++) {
+          texturePixels32[t++] = tp32[p++];
+        }
+      }
+
+      const spriteBounds = new Rect(
+        x,
+        y,
+        spriteWidth,
+        spriteHeight,
+      );
+
+      spritesBounds.set(sprite, spriteBounds);
+
+      x += sprite.width;
+    }
+
+    ctx.putImageData(
+      new ImageData(
+        new Uint8ClampedArray(texturePixels),
+        totalWidth,
+        maxHeight,
+      ),
+      0,
+      0,
+    );
+
+    const texture: SpritesheetTexture = {
+      canvas,
+      spritesBounds,
+    };
+
+    sprites.forEach((t) => this.spritesToTexture.set(t, texture));
   }
 }

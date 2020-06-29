@@ -138,9 +138,13 @@ async function init(mainStateId: StateId) {
   //Wait engine ready
   await waitNoPendingFrames();
 
-  //Preload tilemaps and fonts
+  //Preload assets
   for (const tilemap of assets.tilemaps.values()) {
     native.screen.preloadTilemap(tilemap);
+    await waitNoPendingFrames();
+  }
+  for (const spritesheet of assets.spritesheets.values()) {
+    native.screen.preloadSpritesheet(spritesheet);
     await waitNoPendingFrames();
   }
   for (const font of assets.fonts.values()) {
